@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import { PageHeader } from '@/shared/layouts';
+
+export const metadata: Metadata = {
+  title: 'Point of Sale',
+  description: 'Kelola transaksi penjualan dengan cepat dan mudah',
+};
 
 export default function POSPage() {
   return (
