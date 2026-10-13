@@ -1,6 +1,7 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Input, InputProps } from './Input';
-import { cn } from '@/shared/utils';
 
 export interface SearchInputProps extends Omit<InputProps, 'leftIcon' | 'rightIcon' | 'type'> {
   onClear?: () => void;

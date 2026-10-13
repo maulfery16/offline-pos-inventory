@@ -3,44 +3,41 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  ShoppingCart,
-  Package,
-  BarChart3,
-  Settings,
-  Menu,
-  X,
-  WifiOff,
-} from 'lucide-react';
+import { Menu, X, WifiOff } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { cn } from '@/shared/utils';
 
 interface NavigationItem {
   label: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
 }
 
 const navigationItems: NavigationItem[] = [
   {
-    label: 'POS',
-    href: '/pos',
-    icon: ShoppingCart,
+    label: 'Kasir',
+    href: '/kasir',
+    icon: '🛒',
   },
   {
-    label: 'Inventory',
-    href: '/inventory',
-    icon: Package,
+    label: 'Barang Masuk',
+    href: '/barang-masuk',
+    icon: '📦',
   },
   {
-    label: 'Reports',
-    href: '/reports',
-    icon: BarChart3,
+    label: 'Inventaris',
+    href: '/inventaris',
+    icon: '📋',
   },
   {
-    label: 'Settings',
-    href: '/settings',
-    icon: Settings,
+    label: 'Kedaluwarsa',
+    href: '/kedaluwarsa',
+    icon: '⏰',
+  },
+  {
+    label: 'Laporan',
+    href: '/laporan',
+    icon: '📊',
   },
 ];
 
@@ -76,14 +73,13 @@ export const RetailShell: React.FC<RetailShellProps> = ({
         {/* Logo/Brand */}
         <div className="flex items-center h-16 px-6 border-b border-gray-200">
           <h1 className="text-xl font-semibold text-gray-900">
-            POS Inventory
+            POS Offline
           </h1>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navigationItems.map((item) => {
-            const Icon = item.icon;
             const isActive = pathname?.startsWith(item.href);
 
             return (
@@ -95,13 +91,13 @@ export const RetailShell: React.FC<RetailShellProps> = ({
                   'min-h-[44px]', // Touch-friendly
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                   isActive
-                    ? 'bg-primary-soft text-primary font-medium'
+                    ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-gray-700 hover:bg-gray-100'
                 )}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <Icon className="w-5 h-5" aria-hidden="true" />
+                <span className="text-xl" aria-hidden="true">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             );
@@ -129,7 +125,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
         {/* Logo/Brand with Close Button */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <h1 className="text-xl font-semibold text-gray-900">
-            POS Inventory
+            POS Offline
           </h1>
           <button
             onClick={closeSidebar}
@@ -146,7 +142,6 @@ export const RetailShell: React.FC<RetailShellProps> = ({
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navigationItems.map((item) => {
-            const Icon = item.icon;
             const isActive = pathname?.startsWith(item.href);
 
             return (
@@ -159,13 +154,13 @@ export const RetailShell: React.FC<RetailShellProps> = ({
                   'min-h-[44px]', // Touch-friendly
                   'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                   isActive
-                    ? 'bg-primary-soft text-primary font-medium'
+                    ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-gray-700 hover:bg-gray-100'
                 )}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <Icon className="w-5 h-5" aria-hidden="true" />
+                <span className="text-xl" aria-hidden="true">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             );

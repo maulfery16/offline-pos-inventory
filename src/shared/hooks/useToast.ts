@@ -1,54 +1,33 @@
-import { useState, useCallback } from 'react';
-import { Toast, ToastVariant } from '@/shared/components';
+// This hook is now deprecated. Use Sonner's toast directly instead.
+// Migration guide:
+// 
+// Old way:
+// const { success, error } = useToast();
+// success('Saved!');
+// 
+// New way:
+// import { toast } from 'sonner';
+// toast.success('Saved!');
+//
+// The Toaster component is already added to root layout.
 
-let toastIdCounter = 0;
+import { toast } from 'sonner';
 
 export const useToast = () => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const showToast = useCallback(
-    (message: string, variant: ToastVariant = 'info', duration?: number) => {
-      const id = `toast-${++toastIdCounter}`;
-      const newToast: Toast = { id, message, variant, duration };
-
-      setToasts((prev) => [...prev, newToast]);
-
-      return id;
-    },
-    []
-  );
-
-  const hideToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
-
-  const success = useCallback(
-    (message: string, duration?: number) => showToast(message, 'success', duration),
-    [showToast]
-  );
-
-  const error = useCallback(
-    (message: string, duration?: number) => showToast(message, 'error', duration),
-    [showToast]
-  );
-
-  const warning = useCallback(
-    (message: string, duration?: number) => showToast(message, 'warning', duration),
-    [showToast]
-  );
-
-  const info = useCallback(
-    (message: string, duration?: number) => showToast(message, 'info', duration),
-    [showToast]
-  );
-
   return {
-    toasts,
-    showToast,
-    hideToast,
-    success,
-    error,
-    warning,
-    info,
+    success: (message: string, description?: string) => 
+      toast.success(message, description ? { description } : undefined),
+    error: (message: string, description?: string) => 
+      toast.error(message, description ? { description } : undefined),
+    warning: (message: string, description?: string) => 
+      toast.warning(message, description ? { description } : undefined),
+    info: (message: string, description?: string) => 
+      toast.info(message, description ? { description } : undefined),
+    // Legacy compatibility
+    showToast: (message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+      toast[variant](message);
+    },
+    hideToast: (id?: string | number) => toast.dismiss(id),
+    toasts: [], // Legacy compatibility - no longer used
   };
 };
