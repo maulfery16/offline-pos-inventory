@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-002",
+  "type": "refactor",
+  "description": "Migrate komponen existing ke shadcn UI dan buat wrapper customs. Ganti semua import komponen existing (Button, Input, Badge, Card, Table, Modal/Dialog, SearchInput) dengan shadcn equivalents. Buat custom wrapper di src/shared/components/ untuk preserve API compatibility dan tambahkan custom variants yang diperlukan project (contoh: Button variant danger/ghost, Badge variant offline).",
+  "status": "pending",
+  "steps": [
+    "Backup komponen existing: rename src/shared/components/Button.tsx menjadi Button.old.tsx (dan seterusnya untuk Input, Badge, Card, Table, Modal, SearchInput) sebagai reference",
+    "Buat src/shared/components/Button.tsx sebagai wrapper shadcn Button dengan: (1) Import dari '@/shared/components/ui/button', (2) Tambahkan custom variants: danger (bg-red-600 hover:bg-red-700) dan ghost sesuai design existing, (3) Tambahkan props: isLoading, leftIcon, rightIcon, fullWidth, (4) Preserve ButtonProps interface existing untuk backward compatibility",
+    "Buat src/shared/components/Input.tsx wrapper dengan: (1) Import shadcn Input, (2) Tambahkan label, error, helperText, leftIcon, rightIcon props sesuai design existing, (3) Maintain h-10/40px height untuk touch-friendly",
+    "Buat src/shared/components/Badge.tsx wrapper dengan: (1) Import shadcn Badge, (2) Tambahkan custom variants: success, warning, danger, info, offline, neutral dengan colors sesuai tailwind.config.ts, (3) Tambahkan dot indicator support",
+    "Buat src/shared/components/Card.tsx wrapper dengan: (1) Import shadcn Card components (Card, CardHeader, CardTitle, CardContent, CardFooter), (2) Re-export dengan API existing untuk compatibility",
+    "Buat src/shared/components/Dialog.tsx (ganti Modal) wrapper dengan: (1) Import shadcn Dialog, (2) Preserve Modal API existing dengan isOpen, onClose props, (3) Support size variants: sm, md, lg, xl",
+    "Buat src/shared/components/Table.tsx wrapper dengan: (1) Import shadcn Table components, (2) Preserve existing API dengan sortable dan selected props extensions",
+    "Buat src/shared/components/SearchInput.tsx dengan: (1) Compose dari shadcn Input wrapper, (2) Integrate search icon dan clear button",
+    "Update src/shared/components/index.ts untuk export semua wrapper components",
+    "Hapus atau archive .old.tsx files setelah verifikasi"
+  ],
+  "acceptance_criteria": [
+    "Semua komponen wrapper API compatible dengan komponen existing",
+    "Custom variants (danger button, offline badge) berfungsi sesuai design system",
+    "leftIcon/rightIcon support berfungsi di Button dan Input",
+    "Modal/Dialog API preserved dengan isOpen/onClose props",
+    "Touch targets tetap min 44px",
+    "TypeScript types fully preserved dan compatible",
+    "Tidak ada breaking changes untuk code yang sudah menggunakan komponen existing"
+  ],
+  "verification": [
+    "npm run build - sukses tanpa TypeScript errors",
+    "npm run lint - pass",
+    "Test render setiap wrapper component dengan berbagai props untuk verifikasi compatibility",
+    "Visual comparison dengan design existing untuk memastikan styling konsisten"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

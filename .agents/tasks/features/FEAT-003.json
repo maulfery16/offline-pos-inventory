@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Implementasikan design tokens TypeScript dan layout system menggunakan shadcn components. Buat tokens.ts, RetailShell main layout dengan shadcn Sheet untuk mobile menu, dan PageHeader component. Semua menggunakan shadcn components yang sudah di-wrap di FEAT-002.",
+  "status": "pending",
+  "steps": [
+    "Buat src/shared/styles/tokens.ts yang export design tokens dari tailwind.config.ts sebagai TypeScript constants (colors, spacing, borderRadius) plus CSS variable helpers untuk runtime theming",
+    "Install shadcn Sheet component untuk mobile menu: npx shadcn-ui@latest add sheet",
+    "Buat src/shared/layouts/ directory dan implementasi RetailShell.tsx dengan: (1) Desktop sidebar menggunakan shadcn Card untuk navigation items dengan hover states, (2) Mobile hamburger menu menggunakan shadcn Sheet component, (3) Top bar dengan offline Badge indicator, (4) Navigation items: POS, Inventory, Reports, Settings dengan lucide-react icons, (5) Responsive breakpoint < 768px",
+    "Implementasi src/shared/layouts/PageHeader.tsx dengan: (1) Title dan description, (2) Action buttons slot menggunakan shadcn Button, (3) Optional breadcrumb menggunakan shadcn Breadcrumb (install jika perlu: npx shadcn-ui@latest add breadcrumb), (4) Responsive text sizing",
+    "Buat src/shared/layouts/index.ts untuk exports",
+    "Update src/app/layout.tsx atau buat src/app/(dashboard)/layout.tsx dengan RetailShell wrapper"
+  ],
+  "acceptance_criteria": [
+    "tokens.ts menyediakan typed exports untuk design system values",
+    "RetailShell menggunakan shadcn Sheet untuk mobile menu yang smooth dan accessible",
+    "Desktop sidebar dengan shadcn Card styling untuk navigation consistency",
+    "PageHeader reusable dengan shadcn Button untuk actions",
+    "Keyboard navigation berfungsi: Tab, Enter, Escape untuk close menu",
+    "Touch targets min 44px untuk semua navigation items",
+    "Responsive behavior smooth di berbagai breakpoints"
+  ],
+  "verification": [
+    "npm run build - sukses",
+    "npm run lint - pass",
+    "npm run dev dan visual check: desktop sidebar dengan shadcn styling, mobile Sheet menu berfungsi, offline badge visible, responsive behavior smooth",
+    "Test keyboard: Tab navigation, Enter activate, Escape close mobile menu",
+    "Test touch: menu items tap-friendly di mobile"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

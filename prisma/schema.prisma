@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────
+// Multi-Tenant Core
+// ──────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches  Branch[]
+  users     User[]
+}
+
+model Branch {
+  id        String    @id @default(uuid())
+  tenantId  String
+  name      String
+  address   String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  devices   Device[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("cashier")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  devices Device[]
+}
+
+model Device {
+  id          String   @id @default(uuid())
+  branchId    String
+  userId      String
+  deviceName  String
+  deviceToken String   @unique
+  createdAt   DateTime @default(now())
+
+  branch Branch @relation(fields: [branchId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+// ──────────────────────────────────────────
+// Inventory
+// ──────────────────────────────────────────
+
+model Product {
+  id          String    @id @default(uuid())
+  tenantId    String
+  sku         String
+  name        String
+  unit        String    @default("pcs")
+  sellingPrice Decimal  @db.Decimal(15, 2)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  batches InventoryBatch[]
+
+  @@unique([tenantId, sku])
+}
+
+model InventoryBatch {
+  id          String    @id @default(uuid())
+  productId   String
+  branchId    String
+  batchCode   String
+  expiryDate  DateTime
+  initialQty  Decimal   @db.Decimal(15, 3)
+  currentQty  Decimal   @db.Decimal(15, 3)
+  costPrice   Decimal   @db.Decimal(15, 2)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([productId, branchId, expiryDate])
+}
+
+// ──────────────────────────────────────────
+// POS Transactions
+// ──────────────────────────────────────────
+
+model Transaction {
+  id            String   @id @default(uuid())
+  tenantId      String
+  branchId      String
+  deviceId      String
+  receiptNumber String
+  totalAmount   Decimal  @db.Decimal(15, 2)
+  paymentMethod String
+  createdAt     DateTime @default(now())
+
+  items TransactionItem[]
+
+  @@index([tenantId, branchId, createdAt])
+}
+
+model TransactionItem {
+  id             String  @id @default(uuid())
+  transactionId  String
+  productId      String
+  quantity       Decimal @db.Decimal(15, 3)
+  sellingPrice   Decimal @db.Decimal(15, 2)
+  subtotal       Decimal @db.Decimal(15, 2)
+
+  transaction    Transaction          @relation(fields: [transactionId], references: [id])
+  batchLedger    TransactionItemBatch[]
+}
+
+model TransactionItemBatch {
+  id              String  @id @default(uuid())
+  transactionItemId String
+  batchId         String
+  deductedQty     Decimal @db.Decimal(15, 3)
+  costPrice       Decimal @db.Decimal(15, 2)
+
+  transactionItem TransactionItem @relation(fields: [transactionItemId], references: [id])
+}
+
+// ──────────────────────────────────────────
+// Anomaly Log
+// ──────────────────────────────────────────
+
+model AnomalyLog {
+  id          String   @id @default(uuid())
+  tenantId    String
+  branchId    String
+  productId   String
+  batchId     String?
+  type        String
+  description String
+  createdAt   DateTime @default(now())
+}

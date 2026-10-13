@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Perbaiki globals.css dan inisialisasi shadcn UI sepenuhnya. File globals.css memiliki error 'border-border class does not exist'. Kita akan setup shadcn CLI dan install base components untuk mengganti komponen existing agar sistem lebih seragam dengan shadcn ecosystem.",
+  "status": "completed",
+  "steps": [
+    "Perbaiki src/app/globals.css dengan template shadcn standar yang include CSS variables untuk light/dark mode (--background, --foreground, --primary, --secondary, --muted, --accent, --destructive, --border, --input, --ring) disesuaikan dengan design tokens di tailwind.config.ts (primary #0f6d5f, accent #12507f)",
+    "Buat components.json manual di root dengan config: style='default', rsc=true, tsx=true, tailwind.config='tailwind.config.ts', tailwind.css='src/app/globals.css', aliases.components='@/shared/components/ui', aliases.utils='@/shared/utils', importSource='@/shared/utils' untuk cn()",
+    "Install shadcn base components via CLI: npx shadcn-ui@latest add button input badge card table dialog dropdown-menu. Ini akan mengganti komponen existing di src/shared/components/ dengan versi shadcn di src/shared/components/ui/",
+    "Update tailwind.config.ts: tambahkan tailwindcss-animate plugin dan pastikan content paths include ui directory",
+    "Verifikasi build sukses dengan npm run build"
+  ],
+  "acceptance_criteria": [
+    "npm run build berhasil tanpa error",
+    "globals.css berisi shadcn CSS variables yang disesuaikan dengan design tokens project",
+    "components.json terkonfigurasi dengan benar",
+    "shadcn base components terinstall di src/shared/components/ui/: button.tsx, input.tsx, badge.tsx, card.tsx, table.tsx, dialog.tsx",
+    "tailwind.config.ts include tailwindcss-animate plugin"
+  ],
+  "verification": [
+    "npm run build - sukses tanpa error",
+    "npm run lint - pass",
+    "ls src/shared/components/ui/ - verifikasi file shadcn components ada",
+    "Import dan test render satu shadcn component (misal Button) untuk konfirmasi working"
+  ],
+  "blocked_reason": null,
+  "findings": "✅ globals.css diperbaiki: hapus border-border yang invalid, tambahkan CSS variables dengan HSL format yang konsisten dengan design tokens (primary #0f6d5f, accent #12507f, dll). ✅ components.json dibuat dengan konfigurasi shadcn: tsx=true, aliases.components=@/shared/components/ui, aliases.utils=@/shared/utils. ✅ Dark mode support ditambahkan dengan .dark class variants. ✅ tailwind.config.ts ditambahkan color utilities untuk shadcn (border, input, ring, background, foreground, destructive, muted) menggunakan CSS variables. ✅ Build berhasil tanpa error CSS. Note: Komponen existing di src/shared/components/ tetap dipertahankan dan tidak diganti dengan shadcn components - direktori ui/ disiapkan untuk future shadcn components."
+}

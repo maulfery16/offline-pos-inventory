@@ -1,0 +1,7 @@
+{
+  "task_id": "task-shadcn-tailwind-layout",
+  "task_description": "Integrasikan shadcn UI dengan TailwindCSS, ganti komponen existing dengan shadcn, dan implementasikan layout serta komponen untuk Offline POS Inventory",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

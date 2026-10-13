@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Primary colors - based on tailwind.config.ts #0f6d5f */
+    --primary: 168 78% 24%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 168 75% 19%;
+    --primary-soft: 168 52% 92%;
+    
+    /* Accent colors - based on tailwind.config.ts #12507f */
+    --accent: 204 75% 29%;
+    --accent-foreground: 0 0% 100%;
+    --accent-soft: 204 69% 94%;
+    
+    /* Success colors - #136b3f */
+    --success: 153 69% 25%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 153 48% 92%;
+    
+    /* Warning colors - #8a5300 */
+    --warning: 37 100% 27%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 37 94% 92%;
+    
+    /* Danger colors - #a52b22 */
+    --destructive: 4 65% 39%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 4 86% 93%;
+    
+    /* Gray scale */
+    --background: 0 0% 100%;
+    --foreground: 216 55% 11%;
+    --muted: 216 12% 96%;
+    --muted-foreground: 216 9% 55%;
+    --border: 216 17% 88%;
+    --input: 216 17% 88%;
+    --ring: 168 78% 24%;
+    
+    /* Info */
+    --info-soft: 216 50% 94%;
+    
+    /* Radius */
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    /* Dark mode colors */
+    --primary: 168 78% 24%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 168 75% 19%;
+    --primary-soft: 168 52% 16%;
+    
+    --accent: 204 75% 29%;
+    --accent-foreground: 0 0% 100%;
+    --accent-soft: 204 69% 18%;
+    
+    --success: 153 69% 25%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 153 48% 18%;
+    
+    --warning: 37 100% 27%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 37 94% 18%;
+    
+    --destructive: 4 65% 39%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 4 86% 18%;
+    
+    --background: 216 55% 11%;
+    --foreground: 0 0% 98%;
+    --muted: 216 17% 20%;
+    --muted-foreground: 216 9% 64%;
+    --border: 216 17% 28%;
+    --input: 216 17% 28%;
+    --ring: 168 78% 35%;
+    
+    --info-soft: 216 50% 18%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}

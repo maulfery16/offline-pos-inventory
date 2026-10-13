@@ -1,0 +1,14 @@
+**Navigation**
+Side navigation with icons and labels for main modules (POS, Inventory, Reports, Settings). Contextual tabs within each module.
+
+**Forms**
+Inline validation with immediate error feedback. Required fields marked with asterisk. Primary action on right, cancel on left. Auto-save in offline mode.
+
+**Data Display**
+Tables with sortable columns, filters, pagination. Color-coded status badges with icons. Empty states with helpful illustrations and clear next actions.
+
+**Feedback**
+Toasts for non-critical confirmations (top-right, auto-dismiss). Modals for critical confirmations. Inline messages for contextual warnings. Persistent offline indicator banner.
+
+**Touch-Friendly**
+Minimum 44×44px target size for all interactive elements. Adequate spacing between targets (minimum 8px). Swipe actions for quick operations.

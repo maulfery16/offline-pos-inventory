@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Implementasikan ProductCard dan Toast components menggunakan shadcn base. ProductCard untuk product grid display dengan image, price, actions. Toast menggunakan shadcn Sonner atau Toast primitive untuk notification system yang lebih robust.",
+  "status": "pending",
+  "steps": [
+    "Install shadcn toast/sonner: npx shadcn-ui@latest add sonner (atau toast jika prefer Radix primitive)",
+    "Buat src/shared/components/ProductCard.tsx dengan: (1) Base dari shadcn Card, (2) Image area 16:9 aspect ratio dengan lazy loading dan skeleton menggunakan shadcn Skeleton (install: npx shadcn-ui@latest add skeleton), (3) Title dengan line-clamp-2, (4) Price format IDR dengan Intl.NumberFormat, (5) Stock Badge menggunakan wrapper Badge, (6) Quick actions menggunakan shadcn DropdownMenu (install jika belum: npx shadcn-ui@latest add dropdown-menu) atau Button overlay on hover, (7) Touch-friendly actions always visible di mobile",
+    "Tambahkan ProductCard ke src/shared/components/index.ts",
+    "TypeScript interface ProductCardProps: required (id, title, price, stock), optional (imageUrl, expiryDate, onEdit, onDelete, onView, onImageClick)",
+    "Update atau replace src/shared/components/Toast.tsx dengan shadcn Sonner implementation: (1) Setup Toaster di root layout, (2) Export toast helper functions (toast.success, toast.error, toast.warning, toast.info), (3) Preserve existing Toast API jika ada code yang depend on it dengan migration wrapper",
+    "Buat example usage demo page (optional, untuk verification) di src/app/demo/page.tsx yang showcase ProductCard grid dan Toast notifications"
+  ],
+  "acceptance_criteria": [
+    "ProductCard menggunakan shadcn Card + Skeleton untuk loading states",
+    "Image lazy loading dengan proper fallback",
+    "Quick actions menggunakan shadcn DropdownMenu atau Button overlay yang accessible",
+    "Price format IDR konsisten (Rp 10.000,00)",
+    "Stock badge dengan correct variants (success/warning/danger)",
+    "Toast system menggunakan shadcn Sonner dengan smooth animations",
+    "Touch targets min 44px untuk all interactive elements",
+    "Keyboard accessible: Tab, Enter, Escape navigation"
+  ],
+  "verification": [
+    "npm run build - sukses",
+    "npm run lint - pass",
+    "npm run dev dan test: render ProductCard grid dengan various states (loading skeleton, with/without image, different stock levels), hover interactions, mobile touch interactions",
+    "Test toast: trigger success/error/warning/info toasts dan verify animations smooth",
+    "Test keyboard: Tab focus ProductCard actions, Enter trigger, DropdownMenu keyboard navigation if used"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

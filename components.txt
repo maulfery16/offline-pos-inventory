@@ -1,0 +1,18 @@
+**Buttons**
+Primary: `--color-primary` background, `--color-on-primary` text, `--space-3` `--space-5` padding, `--radius-md`, `--weight-semibold`
+Secondary: transparent background, 1.5px `--color-border-strong` border, `--color-text`
+Danger: `--color-danger` background for destructive actions
+
+**Input Fields**
+Height: 40px, padding `--space-3` `--space-4`, 1px `--color-border`, `--radius-sm`, 2px `--color-primary` focus outline
+
+**Cards**
+Background `--color-surface`, 1px `--color-border`, `--radius-lg`, `--space-6` padding
+
+**Status Badges**
+Padding `--space-1` `--space-3`, `--radius-pill`, `--text-sm` `--weight-medium`
+Variants: success (green), warning (yellow), danger (red), info (blue), offline (yellow)
+
+**Data Tables**
+Header: `--color-surface-sunken` background, `--text-sm` `--weight-semibold`
+Rows: 52px minimum height, hover state `--color-surface-sunken`
