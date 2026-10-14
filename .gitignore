@@ -48,6 +48,7 @@ next-env.d.ts
 
 # Kiro AI session data (lokal, tidak perlu di-commit)
 .kiro/sessions/
+.agents/
 .kiro/specs/**/*.meta.json
 
 # CodeGraph index (generated locally)
