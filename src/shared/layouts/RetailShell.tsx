@@ -32,6 +32,14 @@ const navigationItems: NavigationItem[] = [
   { label: 'Laporan Laba', href: '/laporan', icon: <ChartLine className="w-[18px] h-[18px]" />, group: 'Analitik' },
 ];
 
+const getPageTitle = (pathname: string | null): string => {
+  if (!pathname) return 'Dashboard';
+  for (const item of navigationItems) {
+    if (pathname.startsWith(item.href)) return item.label;
+  }
+  return 'Dashboard';
+};
+
 export interface RetailShellProps {
   children: React.ReactNode;
   isOffline?: boolean;
@@ -42,12 +50,13 @@ export interface RetailShellProps {
 export const RetailShell: React.FC<RetailShellProps> = ({
   children,
   isOffline = false,
-  title = 'Dashboard',
+  title,
   headerActions,
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const pathname = usePathname();
   const drawerRef = useRef<HTMLDialogElement>(null);
+  const pageTitle = title ?? getPageTitle(pathname);
 
   const openDrawer = () => {
     setIsDrawerOpen(true);
@@ -115,7 +124,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
     <div className="min-h-screen bg-[#f2f4f7] text-[#182230]">
       {/* Sidebar - Desktop */}
       <aside
-        className="fixed inset-y-0 left-0 w-[248px] flex flex-col gap-5 px-4 py-5 bg-[#101828] text-[#e7ecf3] overflow-y-auto z-30"
+        className="hidden min-[900px]:flex fixed inset-y-0 left-0 w-[248px] flex-col gap-5 px-4 py-5 bg-[#101828] text-[#e7ecf3] overflow-y-auto z-30"
         aria-label="Navigasi modul"
       >
         {/* Brand */}
@@ -191,16 +200,16 @@ export const RetailShell: React.FC<RetailShellProps> = ({
       </dialog>
 
       {/* Main Body */}
-      <div className="ml-0 lg:ml-[248px] min-w-0">
+      <div className="ml-0 min-[900px]:ml-[248px] min-w-0">
         {/* Header */}
         <header className="sticky top-0 z-20 bg-white border-b border-[#e2e6ec]">
-          <div className="flex items-center justify-between gap-4 flex-wrap py-4 px-4 lg:px-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap py-4 px-4 min-[900px]:px-6">
             <div className="flex items-center gap-3 min-w-0">
               {/* Mobile Menu Button */}
               <button
                 onClick={openDrawer}
                 className={cn(
-                  'lg:hidden flex items-center gap-2 min-h-[40px] px-3 rounded-[10px]',
+                  'min-[900px]:hidden flex items-center gap-2 min-h-[40px] px-3 rounded-[10px]',
                   'border border-[#cbd2dc] bg-white text-inherit text-sm cursor-pointer',
                   'focus:outline-none focus-visible:outline-2 focus-visible:outline-[#0f6d5f] focus-visible:outline-offset-2'
                 )}
@@ -212,9 +221,9 @@ export const RetailShell: React.FC<RetailShellProps> = ({
                 Menu
               </button>
               <div className="min-w-0">
-                <span className="block text-xs text-[#5a6675]">{title}</span>
-                <h1 className="m-0 text-xl lg:text-[22px] font-bold tracking-tight leading-tight">
-                  {title}
+                <span className="block text-xs text-[#5a6675]">{pageTitle}</span>
+                <h1 className="m-0 text-xl min-[900px]:text-[22px] font-bold tracking-tight leading-tight">
+                  {pageTitle}
                 </h1>
               </div>
             </div>
@@ -231,7 +240,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
         </header>
 
         {/* Content */}
-        <div className="min-w-0 p-4 lg:p-6">
+        <div className="min-w-0 p-4 min-[900px]:p-6">
           {children}
         </div>
       </div>

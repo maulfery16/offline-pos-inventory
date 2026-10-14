@@ -70,6 +70,24 @@ export default function KasirPage() {
     });
   }, []);
 
+  const suggestions = scanInput.length >= 2
+    ? products.filter((p) =>
+        p.name.toLowerCase().includes(scanInput.toLowerCase()) ||
+        p.sku.includes(scanInput)
+      ).slice(0, 5)
+    : [];
+
+  const handleScanKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const exactMatch = products.find((p) => p.sku === scanInput.trim());
+      if (exactMatch) {
+        addToCart(exactMatch);
+        setScanInput('');
+      }
+    }
+  };
+
   const updateQty = useCallback((sku: string, delta: number) => {
     setCart((prev) =>
       prev
@@ -195,6 +213,7 @@ export default function KasirPage() {
                 type="search"
                 value={scanInput}
                 onChange={(e) => setScanInput(e.target.value)}
+                onKeyDown={handleScanKeyDown}
                 placeholder="Pindai barcode atau ketik nama barang…"
                 className="w-full min-h-[48px] pl-10 pr-3 text-[15px] border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
               />
@@ -208,6 +227,32 @@ export default function KasirPage() {
             </button>
           </div>
           <p className="text-xs text-[#5a6675]">Scanner fisik otomatis mengisi kolom ini. Tekan Enter untuk menambah barang.</p>
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
+            <ul className="mt-3 grid gap-1 list-none m-0 p-0">
+              {suggestions.map((item) => (
+                <li key={item.sku}>
+                  <button
+                    type="button"
+                    onClick={() => { addToCart(item); setScanInput(''); }}
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 border border-transparent rounded-[10px] bg-[#f7f8fa] text-left cursor-pointer hover:border-[#0f6d5f] hover:bg-[#e2f2ee]"
+                  >
+                    <span>
+                      <span className="text-[13px] font-medium">{item.name}</span>
+                      {' '}
+                      <span className="font-mono text-xs text-[#5a6675]">{item.sku}</span>
+                    </span>
+                    <span className="text-[13px] tabular-nums">{rupiah(item.price)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {scanInput.length >= 2 && suggestions.length === 0 && (
+            <div className="mt-3 flex gap-2 p-3 rounded-[10px] bg-[#e8eef7] text-[#12507f] text-xs">
+              <span>Barcode belum terdaftar. Tekan Enter untuk menambah barang cepat dengan harga manual.</span>
+            </div>
+          )}
 
           {/* Product Grid */}
           <div>

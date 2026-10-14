@@ -43,6 +43,7 @@ export default function BarangMasukPage() {
   const [invoice, setInvoice] = useState('INV/SPJ/0418');
   const [date, setDate] = useState('2026-04-18');
   const [warehouse, setWarehouse] = useState('Gudang Utama — Kebayoran');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const updateLine = useCallback((id: string, field: keyof ReceivingLine, value: string | number) => {
     setLines((prev) =>
@@ -123,6 +124,13 @@ export default function BarangMasukPage() {
   });
   if (soonExpiring.length > 0) issues.push({ level: 'warn', text: `${soonExpiring.length} batch kedaluwarsa ≤30 hari. Pertimbangkan menurunkan margin agar cepat terjual.` });
   if (issues.length === 0 && lines.length > 0) issues.push({ level: 'ok', text: 'Semua baris lengkap dan siap disimpan.' });
+
+  const handleSave = () => {
+    const incompleteLines = lines.filter((line) => getLineStatus(line).level === 'danger');
+    if (incompleteLines.length > 0) return;
+    if (lines.length === 0) return;
+    setShowSaveDialog(true);
+  };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_minmax(280px,320px)] gap-6 items-start">
@@ -420,7 +428,52 @@ export default function BarangMasukPage() {
             </div>
           </div>
         </section>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={lines.length === 0 || incomplete.length > 0}
+          className="min-h-[44px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed w-full"
+        >
+          Simpan penerimaan
+        </button>
       </aside>
+
+      {/* Save Confirmation Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
+          <div className="w-[min(520px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
+            <div className="p-5 grid gap-3">
+              <h2 className="m-0 text-lg font-bold">Penerimaan tersimpan ke antrean stok</h2>
+              <p className="m-0 text-[13px] text-[#5a6675]">
+                Dokumen <strong>GR-2026-0418</strong> disimpan lokal dan dikirim ke cloud saat koneksi tersedia.
+              </p>
+              <ul className="grid gap-2 list-none m-0 p-0 text-[13px]">
+                <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                  <span className="text-[#5a6675]">Baris barang</span>
+                  <strong className="text-[#182230] tabular-nums">{lines.length} SKU</strong>
+                </li>
+                <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                  <span className="text-[#5a6675]">Total unit</span>
+                  <strong className="text-[#182230] tabular-nums">{totalUnits} unit</strong>
+                </li>
+                <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                  <span className="text-[#5a6675]">Total HPP masuk</span>
+                  <strong className="text-[#182230] tabular-nums">{rupiah(totalCost)}</strong>
+                </li>
+              </ul>
+            </div>
+            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+              <button
+                type="button"
+                onClick={() => setShowSaveDialog(false)}
+                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
