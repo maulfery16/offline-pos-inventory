@@ -1,3 +1,4 @@
+prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,148 +8,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ──────────────────────────────────────────
-// Multi-Tenant Core
-// ──────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// 1. ORGANIZATION & LOCATION (MULTI-TENANT BASE)
+// -----------------------------------------------------------------------------
 
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  branches  Branch[]
-  users     User[]
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String   @db.VarChar(255)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime? 
+  branches         Branch[]
+  products         Product[]
+  inventoryBatches InventoryBatch[]
+  transactions     Transaction[]
+  @@map("tenants")
 }
 
 model Branch {
-  id        String    @id @default(uuid())
-  tenantId  String
-  name      String
-  address   String?
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  devices   Device[]
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @db.Uuid
+  name             String   @db.VarChar(255)
+  address          String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryBatches InventoryBatch[]
+  transactions     Transaction[]
+  @@map("branches")
 }
 
-model User {
-  id           String   @id @default(uuid())
-  tenantId     String
-  email        String   @unique
-  passwordHash String
-  role         String   @default("cashier")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  tenant  Tenant   @relation(fields: [tenantId], references: [id])
-  devices Device[]
-}
-
-model Device {
-  id          String   @id @default(uuid())
-  branchId    String
-  userId      String
-  deviceName  String
-  deviceToken String   @unique
-  createdAt   DateTime @default(now())
-
-  branch Branch @relation(fields: [branchId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
-}
-
-// ──────────────────────────────────────────
-// Inventory
-// ──────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// 2. MASTER DATA (PRODUCTS)
+// -----------------------------------------------------------------------------
 
 model Product {
-  id          String    @id @default(uuid())
-  tenantId    String
-  sku         String
-  name        String
-  unit        String    @default("pcs")
-  sellingPrice Decimal  @db.Decimal(15, 2)
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  batches InventoryBatch[]
-
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @db.Uuid
+  sku              String   @db.VarChar(100)
+  name             String   @db.VarChar(255)
+  barcode          String?  @db.VarChar(255)
+  defaultPrice     Decimal  @db.Decimal(12, 2) 
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryBatches InventoryBatch[]
+  transactionItems TransactionItem[]
   @@unique([tenantId, sku])
+  @@map("products")
 }
+
+// -----------------------------------------------------------------------------
+// 3. INVENTORY (FEFO BATCH ENGINE)
+// -----------------------------------------------------------------------------
 
 model InventoryBatch {
-  id          String    @id @default(uuid())
-  productId   String
-  branchId    String
-  batchCode   String
-  expiryDate  DateTime
-  initialQty  Decimal   @db.Decimal(15, 3)
-  currentQty  Decimal   @db.Decimal(15, 3)
-  costPrice   Decimal   @db.Decimal(15, 2)
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  product Product @relation(fields: [productId], references: [id])
-
-  @@index([productId, branchId, expiryDate])
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @db.Uuid
+  branchId         String   @db.Uuid
+  productId        String   @db.Uuid
+  batchNumber      String?  @db.VarChar(100) 
+  receivedDate     DateTime 
+  expiryDate       DateTime? 
+  unitCost         Decimal  @db.Decimal(12, 2) // COGS snapshot upon receipt
+  initialQty       Int      
+  currentQty       Int      // Can go negative due to offline sync tolerance
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch           Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  transactionItemBatches TransactionItemBatch[]
+  
+  // Crucial index for fast FEFO querying
+  @@index([tenantId, branchId, productId, expiryDate(sort: Asc), receivedDate(sort: Asc)])
+  @@map("inventory_batches")
 }
 
-// ──────────────────────────────────────────
-// POS Transactions
-// ──────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// 4. TRANSACTIONS (POS OUTBOUND)
+// -----------------------------------------------------------------------------
 
 model Transaction {
-  id            String   @id @default(uuid())
-  tenantId      String
-  branchId      String
-  deviceId      String
-  receiptNumber String
-  totalAmount   Decimal  @db.Decimal(15, 2)
-  paymentMethod String
-  createdAt     DateTime @default(now())
-
-  items TransactionItem[]
-
-  @@index([tenantId, branchId, createdAt])
+  // ID generated by Frontend (WatermelonDB UUID) for safe offline syncing
+  id               String   @id @db.Uuid 
+  tenantId         String   @db.Uuid
+  branchId         String   @db.Uuid
+  receiptNumber    String   @db.VarChar(100)
+  totalAmount      Decimal  @db.Decimal(12, 2)
+  paymentMethod    String   @db.VarChar(50) 
+  cashierPinUsed   String?  @db.VarChar(10) 
+  transactionDate  DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch           Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  items            TransactionItem[]
+  @@map("transactions")
 }
 
 model TransactionItem {
-  id             String  @id @default(uuid())
-  transactionId  String
-  productId      String
-  quantity       Decimal @db.Decimal(15, 3)
-  sellingPrice   Decimal @db.Decimal(15, 2)
-  subtotal       Decimal @db.Decimal(15, 2)
-
-  transaction    Transaction          @relation(fields: [transactionId], references: [id])
-  batchLedger    TransactionItemBatch[]
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionId    String  @db.Uuid
+  productId        String  @db.Uuid
+  quantity         Int
+  sellingPrice     Decimal @db.Decimal(12, 2) 
+  discountAmount   Decimal @default(0) @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  transaction      Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product          Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batchesApplied   TransactionItemBatch[]
+  @@map("transaction_items")
 }
 
+// Ledger table to map exactly which FEFO batches were deducted (Accurate COGS)
 model TransactionItemBatch {
-  id              String  @id @default(uuid())
-  transactionItemId String
-  batchId         String
-  deductedQty     Decimal @db.Decimal(15, 3)
-  costPrice       Decimal @db.Decimal(15, 2)
-
-  transactionItem TransactionItem @relation(fields: [transactionItemId], references: [id])
-}
-
-// ──────────────────────────────────────────
-// Anomaly Log
-// ──────────────────────────────────────────
-
-model AnomalyLog {
-  id          String   @id @default(uuid())
-  tenantId    String
-  branchId    String
-  productId   String
-  batchId     String?
-  type        String
-  description String
-  createdAt   DateTime @default(now())
+  id                  String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionItemId   String @db.Uuid
+  inventoryBatchId    String @db.Uuid
+  qtyDeducted         Int
+  costApplied         Decimal @db.Decimal(12, 2) // Snapshot of unitCost from the deducted batch
+  createdAt           DateTime @default(now())
+  transactionItem     TransactionItem @relation(fields: [transactionItemId], references: [id], onDelete: Cascade)
+  inventoryBatch      InventoryBatch  @relation(fields: [inventoryBatchId], references: [id], onDelete: Restrict)
+  @@map("transaction_item_batches")
 }
