@@ -49,3 +49,12 @@ prisma/migrations
 
 # Kiro AI session data (lokal, tidak perlu di-commit)
 .kiro/sessions/
+
+# CodeGraph index (generated locally)
+.codegraph/
+
+# Claude Code files (jika muncul)
+.claude/
+
+# VS Code MCP config (machine-specific absolute paths)
+.vscode/mcp.json
