@@ -1,0 +1,625 @@
+<!-- dpai:page {"typography":true,"scoped":true,"title":"Laporan Laba & Shift","navKey":"reports-profit","layoutProps":{}} -->
+<style>
+  .rep { display: grid; gap: var(--space-6, 24px); min-width: 0; }
+  .rep > * { min-width: 0; }
+  .rep__panel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); min-width: 0; }
+  .rep__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .rep__head h2 { margin: 0; font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); }
+  .rep__body { padding: var(--space-5, 20px); min-width: 0; }
+
+  .rep__kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3, 12px); }
+  .rep__kpi { display: grid; gap: 6px; padding: var(--space-4, 16px); background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); min-width: 0; }
+  .rep__kpi-label { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .rep__kpi-value { font-size: var(--text-2xl, 28px); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-tight, -0.01em); overflow-wrap: break-word; }
+  .rep__kpi-foot { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .rep__kpi-foot[data-tone="up"] { color: var(--color-success, #136b3f); }
+  .rep__kpi-foot[data-tone="down"] { color: var(--color-danger, #a52b22); }
+
+  .rep__segments { display: inline-flex; flex-wrap: wrap; gap: var(--space-1, 4px); padding: 4px; background: var(--color-surface-sunken, #f7f8fa); border-radius: var(--radius-md, 10px); }
+  .rep__segments button { min-height: 38px; padding: 8px var(--space-3, 12px); border: 0; border-radius: var(--radius-sm, 6px); background: transparent; color: var(--color-text-muted, #5a6675); font: inherit; font-size: var(--text-sm, 13px); font-weight: var(--weight-medium, 500); cursor: pointer; }
+  .rep__segments button[aria-pressed="true"] { background: var(--color-surface, #fff); color: var(--color-text, #182230); font-weight: var(--weight-semibold, 600); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08); }
+
+  .rep__charts { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: var(--space-6, 24px); align-items: start; }
+  .rep__charts > * { min-width: 0; }
+
+  .rep__legend { display: flex; flex-wrap: wrap; gap: var(--space-4, 16px); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .rep__legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .rep__swatch { width: 10px; height: 10px; border-radius: 3px; }
+  .rep__swatch--sales { background: var(--color-accent, #12507f); }
+  .rep__swatch--profit { background: var(--color-primary, #0f6d5f); }
+
+  .rep__line-chart { display: block; width: 100%; height: 240px; }
+  .rep__line-chart text { font-family: var(--font-body, system-ui, sans-serif); }
+
+  .rep__bars { display: grid; gap: var(--space-3, 12px); }
+  .rep__bar-row { display: grid; gap: 6px; }
+  .rep__bar-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3, 12px); font-size: var(--text-sm, 13px); }
+  .rep__bar-top strong { font-variant-numeric: tabular-nums; }
+  .rep__bar-track { height: 10px; border-radius: var(--radius-pill, 999px); background: var(--color-surface-sunken, #f7f8fa); overflow: hidden; }
+  .rep__bar-fill { display: block; height: 100%; border-radius: var(--radius-pill, 999px); background: var(--color-primary, #0f6d5f); }
+  .rep__bar-fill[data-tone="accent"] { background: var(--color-accent, #12507f); }
+
+  .rep__split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: var(--space-6, 24px); align-items: start; }
+  .rep__split > * { min-width: 0; }
+
+  .rep__table-wrap { overflow-x: auto; max-width: 100%; }
+  .rep__table { width: 100%; border-collapse: collapse; font-size: var(--text-sm, 13px); table-layout: fixed; }
+  .rep__table th, .rep__table td { padding: var(--space-3, 12px); text-align: left; border-bottom: 1px solid var(--color-border, #e2e6ec); vertical-align: middle; }
+  .rep__table th { font-size: var(--text-caption, 12px); text-transform: uppercase; letter-spacing: var(--tracking-wide, 0.04em); color: var(--color-text-muted, #5a6675); background: var(--color-surface-sunken, #f7f8fa); word-break: keep-all; }
+  .rep__table td { overflow-wrap: break-word; }
+  .rep__table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rep__table th:nth-child(1), .rep__table td:nth-child(1) { width: 30%; }
+  .rep__table th:nth-child(2), .rep__table td:nth-child(2) { width: 10%; }
+  .rep__table th:nth-child(3), .rep__table td:nth-child(3) { width: 17%; }
+  .rep__table th:nth-child(4), .rep__table td:nth-child(4) { width: 15%; }
+  .rep__table th:nth-child(5), .rep__table td:nth-child(5) { width: 15%; }
+  .rep__table th:nth-child(6), .rep__table td:nth-child(6) { width: 13%; }
+  .rep__item-name { display: block; font-weight: var(--weight-semibold, 600); }
+  .rep__item-sku { font-family: var(--font-mono, monospace); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); white-space: nowrap; }
+
+  .rep__chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-pill, 999px); font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); }
+  .rep__chip--ok { background: var(--color-success-soft, #e3f4e9); color: var(--color-success, #136b3f); }
+  .rep__chip--warn { background: var(--color-warning-soft, #fdf0da); color: var(--color-warning, #8a5300); }
+  .rep__chip--danger { background: var(--color-danger-soft, #fbe8e5); color: var(--color-danger, #a52b22); }
+  .rep__chip--info { background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); }
+
+  .rep__btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2, 8px); min-height: 42px; padding: 8px var(--space-4, 16px); border: 1px solid transparent; border-radius: var(--radius-md, 10px); font: inherit; font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); cursor: pointer; }
+  .rep__btn--primary { background: var(--color-primary, #0f6d5f); color: var(--color-on-primary, #fff); }
+  .rep__btn--primary:hover { background: var(--color-primary-hover, #0b564a); }
+  .rep__btn--ghost { background: var(--color-surface, #fff); border-color: var(--color-border-strong, #cbd2dc); color: inherit; }
+  .rep__btn--ghost:hover { border-color: var(--color-primary, #0f6d5f); }
+  .rep__btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+  .rep__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .rep__rows li { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3, 12px); font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+  .rep__rows strong { color: var(--color-text, #182230); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rep__rows .rep__grand { padding-top: var(--space-3, 12px); border-top: 1px solid var(--color-border, #e2e6ec); font-size: var(--text-base, 15px); font-weight: var(--weight-bold, 700); color: var(--color-text, #182230); }
+  .rep__rows .rep__grand strong { font-size: var(--text-lg, 18px); font-weight: var(--weight-bold, 700); }
+
+  .rep__field { display: grid; gap: 6px; min-width: 0; margin-top: var(--space-3, 12px); }
+  .rep__field label { font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); color: var(--color-text-muted, #5a6675); }
+  .rep__field input, .rep__field select, .rep__field textarea {
+    width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-base, 15px);
+  }
+  .rep__field textarea { min-height: 76px; resize: vertical; }
+  .rep__field input { font-variant-numeric: tabular-nums; }
+  .rep__field input[aria-invalid="true"] { border-color: var(--color-danger, #a52b22); background: #fff7f6; }
+  .rep__hint { margin: 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .rep__hint[data-tone="warn"] { color: var(--color-warning, #8a5300); font-weight: var(--weight-medium, 500); }
+  .rep__hint[data-tone="ok"] { color: var(--color-success, #136b3f); font-weight: var(--weight-medium, 500); }
+  .rep__hint[data-tone="danger"] { color: var(--color-danger, #a52b22); font-weight: var(--weight-medium, 500); }
+
+  .rep__notice { display: flex; gap: var(--space-2, 8px); margin: 0; padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); font-size: var(--text-caption, 12px); }
+  .rep__notice iconify-icon { flex: 0 0 auto; }
+  .rep__empty { margin: 0; padding: var(--space-6, 24px); text-align: center; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+
+  .rep dialog { width: min(460px, 92vw); padding: 0; border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); background: var(--color-surface, #fff); color: inherit; }
+  .rep dialog::backdrop { background: rgba(15, 22, 33, 0.5); }
+  .rep__dialog-body { display: grid; gap: var(--space-3, 12px); padding: var(--space-5, 20px); }
+  .rep__dialog-body h2 { margin: 0; font-size: var(--text-lg, 18px); font-weight: var(--weight-bold, 700); }
+  .rep__dialog-foot { display: flex; justify-content: flex-end; gap: var(--space-2, 8px); padding: var(--space-4, 16px) var(--space-5, 20px); border-top: 1px solid var(--color-border, #e2e6ec); background: var(--color-surface-sunken, #f7f8fa); }
+
+  @media (max-width: 1120px) {
+    .rep__charts, .rep__split { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .rep__body { padding: var(--space-4, 16px); }
+    .rep__table { min-width: 600px; }
+    .rep__line-chart { height: 200px; }
+  }
+</style>
+
+<template data-slot="content">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+  <main class="rep" data-node-id="reports-profit.main">
+    <section class="rep__kpis" aria-label="Indikator kinerja utama">
+      <div class="rep__kpi">
+        <span class="rep__kpi-label">Penjualan bersih</span>
+        <span class="rep__kpi-value" data-part="kpi-sales">Rp0</span>
+        <span class="rep__kpi-foot" data-part="kpi-sales-foot">—</span>
+      </div>
+      <div class="rep__kpi">
+        <span class="rep__kpi-label">HPP aktual (FEFO)</span>
+        <span class="rep__kpi-value" data-part="kpi-cogs">Rp0</span>
+        <span class="rep__kpi-foot">Dari batch yang benar-benar terjual</span>
+      </div>
+      <div class="rep__kpi">
+        <span class="rep__kpi-label">Laba kotor</span>
+        <span class="rep__kpi-value" data-part="kpi-profit">Rp0</span>
+        <span class="rep__kpi-foot" data-tone="up" data-part="kpi-profit-foot">—</span>
+      </div>
+      <div class="rep__kpi">
+        <span class="rep__kpi-label">Margin laba kotor</span>
+        <span class="rep__kpi-value" data-part="kpi-margin">0,0%</span>
+        <span class="rep__kpi-foot">Target cabang 22%</span>
+      </div>
+      <div class="rep__kpi">
+        <span class="rep__kpi-label">Rata-rata nilai transaksi</span>
+        <span class="rep__kpi-value" data-part="kpi-basket">Rp0</span>
+        <span class="rep__kpi-foot" data-part="kpi-trx">—</span>
+      </div>
+    </section>
+
+    <div class="rep__charts">
+      <section class="rep__panel" aria-labelledby="rep-trend-title">
+        <div class="rep__head">
+          <h2 id="rep-trend-title">Tren penjualan vs laba kotor</h2>
+          <div class="rep__legend">
+            <span><span class="rep__swatch rep__swatch--sales" aria-hidden="true"></span>Penjualan</span>
+            <span><span class="rep__swatch rep__swatch--profit" aria-hidden="true"></span>Laba kotor</span>
+          </div>
+        </div>
+        <div class="rep__body">
+          <figure style="margin: 0; display: grid; gap: var(--space-3, 12px);">
+            <svg class="rep__line-chart" viewBox="0 0 720 240" role="img" aria-labelledby="rep-trend-desc" preserveAspectRatio="none" data-part="line-chart"></svg>
+            <figcaption id="rep-trend-desc" class="rep__hint" data-part="trend-caption">—</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="rep__panel" aria-labelledby="rep-branch-title">
+        <div class="rep__head">
+          <h2 id="rep-branch-title">Laba kotor per cabang</h2>
+        </div>
+        <div class="rep__body">
+          <div class="rep__bars" data-part="branch-bars"></div>
+          <p class="rep__notice" style="margin-top: var(--space-4, 16px);">
+            <iconify-icon icon="lucide:info" aria-hidden="true"></iconify-icon>
+            HPP cabang Bintaro lebih tinggi karena komposisi susu dan bakery yang lebih besar.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <div class="rep__split">
+      <section class="rep__panel" aria-labelledby="rep-product-title">
+        <div class="rep__head">
+          <h2 id="rep-product-title">Kontribusi laba per produk</h2>
+          <span class="rep__chip rep__chip--info" data-part="product-count">5 produk</span>
+        </div>
+        <div class="rep__table-wrap">
+          <table class="rep__table">
+            <thead>
+              <tr>
+                <th scope="col">Produk</th>
+                <th scope="col">Qty terjual</th>
+                <th scope="col">Penjualan</th>
+                <th scope="col">HPP</th>
+                <th scope="col">Laba kotor</th>
+                <th scope="col">Margin</th>
+              </tr>
+            </thead>
+            <tbody data-part="product-body"></tbody>
+          </table>
+          <p class="rep__empty" data-part="product-empty" hidden>Tidak ada penjualan pada periode dan cabang ini.</p>
+        </div>
+      </section>
+
+      <aside class="rep__panel" aria-labelledby="rep-shift-title" data-node-id="reports-profit.shift">
+        <div class="rep__head">
+          <h2 id="rep-shift-title">Rekonsiliasi tutup kasir</h2>
+          <span class="rep__chip rep__chip--info" data-part="shift-status">Shift terbuka</span>
+        </div>
+        <div class="rep__body">
+          <p class="rep__hint">Kasir 01 · Sari Wulandari · 08:12–16:00 · 62 transaksi</p>
+          <ul class="rep__rows" style="margin-top: var(--space-3, 12px);">
+            <li><span>Kas seharusnya (sistem)</span><strong data-part="shift-expected">Rp0</strong></li>
+            <li><span>Pembayaran QRIS</span><strong data-part="shift-qris">Rp0</strong></li>
+            <li><span>Kartu debit/kredit</span><strong data-part="shift-card">Rp0</strong></li>
+          </ul>
+          <div class="rep__field">
+            <label for="rep-shift-cash">Kas fisik hasil hitung</label>
+            <input id="rep-shift-cash" type="number" min="0" step="1000" inputmode="numeric" placeholder="0" data-part="shift-cash">
+          </div>
+          <div class="rep__field">
+            <label for="rep-shift-note">Catatan selisih (opsional)</label>
+            <textarea id="rep-shift-note" placeholder="Misal: selisih Rp5.000 karena pembulatan kembalian."></textarea>
+          </div>
+          <ul class="rep__rows" style="margin-top: var(--space-3, 12px);">
+            <li class="rep__grand"><span>Selisih</span><strong data-part="shift-diff">Rp0</strong></li>
+          </ul>
+          <p class="rep__hint" data-part="shift-hint" style="margin-top: var(--space-2, 8px);">Masukkan jumlah kas fisik untuk menghitung selisih.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); margin-top: var(--space-4, 16px);">
+            <button class="rep__btn rep__btn--primary" type="button" data-action="rep:close-shift">Tutup &amp; tandai selesai</button>
+            <button class="rep__btn rep__btn--ghost" type="button" data-action="rep:review-shift">Tandai perlu ditinjau</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <dialog class="rep dialog" data-part="shift-dialog" aria-labelledby="rep-shift-result-title">
+      <div class="rep__dialog-body">
+        <h2 id="rep-shift-result-title" data-part="shift-result-title">Selisih perlu ditinjau</h2>
+        <ul class="rep__rows" data-part="shift-summary"></ul>
+        <p class="rep__hint" data-part="shift-result-note"></p>
+      </div>
+      <div class="rep__dialog-foot">
+        <button class="rep__btn rep__btn--primary" type="button" data-action="rep:shift-close">Tutup</button>
+      </div>
+    </dialog>
+  </main>
+</template>
+
+<script>
+(() => {
+  const rupiah = (value) => 'Rp' + Math.round(value).toLocaleString('id-ID');
+
+  const periods = {
+    today: {
+      label: 'Hari ini',
+      trx: 62,
+      days: [
+        { label: '08–10', sales: 1750000, profit: 385000 },
+        { label: '10–12', sales: 2140000, profit: 470000 },
+        { label: '12–14', sales: 2680000, profit: 596000 },
+        { label: '14–16', sales: 1520000, profit: 329000 }
+      ],
+      branches: [
+        { name: 'Kebayoran', profit: 1240000, sales: 5480000 },
+        { name: 'Bintaro', profit: 540000, sales: 2610000 }
+      ],
+      products: [
+        { sku: '8991002101147', name: 'Indomie Goreng 85g', qty: 48, sales: 168000, cogs: 139200 },
+        { sku: '8991112223334', name: 'Teh Pucuk 350ml', qty: 30, sales: 135000, cogs: 102000 },
+        { sku: '8991234567890', name: 'Susu Ultra 250ml', qty: 14, sales: 105000, cogs: 82600 },
+        { sku: '8995000112233', name: 'Kopi Kapal Api 165g', qty: 8, sales: 100000, cogs: 78400 },
+        { sku: '8992761123456', name: 'Aqua 600ml', qty: 22, sales: 88000, cogs: 68200 }
+      ]
+    },
+    week: {
+      label: '7 hari',
+      trx: 428,
+      days: [
+        { label: 'Sen', sales: 7250000, profit: 1610000 },
+        { label: 'Sel', sales: 6890000, profit: 1502000 },
+        { label: 'Rab', sales: 8120000, profit: 1790000 },
+        { label: 'Kam', sales: 7540000, profit: 1655000 },
+        { label: 'Jum', sales: 9380000, profit: 2088000 },
+        { label: 'Sab', sales: 11240000, profit: 2521000 },
+        { label: 'Min', sales: 8470000, profit: 1886000 }
+      ],
+      branches: [
+        { name: 'Kebayoran', profit: 8120000, sales: 35400000 },
+        { name: 'Bintaro', profit: 4933000, sales: 23460000 }
+      ],
+      products: [
+        { sku: '8991002101147', name: 'Indomie Goreng 85g', qty: 312, sales: 1092000, cogs: 904800 },
+        { sku: '8991112223334', name: 'Teh Pucuk 350ml', qty: 208, sales: 936000, cogs: 707200 },
+        { sku: '8991234567890', name: 'Susu Ultra 250ml', qty: 96, sales: 720000, cogs: 566400 },
+        { sku: '8995000112233', name: 'Kopi Kapal Api 165g', qty: 54, sales: 675000, cogs: 529200 },
+        { sku: '8992761123456', name: 'Aqua 600ml', qty: 164, sales: 656000, cogs: 508400 }
+      ]
+    },
+    month: {
+      label: '30 hari',
+      trx: 1842,
+      days: [
+        { label: 'Pek 1', sales: 46800000, profit: 10360000 },
+        { label: 'Pek 2', sales: 51200000, profit: 11480000 },
+        { label: 'Pek 3', sales: 49650000, profit: 10920000 },
+        { label: 'Pek 4', sales: 52400000, profit: 11760000 }
+      ],
+      branches: [
+        { name: 'Kebayoran', profit: 31260000, sales: 142400000 },
+        { name: 'Bintaro', profit: 13260000, sales: 97600000 }
+      ],
+      products: [
+        { sku: '8991002101147', name: 'Indomie Goreng 85g', qty: 1284, sales: 4494000, cogs: 3723600 },
+        { sku: '8991112223334', name: 'Teh Pucuk 350ml', qty: 862, sales: 3879000, cogs: 2930800 },
+        { sku: '8991234567890', name: 'Susu Ultra 250ml', qty: 402, sales: 3015000, cogs: 2371800 },
+        { sku: '8995000112233', name: 'Kopi Kapal Api 165g', qty: 216, sales: 2700000, cogs: 2116800 },
+        { sku: '8992761123456', name: 'Aqua 600ml', qty: 688, sales: 2752000, cogs: 2132800 }
+      ]
+    }
+  };
+
+  let period = 'week';
+  let branch = 'Kebayoran';
+  let shiftClosed = false;
+  let shiftState = 'open';
+  let expectedCash = 0;
+
+  const chart = root.querySelector('[data-part="line-chart"]');
+  const branchBars = root.querySelector('[data-part="branch-bars"]');
+  const productBody = root.querySelector('[data-part="product-body"]');
+  const shiftCash = root.querySelector('[data-part="shift-cash"]');
+  const shiftDialog = root.querySelector('[data-part="shift-dialog"]');
+
+  const branchFactor = (salesByBranch) => {
+    const total = salesByBranch.reduce((sum, entry) => sum + entry.sales, 0) || 1;
+    const found = salesByBranch.find((entry) => entry.name === branch);
+    return found ? found.sales / total : 1;
+  };
+
+  const data = () => {
+    const base = periods[period];
+    const total = base.branches.reduce((sum, entry) => sum + entry.sales, 0) || 1;
+    const entry = base.branches.find((item) => item.name === branch) || base.branches[0];
+    const factor = entry.sales / total;
+    return {
+      label: base.label,
+      trx: Math.max(1, Math.round(base.trx * factor)),
+      days: base.days.map((day) => ({ label: day.label, sales: Math.round(day.sales * factor), profit: Math.round(day.profit * factor) })),
+      branches: base.branches,
+      products: base.products,
+      branchSales: entry.sales,
+      branchProfit: entry.profit
+    };
+  };
+
+  const renderKpis = () => {
+    const d = data();
+    const sales = d.branchSales;
+    const cogs = d.products.reduce((sum, item) => sum + item.cogs, 0);
+    const profit = sales - cogs;
+    const margin = sales ? (profit / sales * 100) : 0;
+    const basket = sales / d.trx;
+
+    root.querySelector('[data-part="kpi-sales"]').textContent = rupiah(sales);
+    root.querySelector('[data-part="kpi-cogs"]').textContent = rupiah(cogs);
+    root.querySelector('[data-part="kpi-profit"]').textContent = rupiah(profit);
+    root.querySelector('[data-part="kpi-margin"]').textContent = margin.toFixed(1).replace('.', ',') + '%';
+    root.querySelector('[data-part="kpi-basket"]').textContent = rupiah(basket);
+    root.querySelector('[data-part="kpi-trx"]').textContent = d.trx + ' transaksi · ' + d.label + ' · ' + branch;
+
+    const salesFoot = root.querySelector('[data-part="kpi-sales-foot"]');
+    salesFoot.textContent = 'Rata-rata ' + rupiah(basket) + ' per transaksi';
+    const profitFoot = root.querySelector('[data-part="kpi-profit-foot"]');
+    profitFoot.dataset.tone = margin >= 20 ? 'up' : 'down';
+    profitFoot.textContent = margin >= 22
+      ? 'Di atas target 22% · komposisi produk sehat'
+      : 'Di bawah target 22% · periksa margin produk cepat laku';
+
+    expectedCash = Math.round(sales * 0.62);
+    root.querySelector('[data-part="shift-expected"]').textContent = rupiah(expectedCash);
+    root.querySelector('[data-part="shift-qris"]').textContent = rupiah(sales * 0.26);
+    root.querySelector('[data-part="shift-card"]').textContent = rupiah(sales * 0.12);
+  };
+
+  const renderLineChart = () => {
+    const d = data();
+    const width = 720;
+    const height = 240;
+    const padX = 46;
+    const padTop = 16;
+    const padBottom = 40;
+    const plotW = width - padX - 16;
+    const plotH = height - padTop - padBottom;
+    const max = Math.max(1, ...d.days.map((day) => day.sales));
+    const step = d.days.length > 1 ? plotW / (d.days.length - 1) : 0;
+    const x = (index) => padX + index * step;
+    const y = (value) => padTop + plotH - (value / max) * plotH;
+
+    const pointsFor = (key) => d.days.map((day, index) => x(index) + ',' + y(day[key]).toFixed(1)).join(' ');
+    const labels = [0, 0.5, 1].map((ratio) => {
+      const value = max * ratio;
+      const yy = y(value);
+      const short = value >= 1000000 ? (value / 1000000).toFixed(1).replace('.', ',') + ' jt' : Math.round(value / 1000) + ' rb';
+      return '<line x1="' + padX + '" y1="' + yy.toFixed(1) + '" x2="' + (padX + plotW) + '" y2="' + yy.toFixed(1) + '" stroke="var(--color-border, #e2e6ec)" stroke-width="1"></line>' +
+        '<text x="' + (padX - 8) + '" y="' + (yy + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--color-text-muted, #5a6675)">' + short + '</text>';
+    }).join('');
+    const ticks = d.days.map((day, index) =>
+      '<text x="' + x(index).toFixed(1) + '" y="' + (height - 14) + '" text-anchor="middle" font-size="11" fill="var(--color-text-muted, #5a6675)">' + day.label + '</text>').join('');
+    const dots = d.days.map((day, index) =>
+      '<circle cx="' + x(index).toFixed(1) + '" cy="' + y(day.profit).toFixed(1) + '" r="3.5" fill="var(--color-primary, #0f6d5f)"></circle>').join('');
+
+    chart.innerHTML =
+      labels + ticks +
+      '<polyline points="' + pointsFor('sales') + '" fill="none" stroke="var(--color-accent, #12507f)" stroke-width="2.5" stroke-linejoin="round"></polyline>' +
+      '<polyline points="' + pointsFor('profit') + '" fill="none" stroke="var(--color-primary, #0f6d5f)" stroke-width="2.5" stroke-linejoin="round"></polyline>' +
+      dots;
+
+    const totalSales = d.days.reduce((sum, day) => sum + day.sales, 0);
+    const totalProfit = d.days.reduce((sum, day) => sum + day.profit, 0);
+    root.querySelector('[data-part="trend-caption"]').textContent =
+      'Total ' + rupiah(totalSales) + ' penjualan dan ' + rupiah(totalProfit) + ' laba kotor pada ' + d.label.toLowerCase() + ' di ' + branch + '.';
+  };
+
+  const renderBranches = () => {
+    branchBars.innerHTML = '';
+    const d = data();
+    const max = Math.max(...d.branches.map((entry) => entry.profit));
+    d.branches.forEach((entry) => {
+      const row = document.createElement('div');
+      row.className = 'rep__bar-row';
+      row.innerHTML =
+        '<span class="rep__bar-top"><span></span><strong></strong></span>' +
+        '<span class="rep__bar-track"><span class="rep__bar-fill"></span></span>';
+      row.querySelector('.rep__bar-top span').textContent = entry.name + (entry.name === branch ? ' (aktif)' : '');
+      row.querySelector('.rep__bar-top strong').textContent = rupiah(entry.profit);
+      const fill = row.querySelector('.rep__bar-fill');
+      fill.style.width = Math.max(4, Math.round(entry.profit / max * 100)) + '%';
+      if (entry.name !== branch) fill.dataset.tone = 'accent';
+      const margin = entry.sales ? (entry.profit / entry.sales * 100) : 0;
+      row.querySelector('.rep__bar-track').setAttribute('title', entry.name + ' · margin ' + margin.toFixed(1) + '%');
+      branchBars.append(row);
+    });
+  };
+
+  const renderProducts = () => {
+    const d = data();
+    productBody.innerHTML = '';
+    root.querySelector('[data-part="product-count"]').textContent = d.products.length + ' produk';
+    root.querySelector('[data-part="product-empty"]').hidden = d.products.length > 0;
+    d.products.forEach((item) => {
+      const profit = item.sales - item.cogs;
+      const margin = item.sales ? (profit / item.sales * 100) : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><span class="rep__item-name"></span><span class="rep__item-sku"></span></td>' +
+        '<td class="num"></td>' +
+        '<td class="num"></td>' +
+        '<td class="num"></td>' +
+        '<td class="num"></td>' +
+        '<td class="num"></td>';
+      tr.querySelector('.rep__item-name').textContent = item.name;
+      tr.querySelector('.rep__item-sku').textContent = item.sku;
+      tr.children[1].textContent = String(item.qty);
+      tr.children[2].textContent = rupiah(item.sales);
+      tr.children[3].textContent = rupiah(item.cogs);
+      tr.children[4].textContent = rupiah(profit);
+      tr.children[5].textContent = margin.toFixed(1).replace('.', ',') + '%';
+      productBody.append(tr);
+    });
+  };
+
+  const updateShift = () => {
+    if (shiftClosed) return;
+    const value = Number(shiftCash.value || 0);
+    const hasValue = shiftCash.value !== '';
+    const diff = value - expectedCash;
+    const diffNode = root.querySelector('[data-part="shift-diff"]');
+    const hint = root.querySelector('[data-part="shift-hint"]');
+    diffNode.textContent = rupiah(diff);
+    diffNode.style.color = diff === 0 ? 'var(--color-success, #136b3f)' : diff > 0 ? 'var(--color-accent, #12507f)' : 'var(--color-danger, #a52b22)';
+    shiftCash.setAttribute('aria-invalid', String(hasValue && !Number.isFinite(Number(shiftCash.value))));
+    if (!hasValue) {
+      hint.dataset.tone = '';
+      hint.textContent = 'Masukkan jumlah kas fisik untuk menghitung selisih.';
+      return;
+    }
+    if (diff === 0) {
+      hint.dataset.tone = 'ok';
+      hint.textContent = 'Kas fisik sama dengan catatan sistem. Aman untuk ditutup.';
+    } else if (Math.abs(diff) <= 10000) {
+      hint.dataset.tone = 'warn';
+      hint.textContent = 'Selisih dalam batas toleransi Rp10.000. Tetap beri catatan bila perlu.';
+    } else {
+      hint.dataset.tone = 'danger';
+      hint.textContent = 'Selisih melebihi toleransi Rp10.000. Tandai perlu ditinjau agar tercatat di laporan.';
+    }
+  };
+
+  const renderAll = () => {
+    renderKpis();
+    renderLineChart();
+    renderBranches();
+    renderProducts();
+    updateShift();
+  };
+
+  const setPeriod = (next) => {
+    period = next;
+    root.querySelectorAll('[data-part="period"] button').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.period === next));
+    });
+    renderAll();
+  };
+
+  const setBranch = (next) => {
+    branch = next;
+    root.querySelectorAll('[data-part="branch"] button').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.branch === next));
+    });
+    renderAll();
+  };
+
+  const showShiftResult = (state) => {
+    shiftState = state;
+    const value = Number(shiftCash.value || 0);
+    const diff = value - expectedCash;
+    const title = root.querySelector('[data-part="shift-result-title"]');
+    const note = root.querySelector('[data-part="shift-result-note"]');
+    const status = root.querySelector('[data-part="shift-status"]');
+
+    if (state === 'closed') {
+      title.textContent = 'Shift ditutup';
+      status.textContent = 'Selesai direkonsiliasi';
+      status.className = 'rep__chip rep__chip--ok';
+      note.textContent = 'Rekonsiliasi tercatat di laporan tutup kasir dan siap dicetak.';
+    } else {
+      title.textContent = 'Selisih perlu ditinjau';
+      status.textContent = 'Perlu ditinjau';
+      status.className = 'rep__chip rep__chip--warn';
+      note.textContent = 'Selisih dikirim ke admin untuk pemeriksaan lanjutan pada laporan tutup kasir.';
+    }
+
+    const summary = root.querySelector('[data-part="shift-summary"]');
+    summary.innerHTML = '';
+    [
+      ['Kas seharusnya', rupiah(expectedCash)],
+      ['Kas fisik', rupiah(value)],
+      ['Pembayaran QRIS', root.querySelector('[data-part="shift-qris"]').textContent],
+      ['Kartu debit/kredit', root.querySelector('[data-part="shift-card"]').textContent]
+    ].forEach(([label, amount]) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span></span><strong></strong>';
+      li.firstElementChild.textContent = label;
+      li.lastElementChild.textContent = amount;
+      summary.append(li);
+    });
+    const diffLi = document.createElement('li');
+    diffLi.className = 'rep__grand';
+    diffLi.innerHTML = '<span>Selisih</span><strong></strong>';
+    diffLi.lastElementChild.textContent = rupiah(diff);
+    summary.append(diffLi);
+
+    shiftDialog.showModal();
+    root.querySelector('[data-action="rep:shift-close"]').focus();
+  };
+
+  root.addEventListener('click', (event) => {
+    const periodButton = event.target.closest('[data-part="period"] button');
+    if (periodButton && root.contains(periodButton)) {
+      setPeriod(periodButton.dataset.period);
+      return;
+    }
+    const branchButton = event.target.closest('[data-part="branch"] button');
+    if (branchButton && root.contains(branchButton)) {
+      setBranch(branchButton.dataset.branch);
+      return;
+    }
+    const control = event.target.closest('[data-action]');
+    if (!control || !root.contains(control)) return;
+    switch (control.dataset.action) {
+      case 'rep:close-shift': {
+        if (shiftCash.value === '') {
+          shiftCash.setAttribute('aria-invalid', 'true');
+          shiftCash.focus();
+          const hint = root.querySelector('[data-part="shift-hint"]');
+          hint.dataset.tone = 'danger';
+          hint.textContent = 'Isi kas fisik hasil hitung sebelum menutup shift.';
+          return;
+        }
+        shiftCash.setAttribute('aria-invalid', 'false');
+        const diff = Number(shiftCash.value) - expectedCash;
+        shiftClosed = true;
+        showShiftResult(Math.abs(diff) <= 10000 ? 'closed' : 'review');
+        break;
+      }
+      case 'rep:review-shift':
+        if (shiftCash.value !== '') shiftCash.setAttribute('aria-invalid', 'false');
+        showShiftResult('review');
+        break;
+      case 'rep:shift-close':
+        shiftDialog.close();
+        if (shiftState === 'closed') {
+          shiftCash.disabled = true;
+          root.querySelector('[data-action="rep:close-shift"]').disabled = true;
+          root.querySelector('[data-action="rep:review-shift"]').disabled = true;
+        }
+        break;
+    }
+  }, { signal });
+
+  root.addEventListener('input', (event) => {
+    if (event.target === shiftCash) updateShift();
+  }, { signal });
+
+  renderAll();
+})();
+</script>
+
+<template data-slot="header-actions">
+  <div class="rep__segments" role="group" aria-label="Periode laporan" data-part="period">
+    <button type="button" data-period="today" aria-pressed="false">Hari ini</button>
+    <button type="button" data-period="week" aria-pressed="true">7 hari</button>
+    <button type="button" data-period="month" aria-pressed="false">30 hari</button>
+  </div>
+  <div class="rep__segments" role="group" aria-label="Pilih cabang" data-part="branch">
+    <button type="button" data-branch="Kebayoran" aria-pressed="true">Kebayoran</button>
+    <button type="button" data-branch="Bintaro" aria-pressed="false">Bintaro</button>
+  </div>
+</template>

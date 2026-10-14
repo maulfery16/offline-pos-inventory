@@ -1,0 +1,294 @@
+<!-- dpai:layout {"purpose":"Shell aplikasi operasional ritel: sidebar modul, header dengan judul halaman, status sinkronisasi cabang, dan area aksi per halaman","responsive":"Sidebar tetap pada desktop; drawer modal di bawah 900px","geometry":{"contentMax":"1320px","padding":"var(--space-6, 24px)","mobilePadding":"var(--space-4, 16px)","gutter":"var(--space-6, 24px)","sectionGap":"var(--space-6, 24px)","itemGap":"var(--space-3, 12px)"}} -->
+<style>
+  .l-retail {
+    --l-retail-sidebar: 248px;
+    min-height: 100dvh;
+    background: var(--color-canvas, #f2f4f7);
+    color: var(--color-text, #182230);
+    font-family: var(--font-body, system-ui, sans-serif);
+  }
+  .l-retail *,
+  .l-retail *::before,
+  .l-retail *::after { box-sizing: border-box; }
+
+  .l-retail__sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--l-retail-sidebar);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5, 20px);
+    padding: var(--space-5, 20px) var(--space-4, 16px);
+    background: var(--color-surface-strong, #101828);
+    color: #e7ecf3;
+    overflow-y: auto;
+  }
+  .l-retail__brand { display: flex; align-items: center; gap: var(--space-3, 12px); padding: 0 var(--space-2, 8px); }
+  .l-retail__brand-mark {
+    display: grid;
+    place-items: center;
+    width: 36px; height: 36px;
+    flex: 0 0 36px;
+    border-radius: var(--radius-md, 10px);
+    background: var(--color-primary, #0f6d5f);
+    color: var(--color-on-primary, #fff);
+  }
+  .l-retail__brand-text { display: grid; min-width: 0; }
+  .l-retail__brand-name { font-weight: var(--weight-bold, 700); letter-spacing: var(--tracking-tight, -0.01em); }
+  .l-retail__brand-sub { font-size: var(--text-caption, 12px); color: #97a3b4; }
+
+  .l-retail__store {
+    display: grid;
+    gap: var(--space-1, 4px);
+    padding: var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    background: #1b2534;
+    border: 1px solid #2a3648;
+    font-size: var(--text-caption, 12px);
+    color: #b6c1d0;
+  }
+  .l-retail__store strong { color: #f2f6fb; font-size: var(--text-sm, 13px); }
+  .l-retail__sync { display: flex; align-items: center; gap: var(--space-2, 8px); }
+  .l-retail__sync-dot {
+    width: 8px; height: 8px; flex: 0 0 8px;
+    border-radius: 50%;
+    background: #4ec38a;
+  }
+  .l-retail__sync[data-state="offline"] .l-retail__sync-dot { background: #f3b64a; }
+
+  .l-retail__nav { display: grid; gap: var(--space-1, 4px); }
+  .l-retail__nav-label {
+    padding: 0 var(--space-3, 12px);
+    margin-bottom: var(--space-2, 8px);
+    font-size: var(--text-caption, 12px);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide, 0.04em);
+    color: #8593a6;
+  }
+  .l-retail__nav a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: 10px var(--space-3, 12px);
+    border-radius: var(--radius-md, 10px);
+    color: #d3dbe6;
+    font-size: var(--text-sm, 13px);
+    font-weight: var(--weight-medium, 500);
+    text-decoration: none;
+    min-height: 40px;
+  }
+  .l-retail__nav a iconify-icon { flex: 0 0 18px; width: 18px; height: 18px; color: #8b98ab; }
+  .l-retail__nav a:hover { background: #1b2534; color: #ffffff; }
+  .l-retail__nav a[aria-current] { background: var(--color-primary, #0f6d5f); color: var(--color-on-primary, #fff); }
+  .l-retail__nav a[aria-current] iconify-icon { color: var(--color-on-primary, #fff); }
+
+  .l-retail__sidebar-foot { margin-top: auto; display: grid; gap: var(--space-2, 8px); font-size: var(--text-caption, 12px); color: #8593a6; }
+  .l-retail__user { display: flex; align-items: center; gap: var(--space-3, 12px); padding: var(--space-2, 8px); border-radius: var(--radius-md, 10px); background: #1b2534; }
+  .l-retail__user-name { color: #f2f6fb; font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); }
+  .l-retail__avatar {
+    display: grid; place-items: center;
+    width: 32px; height: 32px; flex: 0 0 32px;
+    border-radius: 50%;
+    background: var(--color-accent, #12507f);
+    color: #fff; font-size: var(--text-caption, 12px); font-weight: var(--weight-semibold, 600);
+  }
+
+  .l-retail__body { margin-left: var(--l-retail-sidebar); min-width: 0; }
+  .l-retail__header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--color-surface, #fff);
+    border-bottom: 1px solid var(--color-border, #e2e6ec);
+  }
+  .l-retail__header-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 16px); flex-wrap: wrap; padding-block: var(--space-4, 16px); }
+  .l-retail__heading { display: flex; align-items: center; gap: var(--space-3, 12px); min-width: 0; }
+  .l-retail__heading h1 {
+    margin: 0;
+    font-family: var(--font-display, inherit);
+    font-size: var(--text-xl, 22px);
+    font-weight: var(--weight-bold, 700);
+    line-height: var(--leading-tight, 1.2);
+    letter-spacing: var(--tracking-tight, -0.01em);
+  }
+  .l-retail__eyebrow { display: block; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .l-retail__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2, 8px); }
+  .l-retail__content { min-width: 0; }
+
+  .l-retail__menu, .l-retail__close {
+    display: none;
+    align-items: center; gap: var(--space-2, 8px);
+    min-height: 40px;
+    padding: 8px var(--space-3, 12px);
+    border: 1px solid var(--color-border-strong, #cbd2dc);
+    border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff);
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-sm, 13px);
+    cursor: pointer;
+  }
+  .l-retail__drawer {
+    margin: 0;
+    width: min(300px, 88vw);
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    padding: var(--space-5, 20px) var(--space-4, 16px);
+    background: var(--color-surface-strong, #101828);
+    color: #d3dbe6;
+  }
+  .l-retail__drawer::backdrop { background: rgba(15, 22, 33, 0.55); }
+  .l-retail__drawer .l-retail__close { display: inline-flex; width: 100%; justify-content: center; background: #1b2534; border-color: #2a3648; color: #e7ecf3; margin-bottom: var(--space-4, 16px); }
+
+  .l-retail :focus-visible { outline: 2px solid var(--color-primary, #0f6d5f); outline-offset: 2px; }
+  .l-retail__sidebar :focus-visible, .l-retail__drawer :focus-visible { outline-color: #7fe3c9; }
+
+  @media (max-width: 900px) {
+    .l-retail__sidebar { display: none; }
+    .l-retail__body { margin-left: 0; }
+    .l-retail__menu { display: inline-flex; }
+    .l-retail__header-row { align-items: flex-start; }
+    .l-retail__actions { width: 100%; }
+  }
+</style>
+<div class="l-retail" data-layout="retail-shell" data-node-id="{{pageId}}.shell">
+  <aside class="l-retail__sidebar" aria-label="Navigasi modul">
+    <div class="l-retail__brand">
+      <span class="l-retail__brand-mark" aria-hidden="true">
+        <iconify-icon icon="lucide:store" width="20" height="20"></iconify-icon>
+      </span>
+      <span class="l-retail__brand-text">
+        <span class="l-retail__brand-name">Warung Nusantara</span>
+        <span class="l-retail__brand-sub">Retail Operations</span>
+      </span>
+    </div>
+
+    <div class="l-retail__store">
+      <span>Cabang aktif</span>
+      <strong>Cabang Kebayoran</strong>
+      <span class="l-retail__sync" data-state="online">
+        <span class="l-retail__sync-dot" aria-hidden="true"></span>
+        Data tersinkron · 2 menit lalu
+      </span>
+    </div>
+
+    <nav class="l-retail__nav" aria-label="Modul">
+      <span class="l-retail__nav-label">Operasional</span>
+      <a href="#/kasir" data-route-link data-route-match="prefix" data-nav-key="pos-register">
+        <iconify-icon icon="lucide:scan-barcode" aria-hidden="true"></iconify-icon>
+        Kasir (POS)
+      </a>
+      <a href="#/barang-masuk" data-route-link data-route-match="prefix" data-nav-key="inbound-receiving">
+        <iconify-icon icon="lucide:package-plus" aria-hidden="true"></iconify-icon>
+        Barang Masuk
+      </a>
+      <a href="#/inventaris" data-route-link data-route-match="prefix" data-nav-key="inventory-overview">
+        <iconify-icon icon="lucide:boxes" aria-hidden="true"></iconify-icon>
+        Inventaris
+      </a>
+      <a href="#/kedaluwarsa" data-route-link data-route-match="prefix" data-nav-key="expiry-fefo">
+        <iconify-icon icon="lucide:calendar-clock" aria-hidden="true"></iconify-icon>
+        Kedaluwarsa &amp; FEFO
+      </a>
+      <span class="l-retail__nav-label" style="margin-top: var(--space-4, 16px);">Analitik</span>
+      <a href="#/laporan" data-route-link data-route-match="prefix" data-nav-key="reports-profit">
+        <iconify-icon icon="lucide:chart-line" aria-hidden="true"></iconify-icon>
+        Laporan Laba
+      </a>
+    </nav>
+
+    <div class="l-retail__sidebar-foot">
+      <div class="l-retail__user">
+        <span class="l-retail__avatar" aria-hidden="true">RA</span>
+        <span>
+          <span class="l-retail__user-name">Rani Anggraeni</span><br>
+          Admin · 2 cabang
+        </span>
+      </div>
+      <span>Mode offline siap · 1.240 SKU lokal</span>
+    </div>
+  </aside>
+
+  <dialog class="l-retail__drawer" aria-label="Navigasi modul">
+    <button class="l-retail__close" type="button" data-action="retail:close">
+      <iconify-icon icon="lucide:x" aria-hidden="true"></iconify-icon>
+      Tutup menu
+    </button>
+    <nav class="l-retail__nav" aria-label="Modul (seluler)">
+      <span class="l-retail__nav-label">Operasional</span>
+      <a href="#/kasir" data-route-link data-route-match="prefix" data-nav-key="pos-register">
+        <iconify-icon icon="lucide:scan-barcode" aria-hidden="true"></iconify-icon>
+        Kasir (POS)
+      </a>
+      <a href="#/barang-masuk" data-route-link data-route-match="prefix" data-nav-key="inbound-receiving">
+        <iconify-icon icon="lucide:package-plus" aria-hidden="true"></iconify-icon>
+        Barang Masuk
+      </a>
+      <a href="#/inventaris" data-route-link data-route-match="prefix" data-nav-key="inventory-overview">
+        <iconify-icon icon="lucide:boxes" aria-hidden="true"></iconify-icon>
+        Inventaris
+      </a>
+      <a href="#/kedaluwarsa" data-route-link data-route-match="prefix" data-nav-key="expiry-fefo">
+        <iconify-icon icon="lucide:calendar-clock" aria-hidden="true"></iconify-icon>
+        Kedaluwarsa &amp; FEFO
+      </a>
+      <span class="l-retail__nav-label" style="margin-top: var(--space-4, 16px);">Analitik</span>
+      <a href="#/laporan" data-route-link data-route-match="prefix" data-nav-key="reports-profit">
+        <iconify-icon icon="lucide:chart-line" aria-hidden="true"></iconify-icon>
+        Laporan Laba
+      </a>
+    </nav>
+  </dialog>
+
+  <div class="l-retail__body">
+    <header class="l-retail__header">
+      <div class="l-retail__header-row" data-layout-container>
+        <div class="l-retail__heading">
+          <button class="l-retail__menu" type="button" data-action="retail:menu" aria-haspopup="dialog" aria-expanded="false">
+            <iconify-icon icon="lucide:menu" aria-hidden="true"></iconify-icon>
+            Menu
+          </button>
+          <span>
+            <span class="l-retail__eyebrow">{{title}}</span>
+            <h1>{{title}}</h1>
+          </span>
+        </div>
+        <div class="l-retail__actions">{{headerActions}}</div>
+      </div>
+    </header>
+    <div class="l-retail__content">{{content}}</div>
+  </div>
+</div>
+<script>
+(() => {
+  document.querySelectorAll('[data-layout="retail-shell"]').forEach((shell) => {
+    const dialog = shell.querySelector('.l-retail__drawer');
+    const menu = shell.querySelector('[data-action="retail:menu"]');
+    if (!dialog || !menu) return;
+    const narrow = matchMedia('(max-width: 900px)');
+
+    const close = () => {
+      if (dialog.open) dialog.close();
+      menu.setAttribute('aria-expanded', 'false');
+    };
+
+    shell.addEventListener('click', (event) => {
+      const control = event.target.closest('[data-action], a[data-route-link]');
+      if (!control || !shell.contains(control)) return;
+      if (control.dataset.action === 'retail:menu') {
+        dialog.showModal();
+        menu.setAttribute('aria-expanded', 'true');
+        return;
+      }
+      if (control.dataset.action === 'retail:close' || control.matches('a[data-route-link]')) close();
+    });
+
+    dialog.addEventListener('close', () => menu.setAttribute('aria-expanded', 'false'));
+    dialog.addEventListener('cancel', () => menu.setAttribute('aria-expanded', 'false'));
+    narrow.addEventListener('change', close);
+    addEventListener('hashchange', close);
+  });
+})();
+</script>

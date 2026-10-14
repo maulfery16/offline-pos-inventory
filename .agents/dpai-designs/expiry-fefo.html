@@ -1,0 +1,474 @@
+<!-- dpai:page {"typography":true,"scoped":true,"title":"Kedaluwarsa & FEFO","navKey":"expiry-fefo","layoutProps":{}} -->
+<style>
+  .exp { display: grid; gap: var(--space-6, 24px); min-width: 0; }
+  .exp > * { min-width: 0; }
+  .exp__panel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); min-width: 0; }
+  .exp__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .exp__head h2 { margin: 0; font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); }
+  .exp__body { padding: var(--space-5, 20px); }
+
+  .exp__split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 330px); gap: var(--space-6, 24px); align-items: start; }
+  .exp__split > * { min-width: 0; }
+
+  .exp__buckets { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3, 12px); }
+  .exp__bucket { display: grid; gap: 6px; padding: var(--space-4, 16px); text-align: left; border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); background: var(--color-surface, #fff); color: inherit; font: inherit; cursor: pointer; min-width: 0; }
+  .exp__bucket[aria-pressed="true"] { border-color: var(--color-primary, #0f6d5f); box-shadow: 0 0 0 2px var(--color-primary-soft, #e2f2ee); }
+  .exp__bucket-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2, 8px); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .exp__bucket-value { font-size: var(--text-2xl, 28px); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-tight, -0.01em); }
+  .exp__bucket-foot { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .exp__bucket-foot[data-tone="danger"] { color: var(--color-danger, #a52b22); }
+
+  .exp__chart { display: grid; gap: var(--space-3, 12px); }
+  .exp__bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3, 12px); align-items: end; height: 200px; padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-surface-sunken, #f7f8fa); }
+  .exp__bar-col { display: grid; align-content: end; justify-items: center; gap: var(--space-2, 8px); height: 100%; }
+  .exp__bar { width: 100%; max-width: 64px; border-radius: var(--radius-sm, 6px) var(--radius-sm, 6px) 0 0; background: var(--color-accent, #12507f); }
+  .exp__bar[data-tone="warn"] { background: #d99b2b; }
+  .exp__bar[data-tone="danger"] { background: #c25043; }
+  .exp__bar-value { font-size: var(--text-caption, 12px); font-weight: var(--weight-semibold, 600); font-variant-numeric: tabular-nums; }
+  .exp__bar-label { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); text-align: center; }
+
+  .exp__toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3, 12px); }
+  .exp__segments { display: inline-flex; flex-wrap: wrap; gap: var(--space-1, 4px); padding: 4px; background: var(--color-surface-sunken, #f7f8fa); border-radius: var(--radius-md, 10px); }
+  .exp__segments button { min-height: 36px; padding: 6px var(--space-3, 12px); border: 0; border-radius: var(--radius-sm, 6px); background: transparent; color: var(--color-text-muted, #5a6675); font: inherit; font-size: var(--text-sm, 13px); font-weight: var(--weight-medium, 500); cursor: pointer; }
+  .exp__segments button[aria-pressed="true"] { background: var(--color-surface, #fff); color: var(--color-text, #182230); font-weight: var(--weight-semibold, 600); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08); }
+  .exp__select { display: inline-flex; align-items: center; gap: var(--space-2, 8px); font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+  .exp__select select { min-height: 40px; padding: 6px 10px; border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px); background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-sm, 13px); }
+
+  .exp__table-wrap { overflow-x: auto; max-width: 100%; }
+  .exp__table { width: 100%; border-collapse: collapse; font-size: var(--text-sm, 13px); table-layout: fixed; }
+  .exp__table th, .exp__table td { padding: var(--space-2, 8px) 10px; text-align: left; border-bottom: 1px solid var(--color-border, #e2e6ec); vertical-align: middle; }
+  .exp__table th { font-size: var(--text-caption, 12px); text-transform: uppercase; letter-spacing: var(--tracking-wide, 0.04em); color: var(--color-text-muted, #5a6675); background: var(--color-surface-sunken, #f7f8fa); overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+  .exp__table td { overflow-wrap: break-word; }
+  .exp__table td:not(:first-child) { word-break: keep-all; }
+  .exp__table th:nth-child(1), .exp__table td:nth-child(1) { width: 21%; }
+  .exp__table th:nth-child(2), .exp__table td:nth-child(2) { width: 9%; }
+  .exp__table th:nth-child(3), .exp__table td:nth-child(3) { width: 13%; }
+  .exp__table th:nth-child(4), .exp__table td:nth-child(4) { width: 10%; }
+  .exp__table th:nth-child(5), .exp__table td:nth-child(5) { width: 11%; }
+  .exp__table th:nth-child(6), .exp__table td:nth-child(6) { width: 7%; }
+  .exp__table th:nth-child(7), .exp__table td:nth-child(7) { width: 10%; }
+  .exp__table th:nth-child(8), .exp__table td:nth-child(8) { width: 9%; }
+  .exp__table th:nth-child(9), .exp__table td:nth-child(9) { width: 10%; }
+  .exp__table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .exp__item-name { font-weight: var(--weight-semibold, 600); display: block; }
+  .exp__item-sku { font-family: var(--font-mono, monospace); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); white-space: nowrap; }
+
+  .exp__chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-pill, 999px); font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); }
+  .exp__chip--ok { background: var(--color-success-soft, #e3f4e9); color: var(--color-success, #136b3f); }
+  .exp__chip--warn { background: var(--color-warning-soft, #fdf0da); color: var(--color-warning, #8a5300); }
+  .exp__chip--danger { background: var(--color-danger-soft, #fbe8e5); color: var(--color-danger, #a52b22); }
+  .exp__chip--blocked { background: var(--color-surface-strong, #101828); color: #fff; }
+
+  .exp__actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .exp__btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-md, 10px); font: inherit; font-size: var(--text-caption, 12px); font-weight: var(--weight-semibold, 600); cursor: pointer; white-space: nowrap; }
+  .exp__btn--ghost { background: var(--color-surface, #fff); border-color: var(--color-border-strong, #cbd2dc); color: inherit; }
+  .exp__btn--ghost:hover { border-color: var(--color-primary, #0f6d5f); }
+  .exp__btn--primary { background: var(--color-primary, #0f6d5f); color: var(--color-on-primary, #fff); }
+  .exp__btn--primary:hover { background: var(--color-primary-hover, #0b564a); }
+  .exp__btn--danger { background: var(--color-surface, #fff); border-color: #e0aca6; color: var(--color-danger, #a52b22); }
+  .exp__btn--danger:hover { background: var(--color-danger-soft, #fbe8e5); }
+  .exp__btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+  .exp__empty { margin: 0; padding: var(--space-6, 24px); text-align: center; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+
+  .exp__rules { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .exp__rules li { display: flex; gap: var(--space-2, 8px); padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-surface-sunken, #f7f8fa); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .exp__rules iconify-icon { flex: 0 0 auto; }
+
+  .exp__blocked { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .exp__blocked li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2, 8px); padding: var(--space-3, 12px); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px); }
+  .exp__blocked strong { display: block; font-size: var(--text-sm, 13px); }
+  .exp__blocked span { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+
+  .exp__notice { display: flex; gap: var(--space-2, 8px); margin: 0; padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); font-size: var(--text-caption, 12px); }
+  .exp__notice iconify-icon { flex: 0 0 auto; }
+
+  @media (max-width: 1120px) {
+    .exp__split { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 760px) {
+    .exp__body { padding: var(--space-4, 16px); }
+    .exp__bars { height: 170px; }
+    .exp__table { min-width: 660px; }
+    .exp__table th { font-size: 11px; letter-spacing: 0; }
+    .exp__table-wrap { overflow-x: auto; }
+  }
+</style>
+
+<template data-slot="content">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+  <main class="exp" data-node-id="expiry-fefo.main">
+    <section aria-label="Ringkasan kedaluwarsa" style="display: grid; gap: var(--space-3, 12px);">
+      <div class="exp__buckets" data-part="buckets"></div>
+      <p class="exp__notice">
+        <iconify-icon icon="lucide:shield-alert" aria-hidden="true"></iconify-icon>
+        Kasir otomatis menolak pemindaian bila seluruh batch SKU sudah kedaluwarsa atau diblokir. Batch dengan kedaluwarsa terdekat selalu diambil lebih dulu.
+      </p>
+    </section>
+
+    <div class="exp__split">
+      <div style="display: grid; gap: var(--space-6, 24px); min-width: 0;">
+        <section class="exp__panel" aria-labelledby="exp-chart-title">
+          <div class="exp__head">
+            <h2 id="exp-chart-title">Sebaran batch per rentang kedaluwarsa</h2>
+            <span class="exp__chip exp__chip--ok" data-part="chart-total">0 batch</span>
+          </div>
+          <div class="exp__body">
+            <div class="exp__chart" data-part="chart" role="img" aria-label="Grafik batang jumlah batch menurut rentang waktu kedaluwarsa"></div>
+          </div>
+        </section>
+
+        <section class="exp__panel" aria-labelledby="exp-table-title">
+          <div class="exp__head">
+            <h2 id="exp-table-title">Batch menurut urutan FEFO</h2>
+            <span class="exp__chip exp__chip--info" data-part="table-count">0 batch</span>
+          </div>
+          <div class="exp__body" style="display: grid; gap: var(--space-4, 16px);">
+            <div class="exp__toolbar">
+              <div class="exp__segments" role="group" aria-label="Rentang kedaluwarsa" data-part="ranges">
+                <button type="button" data-range="7" aria-pressed="false">≤7 hari</button>
+                <button type="button" data-range="14" aria-pressed="false">≤14 hari</button>
+                <button type="button" data-range="30" aria-pressed="true">≤30 hari</button>
+                <button type="button" data-range="all" aria-pressed="false">Semua batch</button>
+              </div>
+              <label class="exp__select" for="exp-sort">Urutkan
+                <select id="exp-sort" data-part="sort">
+                  <option value="fefo">FEFO (terdekat dulu)</option>
+                  <option value="latest">Kedaluwarsa terbaru</option>
+                  <option value="value">Nilai HPP terbesar</option>
+                </select>
+              </label>
+            </div>
+            <div class="exp__table-wrap">
+              <table class="exp__table">
+                <thead>
+                  <tr>
+                    <th scope="col">Barang</th>
+                    <th scope="col">No. batch</th>
+                    <th scope="col">Kedaluwarsa</th>
+                    <th scope="col">Sisa hari</th>
+                    <th scope="col">Cabang</th>
+                    <th scope="col">Stok batch</th>
+                    <th scope="col">Nilai HPP</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody data-part="table-body"></tbody>
+              </table>
+            </div>
+            <p class="exp__empty" data-part="table-empty" hidden>Tidak ada batch pada rentang ini. Coba perluas rentang kedaluwarsa.</p>
+          </div>
+        </section>
+      </div>
+
+      <aside style="display: grid; gap: var(--space-4, 16px); min-width: 0;" data-node-id="expiry-fefo.sidebar">
+        <section class="exp__panel">
+          <div class="exp__head"><h2>Aturan FEFO aktif</h2></div>
+          <div class="exp__body">
+            <ul class="exp__rules">
+              <li><iconify-icon icon="lucide:arrow-down-narrow-wide" aria-hidden="true"></iconify-icon>Batch dengan tanggal kedaluwarsa paling dekat dipotong lebih dulu saat penjualan.</li>
+              <li><iconify-icon icon="lucide:lock" aria-hidden="true"></iconify-icon>Batch melewati tanggal kedaluwarsa otomatis diblokir dari kasir.</li>
+              <li><iconify-icon icon="lucide:bell" aria-hidden="true"></iconify-icon>Peringatan dikirim pada 7, 14 dan 30 hari sebelum kedaluwarsa.</li>
+              <li><iconify-icon icon="lucide:calculator" aria-hidden="true"></iconify-icon>Laba kotor dihitung dari HPP batch yang benar-benar terjual.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="exp__panel">
+          <div class="exp__head">
+            <h2>Diblokir dari kasir</h2>
+            <span class="exp__chip exp__chip--blocked" data-part="blocked-count">0 SKU</span>
+          </div>
+          <div class="exp__body">
+            <ul class="exp__blocked" data-part="blocked-list"></ul>
+          </div>
+        </section>
+
+        <section class="exp__panel">
+          <div class="exp__head"><h2>Peringatan terbaru</h2></div>
+          <div class="exp__body">
+            <ul class="exp__rules" data-part="log"></ul>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</template>
+
+<script>
+(() => {
+  const TODAY = new Date('2026-04-18T00:00:00');
+  const batches = [
+    { id: 'b1', sku: '8991234567890', name: 'Susu Ultra 250ml', batch: 'B1174', expiry: '2026-04-23', branch: 'Kebayoran', qty: 12, cost: 5900, blocked: false, action: null },
+    { id: 'b2', sku: '8998765432109', name: 'Roti Tawar Sari Roti', batch: 'B1180', expiry: '2026-04-21', branch: 'Kebayoran', qty: 6, cost: 14000, blocked: false, action: null },
+    { id: 'b3', sku: '8996000223344', name: 'Yogurt Cimory 200ml', batch: 'B1160', expiry: '2026-04-16', branch: 'Kebayoran', qty: 4, cost: 7400, blocked: true, action: 'blocked' },
+    { id: 'b4', sku: '8991234567890', name: 'Susu Ultra 250ml', batch: 'B1179', expiry: '2026-04-29', branch: 'Bintaro', qty: 24, cost: 5900, blocked: false, action: null },
+    { id: 'b5', sku: '8991002101147', name: 'Indomie Goreng 85g', batch: 'B2321', expiry: '2026-05-12', branch: 'Kebayoran', qty: 48, cost: 2900, blocked: false, action: null },
+    { id: 'b6', sku: '8997000334455', name: 'Yakult Original 65ml', batch: 'B1181', expiry: '2026-05-01', branch: 'Bintaro', qty: 30, cost: 2100, blocked: false, action: null },
+    { id: 'b7', sku: '8996000223344', name: 'Keju Cheddar 170g', batch: 'B1170', expiry: '2026-05-18', branch: 'Kebayoran', qty: 9, cost: 23500, blocked: false, action: 'return' },
+    { id: 'b8', sku: '8995000112233', name: 'Kopi Kapal Api 165g', batch: 'B2280', expiry: '2026-11-14', branch: 'Kebayoran', qty: 21, cost: 9800, blocked: false, action: null },
+    { id: 'b9', sku: '8991112223334', name: 'Teh Pucuk 350ml', batch: 'B2305', expiry: '2026-07-23', branch: 'Bintaro', qty: 36, cost: 3400, blocked: false, action: null },
+    { id: 'b10', sku: '8997000334455', name: 'Minyak Goreng 2L', batch: 'B2290', expiry: '2026-12-02', branch: 'Kebayoran', qty: 18, cost: 32000, blocked: false, action: null }
+  ];
+
+  const rupiah = (value) => 'Rp' + Math.round(value).toLocaleString('id-ID');
+  const daysLeft = (iso) => Math.round((new Date(iso + 'T00:00:00') - TODAY) / 86400000);
+  const bucketsEl = root.querySelector('[data-part="buckets"]');
+  const chartEl = root.querySelector('[data-part="chart"]');
+  const tableBody = root.querySelector('[data-part="table-body"]');
+  const tableEmpty = root.querySelector('[data-part="table-empty"]');
+  const ranges = [...root.querySelectorAll('[data-part="ranges"] button')];
+  const sortSelect = root.querySelector('[data-part="sort"]');
+  const log = root.querySelector('[data-part="log"]');
+  let range = 30;
+  let sort = 'fefo';
+
+  const bucketDefs = [
+    { key: 'expired', label: 'Sudah kedaluwarsa', tone: 'danger', test: (d) => d <= 0 },
+    { key: '7', label: '≤7 hari', tone: 'danger', test: (d) => d > 0 && d <= 7 },
+    { key: '14', label: '8–14 hari', tone: 'warn', test: (d) => d > 7 && d <= 14 },
+    { key: '30', label: '15–30 hari', tone: 'warn', test: (d) => d > 14 && d <= 30 },
+    { key: 'later', label: '>30 hari', tone: 'calm', test: (d) => d > 30 }
+  ];
+
+  const inRange = (batch) => {
+    if (range === 'all') return true;
+    const days = daysLeft(batch.expiry);
+    return days <= Number(range);
+  };
+
+  const statusOf = (batch) => {
+    const days = daysLeft(batch.expiry);
+    if (batch.blocked) return { chip: 'exp__chip--blocked', text: 'Diblokir' };
+    if (days <= 0) return { chip: 'exp__chip--danger', text: 'Kritis' };
+    if (days <= 7) return { chip: 'exp__chip--danger', text: 'Prioritas' };
+    if (days <= 30) return { chip: 'exp__chip--warn', text: 'Perhatian' };
+    return { chip: 'exp__chip--ok', text: 'Normal' };
+  };
+
+  const renderBuckets = () => {
+    bucketsEl.innerHTML = '';
+    let riskyValue = 0;
+    bucketDefs.forEach((bucket) => {
+      const rows = batches.filter((batch) => bucket.test(daysLeft(batch.expiry)));
+      rows.forEach((batch) => {
+        if (daysLeft(batch.expiry) <= 30) riskyValue += batch.qty * batch.cost;
+      });
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'exp__bucket';
+      button.dataset.part = 'bucket';
+      button.dataset.bucket = bucket.key;
+      button.setAttribute('aria-pressed', 'false');
+      button.innerHTML =
+        '<span class="exp__bucket-label"><span></span><span class="exp__chip ' +
+        (bucket.tone === 'danger' ? 'exp__chip--danger' : bucket.tone === 'warn' ? 'exp__chip--warn' : 'exp__chip--ok') +
+        '">' + rows.length + ' batch</span></span>' +
+        '<span class="exp__bucket-value"></span>' +
+        '<span class="exp__bucket-foot"></span>';
+      button.querySelector('.exp__bucket-label span').textContent = bucket.label;
+      button.querySelector('.exp__bucket-value').textContent = rupiah(rows.reduce((sum, batch) => sum + batch.qty * batch.cost, 0));
+      const foot = button.querySelector('.exp__bucket-foot');
+      foot.textContent = rows.reduce((sum, batch) => sum + batch.qty, 0) + ' unit pada ' + rows.length + ' batch';
+      if (bucket.tone === 'danger') foot.dataset.tone = 'danger';
+      if (bucket.key === 'expired' || bucket.key === '7') clickTarget(button);
+      bucketsEl.append(button);
+    });
+    root.querySelector('[data-part="chart-total"]').textContent = batches.length + ' batch terdaftar';
+    renderChart(riskyValue);
+  };
+
+  const clickTarget = (button) => {
+    button.addEventListener('click', () => {
+      const bucket = button.dataset.bucket;
+      const next = bucket === 'expired' || bucket === '7' ? '7' : bucket === '14' ? '14' : '30';
+      setRange(next);
+    }, { signal });
+  };
+
+  const renderChart = () => {
+    chartEl.innerHTML = '';
+    const defs = [
+      { label: 'Kedaluwarsa', tone: 'danger', count: batches.filter((b) => daysLeft(b.expiry) <= 0).length },
+      { label: '≤7 hari', tone: 'danger', count: batches.filter((b) => { const d = daysLeft(b.expiry); return d > 0 && d <= 7; }).length },
+      { label: '8–14 hari', tone: 'warn', count: batches.filter((b) => { const d = daysLeft(b.expiry); return d > 7 && d <= 14; }).length },
+      { label: '15–30 hari', tone: 'warn', count: batches.filter((b) => { const d = daysLeft(b.expiry); return d > 14 && d <= 30; }).length },
+      { label: '>30 hari', tone: 'calm', count: batches.filter((b) => daysLeft(b.expiry) > 30).length }
+    ];
+    const max = Math.max(1, ...defs.map((def) => def.count));
+    chartEl.style.gridTemplateColumns = 'repeat(' + defs.length + ', minmax(0, 1fr))';
+    defs.forEach((def) => {
+      const col = document.createElement('div');
+      col.className = 'exp__bar-col';
+      const value = document.createElement('span');
+      value.className = 'exp__bar-value';
+      value.textContent = String(def.count);
+      const bar = document.createElement('span');
+      bar.className = 'exp__bar';
+      bar.dataset.tone = def.tone;
+      bar.style.height = Math.max(6, Math.round(def.count / max * 130)) + 'px';
+      bar.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.className = 'exp__bar-label';
+      label.textContent = def.label;
+      col.append(value, bar, label);
+      chartEl.append(col);
+    });
+  };
+
+  const renderTable = () => {
+    const rows = batches.filter(inRange).sort((a, b) => {
+      if (sort === 'latest') return daysLeft(b.expiry) - daysLeft(a.expiry);
+      if (sort === 'value') return (b.qty * b.cost) - (a.qty * a.cost);
+      return daysLeft(a.expiry) - daysLeft(b.expiry);
+    });
+
+    tableBody.innerHTML = '';
+    tableEmpty.hidden = rows.length > 0;
+    root.querySelector('[data-part="table-count"]').textContent = rows.length + ' batch';
+
+    rows.forEach((batch) => {
+      const days = daysLeft(batch.expiry);
+      const status = statusOf(batch);
+      const tr = document.createElement('tr');
+      tr.dataset.part = 'batch';
+      tr.dataset.id = batch.id;
+      tr.innerHTML =
+        '<td><span class="exp__item-name"></span><span class="exp__item-sku"></span></td>' +
+        '<td></td>' +
+        '<td></td>' +
+        '<td class="num" data-part="days"></td>' +
+        '<td></td>' +
+        '<td class="num"></td>' +
+        '<td class="num"></td>' +
+        '<td><span class="exp__chip ' + status.chip + '">' + status.text + '</span></td>' +
+        '<td><span class="exp__actions">' +
+          '<button class="exp__btn exp__btn--ghost" type="button" data-action="exp:return">Retur</button>' +
+          '<button class="exp__btn ' + (batch.blocked ? 'exp__btn--ghost' : 'exp__btn--danger') + '" type="button" data-action="exp:block">' + (batch.blocked ? 'Buka blokir' : 'Blokir') + '</button>' +
+        '</span></td>';
+      tr.querySelector('.exp__item-name').textContent = batch.name;
+      tr.querySelector('.exp__item-sku').textContent = batch.sku;
+      tr.children[1].textContent = batch.batch;
+      tr.children[2].textContent = new Date(batch.expiry + 'T00:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      const daysCell = tr.querySelector('[data-part="days"]');
+      daysCell.textContent = days <= 0 ? 'Lewat ' + Math.abs(days) + ' hari' : days + ' hari';
+      if (days <= 7) { daysCell.style.color = 'var(--color-danger, #a52b22)'; daysCell.style.fontWeight = '600'; }
+      tr.children[4].textContent = batch.branch;
+      tr.children[5].textContent = String(batch.qty);
+      tr.children[6].textContent = rupiah(batch.qty * batch.cost);
+      tableBody.append(tr);
+    });
+  };
+
+  const renderSidebar = () => {
+    const blocked = batches.filter((batch) => batch.blocked);
+    root.querySelector('[data-part="blocked-count"]').textContent = blocked.length + ' SKU';
+    const list = root.querySelector('[data-part="blocked-list"]');
+    list.innerHTML = '';
+    if (!blocked.length) {
+      const li = document.createElement('li');
+      li.style.gridTemplateColumns = 'minmax(0, 1fr)';
+      li.textContent = 'Tidak ada SKU yang diblokir saat ini.';
+      list.append(li);
+      return;
+    }
+    blocked.forEach((batch) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span><strong></strong><span></span></span><button class="exp__btn exp__btn--ghost" type="button" data-action="exp:unblock" data-id="' + batch.id + '">Buka</button>';
+      li.querySelector('strong').textContent = batch.name;
+      li.querySelector('span span').textContent = batch.batch + ' · ' + batch.qty + ' unit di kasir ditolak';
+      list.append(li);
+    });
+  };
+
+  const pushLog = (text) => {
+    const li = document.createElement('li');
+    const icon = document.createElement('iconify-icon');
+    icon.setAttribute('icon', 'lucide:history');
+    icon.setAttribute('aria-hidden', 'true');
+    li.append(icon, document.createTextNode(text));
+    log.prepend(li);
+    while (log.children.length > 4) log.lastElementChild.remove();
+  };
+
+  const renderLog = () => {
+    log.innerHTML = '';
+    [
+      'Peringatan 7 hari dikirim ke Stok: 2 batch Yogurt dan Roti Tawar.',
+      'Batch B2321 (Indomie Goreng) masuk dengan kedaluwarsa 12 Mei.',
+      'Cimory 200ml diblokir otomatis setelah melewati tanggal kedaluwarsa.'
+    ].forEach((text) => {
+      const li = document.createElement('li');
+      const icon = document.createElement('iconify-icon');
+      icon.setAttribute('icon', 'lucide:history');
+      icon.setAttribute('aria-hidden', 'true');
+      li.append(icon, document.createTextNode(text));
+      log.append(li);
+    });
+  };
+
+  const setRange = (next) => {
+    range = next;
+    ranges.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.range === String(next))));
+    bucketsEl.querySelectorAll('[data-part="bucket"]').forEach((button) => {
+      const bucket = button.dataset.bucket;
+      const active = (String(next) === '7' && (bucket === 'expired' || bucket === '7')) ||
+        (String(next) === '14' && bucket === '14') ||
+        (String(next) === '30' && bucket === '30') ||
+        (String(next) === 'all' && bucket === 'later');
+      button.setAttribute('aria-pressed', String(active));
+    });
+    renderTable();
+  };
+
+  root.addEventListener('click', (event) => {
+    const rangeButton = event.target.closest('[data-part="ranges"] button');
+    if (rangeButton && root.contains(rangeButton)) {
+      setRange(rangeButton.dataset.range);
+      return;
+    }
+    const control = event.target.closest('[data-action]');
+    if (!control || !root.contains(control)) return;
+    const row = control.closest('[data-part="batch"]');
+    const batch = row ? batches.find((entry) => entry.id === row.dataset.id) : null;
+
+    if (control.dataset.action === 'exp:return' && batch) {
+      batch.action = 'return';
+      pushLog('Retur supplier diajukan untuk ' + batch.name + ' batch ' + batch.batch + '.');
+      control.textContent = 'Retur diajukan';
+      control.disabled = true;
+      return;
+    }
+    if (control.dataset.action === 'exp:block' && batch) {
+      batch.blocked = true;
+      row.querySelector('td:nth-child(8)').innerHTML = '<span class="exp__chip exp__chip--blocked">Diblokir</span>';
+      control.textContent = 'Buka blokir';
+      control.className = 'exp__btn exp__btn--ghost';
+      pushLog(batch.name + ' batch ' + batch.batch + ' diblokir. Pemindaian di kasir ditolak.');
+      renderSidebar();
+      return;
+    }
+    if (control.dataset.action === 'exp:unblock') {
+      const target = batches.find((entry) => entry.id === control.dataset.id);
+      if (target) {
+        target.blocked = false;
+        pushLog(target.name + ' batch ' + target.batch + ' dibuka kembali untuk kasir.');
+        renderSidebar();
+        renderTable();
+      }
+    }
+  }, { signal });
+
+  root.addEventListener('change', (event) => {
+    if (event.target === sortSelect) {
+      sort = sortSelect.value;
+      renderTable();
+    }
+  }, { signal });
+
+  renderBuckets();
+  renderSidebar();
+  renderLog();
+  setRange(30);
+})();
+</script>

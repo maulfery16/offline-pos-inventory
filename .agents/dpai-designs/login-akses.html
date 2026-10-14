@@ -1,0 +1,748 @@
+<!-- dpai:page {"typography":true,"scoped":true,"layoutProps":{}} -->
+<style>
+  .login {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    background: var(--color-canvas);
+    color: var(--color-text);
+    font-family: var(--font-body);
+  }
+  .login * { box-sizing: border-box; }
+
+  /* ---------- Panel identitas ---------- */
+  .login__brand {
+    position: relative;
+    overflow: hidden;
+    padding: var(--space-10) var(--space-8);
+    background: var(--color-surface-strong);
+    color: var(--color-on-strong);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+  .login__brand::after {
+    content: "";
+    position: absolute;
+    inset: auto -120px -160px auto;
+    width: 380px; height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(15,109,95,.55), rgba(15,109,95,0) 68%);
+    pointer-events: none;
+  }
+  .login__brand-inner { position: relative; z-index: 1; max-width: 34rem; display: flex; flex-direction: column; gap: var(--space-8); flex: 1; }
+  .login__logo { display: flex; align-items: center; gap: var(--space-3); font-weight: var(--weight-bold); font-size: var(--text-lg); letter-spacing: var(--tracking-tight); }
+  .login__logo-mark {
+    width: 38px; height: 38px; flex: none;
+    display: grid; place-items: center;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+  .login__tagline {
+    margin: 0;
+    font-size: var(--text-3xl);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+    font-weight: var(--weight-bold);
+    text-wrap: balance;
+  }
+  .login__lead { margin: 0; font-size: var(--text-base); line-height: var(--leading-normal); color: #cfd6df; max-width: 46ch; }
+  .login__points { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); }
+  .login__point { display: flex; gap: var(--space-3); align-items: flex-start; }
+  .login__point-icon {
+    flex: none; width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,.09);
+    color: #9fe0d2;
+  }
+  .login__point-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-on-strong); }
+  .login__point-text { margin: 2px 0 0; font-size: var(--text-sm); line-height: var(--leading-normal); color: #aeb8c5; }
+
+  .login__branch {
+    position: relative; z-index: 1;
+    border-top: 1px solid rgba(255,255,255,.14);
+    padding-top: var(--space-5);
+    display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6);
+    align-items: center;
+    font-size: var(--text-sm);
+    color: #cfd6df;
+  }
+  .login__status { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: var(--weight-medium); }
+  .login__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .login__dot--online { background: #4ed39a; }
+  .login__dot--offline { background: #f0b45e; }
+
+  /* ---------- Panel formulir ---------- */
+  .login__panel {
+    padding: var(--space-10) var(--space-8);
+    display: flex; align-items: center; justify-content: center;
+    min-width: 0;
+  }
+  .login__card {
+    width: 100%; max-width: 30rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 2px rgba(16,24,40,.05), 0 18px 40px -28px rgba(16,24,40,.35);
+    padding: var(--space-8);
+    display: flex; flex-direction: column; gap: var(--space-6);
+  }
+  .login__heading { display: flex; flex-direction: column; gap: var(--space-2); }
+  .login__eyebrow {
+    margin: 0; font-size: var(--text-caption); font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--color-primary);
+  }
+  .login__title { margin: 0; font-size: var(--text-2xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); }
+  .login__sub { margin: 0; font-size: var(--text-sm); line-height: var(--leading-normal); color: var(--color-text-muted); }
+
+  /* Peran */
+  .login__roles { display: grid; gap: var(--space-3); }
+  .login__role {
+    width: 100%; text-align: left; cursor: pointer;
+    display: grid; grid-template-columns: 40px minmax(0,1fr) 20px;
+    gap: var(--space-3); align-items: center;
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    color: inherit; font: inherit;
+    transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+  }
+  .login__role-icon {
+    width: 40px; height: 40px; display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    color: var(--color-text-muted);
+    transition: background-color 140ms ease, color 140ms ease;
+  }
+  .login__role-name { font-size: var(--text-base); font-weight: var(--weight-semibold); }
+  .login__role-desc { margin: 2px 0 0; font-size: var(--text-caption); line-height: 1.45; color: var(--color-text-muted); }
+  .login__role-check { opacity: 0; color: var(--color-primary); transition: opacity 140ms ease; }
+  .login__role[aria-pressed="true"] {
+    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+  }
+  .login__role[aria-pressed="true"] .login__role-icon { background: var(--color-primary); color: var(--color-on-primary); }
+  .login__role[aria-pressed="true"] .login__role-check { opacity: 1; }
+  @media (hover: hover) {
+    .login__role:hover { border-color: var(--color-primary); }
+  }
+  .login__role:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+  /* Form */
+  .login__form { display: grid; gap: var(--space-5); }
+  .login__field { display: grid; gap: var(--space-2); }
+  .login__label { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+  .login__hint { font-size: var(--text-caption); color: var(--color-text-muted); }
+  .login__input, .login__select {
+    width: 100%; min-height: 46px;
+    padding: 10px var(--space-3);
+    font: inherit; font-size: 16px;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .login__select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 42px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6675' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-4) center;
+    background-size: 16px 16px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+  }
+  @media (hover: hover) { .login__select:hover { border-color: var(--color-primary); } }
+  .login__input:focus-visible, .login__select:focus-visible {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+  .login__input[aria-invalid="true"] { border-color: var(--color-danger); }
+  .login__input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px var(--color-danger-soft); }
+
+  .login__password-wrap { position: relative; }
+  .login__password-wrap .login__input { padding-right: 96px; }
+  .login__reveal {
+    position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+    min-height: 36px; padding: 0 var(--space-3);
+    font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-primary); background: transparent;
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .login__reveal:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+  .login__row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; justify-content: space-between; }
+  .login__remember { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--color-text-muted); cursor: pointer; }
+  .login__remember input { width: 18px; height: 18px; accent-color: var(--color-primary); flex: none; }
+  .login__link {
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-primary); text-decoration-thickness: 1px; text-underline-offset: 2px;
+    background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer;
+  }
+  .login__link:hover { text-decoration: underline; }
+  .login__link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+  .login__error {
+    display: none;
+    gap: var(--space-2); align-items: flex-start;
+    padding: var(--space-3);
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm); line-height: var(--leading-normal);
+  }
+  .login__error[data-visible="true"] { display: flex; }
+  .login__error svg { flex: none; margin-top: 2px; }
+
+  .login__submit {
+    min-height: 48px; width: 100%;
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+    padding: 0 var(--space-4);
+    font: inherit; font-size: var(--text-base); font-weight: var(--weight-semibold);
+    color: var(--color-on-primary);
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 140ms ease, transform 140ms ease;
+  }
+  @media (hover: hover) { .login__submit:not(:disabled):hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); } }
+  .login__submit:not(:disabled):active { transform: translateY(1px); }
+  .login__submit:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .login__submit:disabled { cursor: not-allowed; opacity: .55; }
+
+  /* PIN */
+  .login__pin { display: grid; gap: var(--space-5); }
+  .login__pin-readout {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+  .login__pin-dots { display: flex; gap: var(--space-2); align-items: center; }
+  .login__pin-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--color-border-strong);
+    background: transparent;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .login__pin-dot[data-filled="true"] { background: var(--color-primary); border-color: var(--color-primary); }
+  .login__pin-count { font-size: var(--text-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .login__keypad { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-3); }
+  .login__key {
+    min-height: 52px;
+    display: grid; place-items: center;
+    font: inherit; font-size: var(--text-xl); font-weight: var(--weight-medium);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+  @media (hover: hover) { .login__key:hover { border-color: var(--color-primary); background: var(--color-primary-soft); } }
+  .login__key:active { transform: scale(.97); }
+  .login__key:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .login__key--ghost {
+    font-size: var(--text-sm); font-weight: var(--weight-medium);
+    color: var(--color-text-muted); background: var(--color-surface-sunken);
+  }
+  .login__key--enter { font-size: var(--text-base); font-weight: var(--weight-semibold); color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); }
+  @media (hover: hover) { .login__key--enter:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); color: var(--color-on-primary); } }
+
+  .login__panels [hidden] { display: none !important; }
+
+  .login__meta {
+    display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+    align-items: center; justify-content: space-between;
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-caption); color: var(--color-text-muted);
+  }
+  .login__hint-inline { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .login__success {
+    display: none; gap: var(--space-2); align-items: flex-start;
+    padding: var(--space-3);
+    background: var(--color-success-soft); color: var(--color-success);
+    border-radius: var(--radius-sm); font-size: var(--text-sm); line-height: var(--leading-normal);
+  }
+  .login__success[data-visible="true"] { display: flex; }
+
+  .login :is(button, input, select, a):focus-visible { outline-color: var(--color-primary); }
+
+  /* ---------- Responsif ---------- */
+  @media (max-width: 1024px) {
+    .login { grid-template-columns: minmax(0, 1fr); }
+    .login__brand { padding: var(--space-8) var(--space-6); gap: var(--space-6); }
+    .login__tagline { font-size: var(--text-2xl); }
+    .login__points { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .login__panel { padding: var(--space-8) var(--space-6); align-items: flex-start; }
+  }
+  @media (max-width: 640px) {
+    .login__brand, .login__panel { padding: var(--space-6) var(--space-4); }
+    .login__points { grid-template-columns: minmax(0,1fr); }
+    .login__tagline { font-size: var(--text-xl); }
+    .login__card { padding: var(--space-5); border-radius: var(--radius-md); }
+    .login__key { min-height: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .login__role, .login__key, .login__input, .login__select, .login__submit, .login__pin-dot { transition: none; }
+    .login__key:active, .login__submit:not(:disabled):active { transform: none; }
+  }
+</style>
+<template data-slot="content">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <main class="login" data-node-id="login-akses.root">
+    <section class="login__brand" aria-labelledby="login-brand-name">
+      <div class="login__brand-inner">
+        <div class="login__logo">
+          <span class="login__logo-mark" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.4 10a2 2 0 0 1-2 1.8H6.4a2 2 0 0 1-2-1.8L3 9Z"/><path d="M8 9V6.5a4 4 0 0 1 8 0V9"/></svg>
+          </span>
+          <span id="login-brand-name">Toko Lintas Cabang</span>
+        </div>
+        <div>
+          <p class="login__tagline">Kasir tetap jalan, stok tetap akurat.</p>
+          <p class="login__lead" style="margin-top: var(--space-4)">Sistem kasir dan inventaris ritel yang menyimpan transaksi secara lokal saat internet putus, lalu menyinkronkan stok dan HPP begitu koneksi kembali.</p>
+        </div>
+        <ul class="login__points">
+          <li class="login__point">
+            <span class="login__point-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.8 4.9L19 9.7l-5.2 1.8L12 16.4l-1.8-4.9L5 9.7l5.2-1.8L12 3Z"/><path d="M18.5 15.5 19.4 18l2.5.9-2.5.9-.9 2.5-.9-2.5-2.5-.9 2.5-.9.9-2.5Z"/></svg></span>
+            <div>
+              <p class="login__point-title">Kasir cepat dengan PIN</p>
+              <p class="login__point-text">Masuk 4–6 digit, siap melayani tanpa mengetik email.</p>
+            </div>
+          </li>
+          <li class="login__point">
+            <span class="login__point-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 9.5 17.5 4 12"/></svg></span>
+            <div>
+              <p class="login__point-title">HPP akurat per batch</p>
+              <p class="login__point-text">Laba dihitung dari batch FEFO yang benar-benar terjual.</p>
+            </div>
+          </li>
+          <li class="login__point">
+            <span class="login__point-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/></svg></span>
+            <div>
+              <p class="login__point-title">Toleran saat offline</p>
+              <p class="login__point-text">Transaksi tetap tercatat lokal, sinkron otomatis setelah online.</p>
+            </div>
+          </li>
+          <li class="login__point">
+            <span class="login__point-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 3.5-4 3 2.5L21 7"/></svg></span>
+            <div>
+              <p class="login__point-title">Laporan lintas cabang</p>
+              <p class="login__point-text">Laba kotor, margin, dan tutup kasir dalam satu tampilan.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="login__branch">
+        <span class="login__status"><span class="login__dot login__dot--online" data-node-id="login-akses.status-dot" aria-hidden="true"></span><span data-node-id="login-akses.status-text">Online — tersinkron 12:04</span></span>
+        <span>Cabang aktif: Toko Pusat — Jakarta Selatan</span>
+        <span>Versi 2.4.1</span>
+      </div>
+    </section>
+
+    <section class="login__panel">
+      <div class="login__card" data-node-id="login-akses.card">
+        <div class="login__heading">
+          <p class="login__eyebrow">Masuk ke sistem</p>
+          <h1 class="login__title">Pilih peran kamu</h1>
+          <p class="login__sub">Setiap peran membuka modul yang berbeda. Kamu bisa berganti peran kapan saja sebelum masuk.</p>
+        </div>
+
+        <div class="login__roles" role="group" aria-label="Pilih peran pengguna" data-node-id="login-akses.roles">
+          <button class="login__role" type="button" data-action="login:role" data-role="kasir" aria-pressed="true" data-node-id="login-akses.role-kasir">
+            <span class="login__role-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l1.2 4H7.8L9 4Z"/><path d="M4.5 8h15l-1.3 10.4A2 2 0 0 1 16.2 20H7.8a2 2 0 0 1-2-1.6L4.5 8Z"/><path d="M9.5 12.5h5"/></svg></span>
+            <span>
+              <span class="login__role-name">Kasir</span>
+              <span class="login__role-desc">Transaksi cepat di modul kasir. Masuk dengan PIN.</span>
+            </span>
+            <span class="login__role-check" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </button>
+
+          <button class="login__role" type="button" data-action="login:role" data-role="admin" aria-pressed="false" data-node-id="login-akses.role-admin">
+            <span class="login__role-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7.5V17a2 2 0 0 1-1.6 1.9l-6 1.2-6-1.2A2 2 0 0 1 4.8 17V7.5"/><path d="m3 8 9-4 9 4-9 3.6L3 8Z"/><path d="M12 11.6V20"/></svg></span>
+            <span>
+              <span class="login__role-name">Admin / Manajer Toko</span>
+              <span class="login__role-desc">Barang masuk, stok opname, dan pengelolaan batch FEFO.</span>
+            </span>
+            <span class="login__role-check" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </button>
+
+          <button class="login__role" type="button" data-action="login:role" data-role="owner" aria-pressed="false" data-node-id="login-akses.role-owner">
+            <span class="login__role-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M6.5 19V9.5"/><path d="M12 19V5"/><path d="M17.5 19v-6"/></svg></span>
+            <span>
+              <span class="login__role-name">Owner / Pemilik Usaha</span>
+              <span class="login__role-desc">Laporan laba, margin kotor, dan analitik semua cabang.</span>
+            </span>
+            <span class="login__role-check" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </button>
+        </div>
+
+        <div class="login__panels">
+          <!-- Form PIN kasir -->
+          <form class="login__form" data-panel="kasir" novalidate data-node-id="login-akses.panel-kasir">
+            <div class="login__field">
+              <label class="login__label" for="login-kasir">Kasir aktif</label>
+              <select class="login__select" id="login-kasir" name="kasir" data-input="kasir">
+                <option value="rina">Rina — Shift pagi (07:00–15:00)</option>
+                <option value="dwi">Dwi — Shift siang (15:00–23:00)</option>
+                <option value="agus">Agus — Shift malam (23:00–07:00)</option>
+              </select>
+            </div>
+
+            <div class="login__field">
+              <span class="login__label" id="login-pin-label">PIN 4–6 digit</span>
+              <div class="login__pin-readout" role="group" aria-labelledby="login-pin-label">
+                <span class="login__pin-dots" data-pin-dots aria-hidden="true">
+                  <span class="login__pin-dot"></span><span class="login__pin-dot"></span><span class="login__pin-dot"></span>
+                  <span class="login__pin-dot"></span><span class="login__pin-dot"></span><span class="login__pin-dot"></span>
+                </span>
+                <span class="login__pin-count" data-pin-count>0/6 digit</span>
+              </div>
+              <input class="login__input" id="login-pin" name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" aria-describedby="login-pin-hint login-pin-error" data-input="pin" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0">
+              <p class="login__hint" id="login-pin-hint" data-pin-hint>Tekan angka di keypad atau gunakan papan angka perangkat. Papan angka perangkat keras tetap berfungsi.</p>
+            </div>
+
+            <div class="login__keypad" data-keypad aria-label="Keypad PIN">
+              <button class="login__key" type="button" data-key="1">1</button>
+              <button class="login__key" type="button" data-key="2">2</button>
+              <button class="login__key" type="button" data-key="3">3</button>
+              <button class="login__key" type="button" data-key="4">4</button>
+              <button class="login__key" type="button" data-key="5">5</button>
+              <button class="login__key" type="button" data-key="6">6</button>
+              <button class="login__key" type="button" data-key="7">7</button>
+              <button class="login__key" type="button" data-key="8">8</button>
+              <button class="login__key" type="button" data-key="9">9</button>
+              <button class="login__key login__key--ghost" type="button" data-key="clear">Hapus</button>
+              <button class="login__key" type="button" data-key="0">0</button>
+              <button class="login__key login__key--ghost" type="button" data-key="back" aria-label="Hapus satu digit">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6H9l-5 6 5 6h11a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1Z"/><path d="m15 10-3 4m0-4 3 4"/></svg>
+              </button>
+            </div>
+
+            <p class="login__error" data-error="kasir" id="login-pin-error" role="alert" hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/><path d="M12 16h.01"/></svg>
+              <span data-error-text>PIN harus 4–6 digit angka.</span>
+            </p>
+
+            <button class="login__submit" type="submit" data-submit="kasir">Masuk sebagai kasir</button>
+            <p class="login__meta" style="border-top:0; padding-top:0">
+              <button class="login__link" type="button" data-action="login:forgot">Lupa PIN?</button>
+              <span>Hubungi admin toko untuk reset PIN.</span>
+            </p>
+          </form>
+
+          <!-- Form email admin/owner -->
+          <form class="login__form" data-panel="staf" novalidate hidden data-node-id="login-akses.panel-staf">
+            <div class="login__field">
+              <label class="login__label" for="login-email">Email kerja</label>
+              <input class="login__input" id="login-email" name="email" type="email" inputmode="email" autocomplete="username" placeholder="nama@tokolintascabang.id" data-input="email" aria-describedby="login-email-error">
+            </div>
+
+            <div class="login__field">
+              <label class="login__label" for="login-password">Kata sandi</label>
+              <div class="login__password-wrap">
+                <input class="login__input" id="login-password" name="password" type="password" autocomplete="current-password" data-input="password" aria-describedby="login-password-error">
+                <button class="login__reveal" type="button" data-action="login:reveal" aria-pressed="false" aria-controls="login-password">Tampilkan</button>
+              </div>
+            </div>
+
+            <div class="login__field" data-field="cabang">
+              <label class="login__label" for="login-cabang">Cabang</label>
+              <select class="login__select" id="login-cabang" name="cabang" data-input="cabang">
+                <option value="semua">Semua cabang (konsolidasi)</option>
+                <option value="pusat">Toko Pusat — Jakarta Selatan</option>
+                <option value="bandung">Cabang Bandung — Dago</option>
+                <option value="surabaya">Cabang Surabaya — Diponegoro</option>
+              </select>
+              <p class="login__hint">Admin hanya melihat satu cabang; owner dapat melihat seluruh cabang sekaligus.</p>
+            </div>
+
+            <div class="login__row">
+              <label class="login__remember">
+                <input type="checkbox" name="remember" checked>
+                <span>Ingat perangkat ini selama 30 hari</span>
+              </label>
+              <button class="login__link" type="button" data-action="login:forgot">Lupa kata sandi?</button>
+            </div>
+
+            <p class="login__error" data-error="staf" role="alert" hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5"/><path d="M12 16h.01"/></svg>
+              <span data-error-text>Isi email dan kata sandi terlebih dahulu.</span>
+            </p>
+
+            <button class="login__submit" type="submit" data-submit="staf">Masuk ke dasbor</button>
+          </form>
+        </div>
+
+        <p class="login__success" data-success role="status">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span data-success-text>Peran dipilih. Lanjutkan masuk.</span>
+        </p>
+
+        <div class="login__meta">
+          <span class="login__hint-inline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10"/><path d="m8.5 9.5 3.5 3.5 3.5-3.5"/><path d="M5 15v3.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V15"/></svg>
+            <span data-connection-note>Halaman ini bisa dibuka walau internet putus.</span>
+          </span>
+          <button class="login__link" type="button" data-action="login:toggle-connection" aria-pressed="false">Simulasikan offline</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</template>
+<script>
+  const card = root.querySelector('.login__card');
+  const roleButtons = Array.from(root.querySelectorAll('[data-action="login:role"]'));
+  const panels = {
+    kasir: root.querySelector('[data-panel="kasir"]'),
+    staf: root.querySelector('[data-panel="staf"]')
+  };
+  const pinInput = root.querySelector('[data-input="pin"]');
+  const pinDots = Array.from(root.querySelectorAll('[data-pin-dots] .login__pin-dot'));
+  const pinCount = root.querySelector('[data-pin-count]');
+  const pinHint = root.querySelector('[data-pin-hint]');
+  const emailInput = root.querySelector('[data-input="email"]');
+  const passwordInput = root.querySelector('[data-input="password"]');
+  const branchField = root.querySelector('[data-field="cabang"]');
+  const branchSelect = root.querySelector('[data-input="cabang"]');
+  const connectionNote = root.querySelector('[data-connection-note]');
+  const statusDot = root.querySelector('[data-node-id="login-akses.status-dot"]');
+  const statusText = root.querySelector('[data-node-id="login-akses.status-text"]');
+  const success = root.querySelector('[data-success]');
+  const successText = root.querySelector('[data-success-text]');
+  const submitKasir = root.querySelector('[data-submit="kasir"]');
+  const submitStaf = root.querySelector('[data-submit="staf"]');
+
+  // PIN valid per kasir pada data contoh ini.
+  const PIN_BENAR = { rina: '246810', dwi: '1357', agus: '482913' };
+  let activeRole = 'kasir';
+
+  function roleLabel(role) {
+    if (role === 'kasir') return 'kasir';
+    if (role === 'admin') return 'admin toko';
+    return 'owner';
+  }
+
+  function showError(scope, message) {
+    const box = root.querySelector('[data-error="' + scope + '"]');
+    if (!box) return;
+    box.querySelector('[data-error-text]').textContent = message;
+    box.hidden = false;
+    box.setAttribute('data-visible', 'true');
+  }
+
+  function clearError(scope) {
+    const box = root.querySelector('[data-error="' + scope + '"]');
+    if (!box) return;
+    box.hidden = true;
+    box.removeAttribute('data-visible');
+  }
+
+  function clearSuccess() {
+    success.removeAttribute('data-visible');
+  }
+
+  function showSuccess(message) {
+    successText.textContent = message;
+    success.setAttribute('data-visible', 'true');
+  }
+
+  function setPIN(value) {
+    pinInput.value = value;
+    pinDots.forEach((dot, index) => {
+      dot.setAttribute('data-filled', String(index < value.length));
+    });
+    pinCount.textContent = value.length + '/6 digit';
+    pinHint.textContent = value.length >= 4
+      ? 'PIN siap. Tekan Enter atau tombol masuk.'
+      : 'Tekan angka di keypad atau gunakan papan angka perangkat. Papan angka perangkat keras tetap berfungsi.';
+  }
+
+  function updateRole(role) {
+    activeRole = role;
+    roleButtons.forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.role === role));
+    });
+    const isKasir = role === 'kasir';
+    panels.kasir.hidden = !isKasir;
+    panels.staf.hidden = isKasir;
+    branchField.hidden = role !== 'owner';
+    if (role === 'admin') {
+      branchSelect.value = 'pusat';
+    }
+    submitStaf.textContent = role === 'owner' ? 'Masuk ke dasbor owner' : 'Masuk ke dasbor toko';
+    clearError('kasir');
+    clearError('staf');
+    clearSuccess();
+    if (isKasir) {
+      setPIN('');
+    }
+  }
+
+  function maskEmail(value) {
+    if (value.indexOf('@') < 1) return 'akun kamu';
+    return value;
+  }
+
+  function submitPin() {
+    clearSuccess();
+    const pin = pinInput.value;
+    if (!/^\d{4,6}$/.test(pin)) {
+      showError('kasir', 'PIN harus 4–6 digit angka.');
+      pinInput.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    const kasirKey = root.querySelector('[data-input="kasir"]').value;
+    if (PIN_BENAR[kasirKey] !== pin) {
+      showError('kasir', 'PIN tidak cocok untuk kasir yang dipilih. Periksa kembali atau minta admin mereset PIN.');
+      pinInput.setAttribute('aria-invalid', 'true');
+      setPIN('');
+      return;
+    }
+    pinInput.removeAttribute('aria-invalid');
+    clearError('kasir');
+    showSuccess('PIN diterima. Membuka modul kasir untuk ' + root.querySelector('[data-input="kasir"]').selectedOptions[0].textContent.split('—')[0].trim() + '…');
+    submitKasir.disabled = true;
+    setTimeout(() => { submitKasir.disabled = false; }, 1400);
+  }
+
+  function submitStaff() {
+    clearSuccess();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    let message = '';
+    if (!email) message = 'Email kerja wajib diisi.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) message = 'Format email belum benar, misalnya nama@tokolintascabang.id.';
+    else if (!password) message = 'Kata sandi wajib diisi.';
+
+    if (message) {
+      showError('staf', message);
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailInput.setAttribute('aria-invalid', 'true');
+        emailInput.focus();
+      } else {
+        passwordInput.setAttribute('aria-invalid', 'true');
+        passwordInput.focus();
+      }
+      return;
+    }
+
+    emailInput.removeAttribute('aria-invalid');
+    passwordInput.removeAttribute('aria-invalid');
+    clearError('staf');
+    const branch = branchSelect.value === 'semua' ? 'seluruh cabang' : branchSelect.selectedOptions[0].textContent;
+    showSuccess('Masuk sebagai ' + roleLabel(activeRole) + ' (' + maskEmail(email) + ') untuk ' + branch + '.');
+    submitStaf.disabled = true;
+    setTimeout(() => { submitStaf.disabled = false; }, 1400);
+  }
+
+  root.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const roleButton = target.closest('[data-action="login:role"]');
+    if (roleButton && root.contains(roleButton)) {
+      updateRole(roleButton.dataset.role);
+      const heading = root.querySelector('.login__title');
+      heading.textContent = roleButton.dataset.role === 'kasir' ? 'Masuk sebagai kasir' : 'Masuk sebagai staf toko';
+      return;
+    }
+
+    const key = target.closest('[data-key]');
+    if (key && root.contains(key)) {
+      const value = key.dataset.key;
+      if (value === 'clear') setPIN('');
+      else if (value === 'back') setPIN(pinInput.value.slice(0, -1));
+      else if (pinInput.value.length < 6) setPIN(pinInput.value + value);
+      clearError('kasir');
+      return;
+    }
+
+    const reveal = target.closest('[data-action="login:reveal"]');
+    if (reveal && root.contains(reveal)) {
+      const show = passwordInput.type === 'password';
+      passwordInput.type = show ? 'text' : 'password';
+      reveal.textContent = show ? 'Sembunyikan' : 'Tampilkan';
+      reveal.setAttribute('aria-pressed', String(show));
+      return;
+    }
+
+    const forgot = target.closest('[data-action="login:forgot"]');
+    if (forgot && root.contains(forgot)) {
+      clearError('staf');
+      clearError('kasir');
+      showSuccess(activeRole === 'kasir'
+        ? 'Minta admin toko mereset PIN lewat menu Pengguna, atau hubungi 0811-2233-4455.'
+        : 'Tautan atur ulang dikirim ke admin sistem. Hubungi 0811-2233-4455 bila tidak menerima email.');
+      return;
+    }
+
+    const toggle = target.closest('[data-action="login:toggle-connection"]');
+    if (toggle && root.contains(toggle)) {
+      const offline = toggle.getAttribute('aria-pressed') !== 'true';
+      toggle.setAttribute('aria-pressed', String(offline));
+      toggle.textContent = offline ? 'Kembalikan online' : 'Simulasikan offline';
+      connectionNote.textContent = offline
+        ? 'Mode offline: kasir tetap bisa masuk dan transaksi disimpan lokal.'
+        : 'Halaman ini bisa dibuka walau internet putus.';
+      statusDot.className = 'login__dot ' + (offline ? 'login__dot--offline' : 'login__dot--online');
+      statusText.textContent = offline ? 'Offline — 6 transaksi menunggu sinkron' : 'Online — tersinkron 12:04';
+      return;
+    }
+  });
+
+  root.addEventListener('submit', (event) => {
+    const form = event.target instanceof Element ? event.target.closest('form[data-panel]') : null;
+    if (!form || !root.contains(form)) return;
+    event.preventDefault();
+    if (form.dataset.panel === 'kasir') submitPin();
+    else submitStaff();
+  });
+
+  // Keypad dukungan papan angka perangkat: input tersembunyi tetap menerima ketikan.
+  pinInput.addEventListener('input', () => {
+    const digits = pinInput.value.replace(/\D/g, '').slice(0, 6);
+    if (digits !== pinInput.value) { pinInput.value = digits; }
+    setPIN(digits);
+  });
+
+  root.addEventListener('keydown', (event) => {
+    if (panels.kasir.hidden) return;
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault();
+      setPIN(pinInput.value.slice(0, -1));
+      clearError('kasir');
+    } else if (event.key === 'Escape') {
+      setPIN('');
+      clearError('kasir');
+    } else if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if (pinInput.value.length < 6) setPIN(pinInput.value + event.key);
+      clearError('kasir');
+    }
+  });
+
+  [emailInput, passwordInput].forEach((field) => {
+    field.addEventListener('input', () => {
+      clearError('staf');
+      field.removeAttribute('aria-invalid');
+    });
+  });
+
+  card.setAttribute('data-ready', 'true');
+  updateRole('kasir');
+</script>

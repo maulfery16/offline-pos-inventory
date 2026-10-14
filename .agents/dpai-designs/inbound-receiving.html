@@ -1,0 +1,504 @@
+<!-- dpai:page {"scoped":true,"title":"Barang Masuk & Harga","navKey":"inbound-receiving"} -->
+<style>
+  .recv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); gap: var(--space-6, 24px); align-items: start; }
+  .recv > * { min-width: 0; }
+  .recv__panel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); min-width: 0; max-width: 100%; }
+  .recv__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .recv__head h2, .recv__head h3 { margin: 0; font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); }
+  .recv__body { padding: var(--space-5, 20px); min-width: 0; }
+  .recv__stack { display: grid; gap: var(--space-6, 24px); min-width: 0; }
+
+  .recv__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3, 12px); }
+  .recv__stat { display: grid; gap: 4px; padding: var(--space-4, 16px); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px); background: var(--color-surface, #fff); min-width: 0; }
+  .recv__stat-label { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .recv__stat-value { font-size: var(--text-xl, 22px); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-tight, -0.01em); overflow-wrap: break-word; }
+
+  .recv__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4, 16px); }
+  .recv__field { display: grid; gap: 6px; min-width: 0; max-width: 100%; }
+  .recv__field label { font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); color: var(--color-text-muted, #5a6675); }
+  .recv__field input, .recv__field select {
+    width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-base, 15px);
+  }
+  .recv__field input:focus-visible, .recv__field select:focus-visible { border-color: var(--color-primary, #0f6d5f); }
+  .recv__field input[aria-invalid="true"] { border-color: var(--color-danger, #a52b22); background: #fff7f6; }
+  .recv__hint { margin: 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); overflow-wrap: break-word; }
+
+  .recv__lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3, 12px); }
+  .recv__line { display: grid; gap: var(--space-3, 12px); padding: var(--space-4, 16px); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px); background: var(--color-surface, #fff); min-width: 0; }
+  .recv__line[data-invalid="true"] { border-color: #e7b7b1; background: #fff9f8; }
+  .recv__line-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3, 12px); flex-wrap: wrap; }
+  .recv__item { display: grid; gap: 2px; min-width: 0; }
+  .recv__item-name { font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); overflow-wrap: break-word; }
+  .recv__item-sku { font-family: var(--font-mono, monospace); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); white-space: nowrap; }
+  .recv__line-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-3, 12px); }
+  .recv__line-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px); flex-wrap: wrap; }
+  .recv__line-total { font-size: var(--text-base, 15px); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; }
+
+  .recv__field--cell input, .recv__field--cell select {
+    min-height: 42px; padding: 8px 10px; font-size: var(--text-sm, 13px); font-variant-numeric: tabular-nums;
+  }
+  .recv__field--cell input[aria-invalid="true"] { border-color: var(--color-danger, #a52b22); background: #fff7f6; }
+  .recv__readout {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-2, 8px);
+    min-height: 42px; padding: 8px 10px;
+    border: 1px dashed var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface-sunken, #f7f8fa); font-size: var(--text-sm, 13px);
+  }
+  .recv__readout strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .recv__chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-pill, 999px); font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); max-width: 100%; }
+  .recv__chip--ok { background: var(--color-success-soft, #e3f4e9); color: var(--color-success, #136b3f); }
+  .recv__chip--warn { background: var(--color-warning-soft, #fdf0da); color: var(--color-warning, #8a5300); }
+  .recv__chip--danger { background: var(--color-danger-soft, #fbe8e5); color: var(--color-danger, #a52b22); }
+  .recv__chip--info { background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); }
+
+  .recv__btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2, 8px); min-height: 44px; padding: 10px var(--space-4, 16px); border: 1px solid transparent; border-radius: var(--radius-md, 10px); font: inherit; font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); cursor: pointer; }
+  .recv__btn--primary { background: var(--color-primary, #0f6d5f); color: var(--color-on-primary, #fff); }
+  .recv__btn--primary:hover { background: var(--color-primary-hover, #0b564a); }
+  .recv__btn--ghost { background: var(--color-surface, #fff); border-color: var(--color-border-strong, #cbd2dc); color: inherit; }
+  .recv__btn--ghost:hover { border-color: var(--color-primary, #0f6d5f); }
+  .recv__btn--danger { background: transparent; border-color: transparent; color: var(--color-danger, #a52b22); min-height: 36px; padding: 4px 8px; }
+  .recv__btn--danger:hover { background: var(--color-danger-soft, #fbe8e5); }
+  .recv__btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+  .recv__aside { display: grid; gap: var(--space-4, 16px); align-content: start; min-width: 0; }
+  .recv__aside > * { min-width: 0; }
+  .recv__summary { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .recv__summary li { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3, 12px); font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+  .recv__summary strong { color: var(--color-text, #182230); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .recv__summary .recv__grand { padding-top: var(--space-3, 12px); border-top: 1px solid var(--color-border, #e2e6ec); font-size: var(--text-base, 15px); font-weight: var(--weight-bold, 700); color: var(--color-text, #182230); }
+  .recv__summary .recv__grand strong { font-size: var(--text-lg, 18px); font-weight: var(--weight-bold, 700); }
+
+  .recv__issues { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .recv__issues li { display: flex; gap: var(--space-2, 8px); padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-surface-sunken, #f7f8fa); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .recv__issues li[data-level="warn"] { background: var(--color-warning-soft, #fdf0da); color: var(--color-warning, #8a5300); }
+  .recv__issues li[data-level="danger"] { background: var(--color-danger-soft, #fbe8e5); color: var(--color-danger, #a52b22); }
+  .recv__issues li[data-level="ok"] { background: var(--color-success-soft, #e3f4e9); color: var(--color-success, #136b3f); }
+  .recv__issues iconify-icon { flex: 0 0 auto; }
+
+  .recv dialog { width: min(520px, 92vw); padding: 0; border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); background: var(--color-surface, #fff); color: inherit; }
+  .recv dialog::backdrop { background: rgba(15, 22, 33, 0.5); }
+  .recv__dialog-body { display: grid; gap: var(--space-3, 12px); padding: var(--space-5, 20px); }
+  .recv__dialog-body h2 { margin: 0; font-size: var(--text-lg, 18px); font-weight: var(--weight-bold, 700); }
+  .recv__dialog-foot { display: flex; justify-content: flex-end; gap: var(--space-2, 8px); padding: var(--space-4, 16px) var(--space-5, 20px); border-top: 1px solid var(--color-border, #e2e6ec); background: var(--color-surface-sunken, #f7f8fa); }
+  .recv__empty { margin: 0; padding: var(--space-5, 20px); text-align: center; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); border: 1px dashed var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px); }
+  .recv__notice { display: flex; gap: var(--space-2, 8px); margin: 0; padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); font-size: var(--text-caption, 12px); }
+  .recv__notice iconify-icon { flex: 0 0 auto; }
+
+  @media (max-width: 1100px) {
+    .recv { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .recv__body { padding: var(--space-4, 16px); }
+    .recv__line-grid { grid-template-columns: minmax(0, 1fr); }
+    .recv__actions-row { width: 100%; }
+    .recv__actions-row .recv__btn { flex: 1 1 auto; }
+  }
+</style>
+
+<template data-slot="content">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+  <main class="recv" data-node-id="inbound-receiving.main">
+    <section class="recv__stats" style="grid-column: 1 / -1;" aria-label="Ringkasan dokumen penerimaan">
+      <div class="recv__stat">
+        <span class="recv__stat-label">Nomor penerimaan</span>
+        <span class="recv__stat-value" style="font-family: var(--font-mono, monospace); font-size: var(--text-lg, 18px);">GR-2026-0418</span>
+        <span class="recv__hint">Draft · belum diposting ke stok</span>
+      </div>
+      <div class="recv__stat">
+        <span class="recv__stat-label">Supplier</span>
+        <span class="recv__stat-value" style="font-size: var(--text-base, 15px);">PT Sumber Pangan Jaya</span>
+        <span class="recv__hint">Kontrak harga berlaku s/d 30 Jun</span>
+      </div>
+      <div class="recv__stat">
+        <span class="recv__stat-label">Baris &amp; unit</span>
+        <span class="recv__stat-value" data-part="stat-sku">0 baris</span>
+        <span class="recv__hint" data-part="stat-qty">0 unit diterima</span>
+      </div>
+      <div class="recv__stat">
+        <span class="recv__stat-label">Total HPP</span>
+        <span class="recv__stat-value" data-part="stat-cost">Rp0</span>
+        <span class="recv__hint">Menjadi dasar COGS saat terjual FEFO</span>
+      </div>
+    </section>
+
+    <div class="recv__stack">
+      <section class="recv__panel" aria-labelledby="recv-doc-title">
+        <div class="recv__head">
+          <h2 id="recv-doc-title">Detail dokumen</h2>
+          <span class="recv__chip recv__chip--info">Batch &amp; kedaluwarsa wajib untuk perishable</span>
+        </div>
+        <div class="recv__body">
+          <div class="recv__form">
+            <div class="recv__field">
+              <label for="recv-supplier">Supplier</label>
+              <select id="recv-supplier">
+                <option selected>PT Sumber Pangan Jaya</option>
+                <option>CV Anugerah Snack</option>
+                <option>PT Dairy Prima Nusantara</option>
+              </select>
+            </div>
+            <div class="recv__field">
+              <label for="recv-invoice">Nomor faktur supplier</label>
+              <input id="recv-invoice" type="text" value="INV/SPJ/0418" autocomplete="off">
+            </div>
+            <div class="recv__field">
+              <label for="recv-date">Tanggal terima</label>
+              <input id="recv-date" type="date" value="2026-04-18">
+            </div>
+            <div class="recv__field">
+              <label for="recv-store">Gudang tujuan</label>
+              <select id="recv-store">
+                <option selected>Gudang Utama — Kebayoran</option>
+                <option>Gudang Cabang Bintaro</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="recv__panel" aria-labelledby="recv-lines-title">
+        <div class="recv__head">
+          <h2 id="recv-lines-title">Baris penerimaan</h2>
+          <div class="recv__actions-row" style="display: flex; flex-wrap: wrap; gap: var(--space-2, 8px);">
+            <button class="recv__btn recv__btn--ghost" type="button" data-action="recv:scan">
+              <iconify-icon icon="lucide:scan-barcode" aria-hidden="true"></iconify-icon>
+              Pindai barcode
+            </button>
+            <button class="recv__btn recv__btn--ghost" type="button" data-action="recv:add-row">
+              <iconify-icon icon="lucide:plus" aria-hidden="true"></iconify-icon>
+              Baris manual
+            </button>
+          </div>
+        </div>
+        <div class="recv__body" style="display: grid; gap: var(--space-4, 16px);">
+          <div class="recv__field" style="max-width: 460px;">
+            <label for="recv-scan">Kolom pindai SKU</label>
+            <input id="recv-scan" type="search" autocomplete="off" placeholder="Pindai atau ketik SKU, lalu Enter…" data-part="scan">
+            <p class="recv__hint" data-part="scan-hint">Barcode contoh: 8991002101147, 8991234567890, 8992761123456.</p>
+          </div>
+          <ul class="recv__lines" data-part="lines" data-node-id="inbound-receiving.lines"></ul>
+        </div>
+      </section>
+    </div>
+
+    <aside class="recv__aside" data-node-id="inbound-receiving.summary">
+      <section class="recv__panel">
+        <div class="recv__head"><h2>Ringkasan biaya</h2></div>
+        <div class="recv__body">
+          <ul class="recv__summary">
+            <li><span>Total unit</span><strong data-part="sum-units">0</strong></li>
+            <li><span>Total HPP</span><strong data-part="sum-cost">Rp0</strong></li>
+            <li><span>Estimasi penjualan</span><strong data-part="sum-sell">Rp0</strong></li>
+            <li><span>Estimasi laba kotor</span><strong data-part="sum-margin">Rp0</strong></li>
+            <li class="recv__grand"><span>Margin rata-rata</span><strong data-part="sum-margin-pct">0,0%</strong></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="recv__panel">
+        <div class="recv__head">
+          <h2>Pemeriksaan</h2>
+          <span class="recv__chip recv__chip--info" data-part="issue-count">0 catatan</span>
+        </div>
+        <div class="recv__body">
+          <ul class="recv__issues" data-part="issues" role="status" aria-live="polite"></ul>
+        </div>
+      </section>
+
+      <section class="recv__panel">
+        <div class="recv__body" style="display: grid; gap: var(--space-2, 8px);">
+          <p class="recv__notice">
+            <iconify-icon icon="lucide:info" aria-hidden="true"></iconify-icon>
+            Menyimpan dokumen menambah stok batch dan memakai HPP ini sebagai dasar COGS saat barang terjual memakai urutan FEFO.
+          </p>
+        </div>
+      </section>
+    </aside>
+
+    <dialog class="recv__dialog" data-part="save-dialog" aria-labelledby="recv-save-title">
+      <div class="recv__dialog-body">
+        <h2 id="recv-save-title">Penerimaan tersimpan ke antrean stok</h2>
+        <p style="margin: 0; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675);">
+          Dokumen <strong>GR-2026-0418</strong> disimpan lokal dan dikirim ke cloud saat koneksi tersedia.
+        </p>
+        <ul class="recv__summary" data-part="save-summary"></ul>
+      </div>
+      <div class="recv__dialog-foot">
+        <button class="recv__btn recv__btn--primary" type="button" data-action="recv:save-close">Tutup</button>
+      </div>
+    </dialog>
+  </main>
+</template>
+
+<script>
+(() => {
+  const catalog = {
+    '8991002101147': { name: 'Indomie Goreng 85g', unit: 'pcs', perishable: true, cost: 2900, margin: 20 },
+    '8991234567890': { name: 'Susu Ultra 250ml', unit: 'pcs', perishable: true, cost: 5900, margin: 25 },
+    '8992761123456': { name: 'Aqua 600ml', unit: 'pcs', perishable: false, cost: 3100, margin: 22 },
+    '8998765432109': { name: 'Roti Tawar Sari Roti', unit: 'pcs', perishable: true, cost: 14000, margin: 28 },
+    '8991112223334': { name: 'Teh Pucuk 350ml', unit: 'pcs', perishable: false, cost: 3400, margin: 30 },
+    '8995000112233': { name: 'Kopi Kapal Api 165g', unit: 'pack', perishable: false, cost: 9800, margin: 27 }
+  };
+
+  const TODAY = new Date('2026-04-18T00:00:00');
+  const rupiah = (value) => 'Rp' + Math.round(value).toLocaleString('id-ID');
+  const list = root.querySelector('[data-part="lines"]');
+  const scan = root.querySelector('[data-part="scan"]');
+  const scanHint = root.querySelector('[data-part="scan-hint"]');
+  const issuesList = root.querySelector('[data-part="issues"]');
+  const saveDialog = root.querySelector('[data-part="save-dialog"]');
+  let rowSeq = 0;
+
+  const rows = () => [...list.querySelectorAll('[data-part="row"]')];
+
+  const fieldHtml = (label, inputHtml) =>
+    '<div class="recv__field recv__field--cell"><span class="recv__hint">' + label + '</span>' + inputHtml + '</div>';
+
+  const buildRow = (sku) => {
+    const item = catalog[sku];
+    rowSeq += 1;
+    const row = document.createElement('li');
+    row.className = 'recv__line';
+    row.dataset.part = 'row';
+    row.dataset.sku = sku;
+    row.dataset.perishable = String(Boolean(item.perishable));
+    row.innerHTML =
+      '<div class="recv__line-top">' +
+        '<span class="recv__item">' +
+          '<span class="recv__item-name">' + item.name + '</span>' +
+          '<span class="recv__item-sku">' + sku + ' · ' + item.unit + '</span>' +
+        '</span>' +
+        '<span data-part="status"></span>' +
+      '</div>' +
+      '<div class="recv__line-grid">' +
+        fieldHtml('Qty', '<input type="number" min="1" step="1" value="1" data-field="qty" aria-label="Qty ' + item.name + '">') +
+        fieldHtml('HPP / unit', '<input type="number" min="0" step="100" value="' + item.cost + '" data-field="cost" aria-label="HPP per unit ' + item.name + '">') +
+        fieldHtml('Margin %', '<input type="number" min="0" step="1" value="' + item.margin + '" data-field="margin" aria-label="Margin persen ' + item.name + '">') +
+        fieldHtml('No. batch', '<input type="text" value="B' + (2320 + rowSeq) + '" data-field="batch" aria-label="Nomor batch ' + item.name + '">') +
+        fieldHtml('Kedaluwarsa' + (item.perishable ? ' (wajib)' : ''), '<input type="date" data-field="expiry" aria-label="Tanggal kedaluwarsa ' + item.name + '">') +
+      '</div>' +
+      '<div class="recv__line-foot">' +
+        '<div class="recv__readout"><span>Harga jual</span><strong data-part="sell">Rp0</strong></div>' +
+        '<div class="recv__readout"><span>Subtotal HPP</span><strong data-part="linecost">Rp0</strong></div>' +
+        '<button class="recv__btn recv__btn--danger" type="button" data-action="recv:remove">Hapus baris</button>' +
+      '</div>';
+    list.append(row);
+    return row;
+  };
+
+  const makeRow = (sku, preset = {}) => {
+    const item = catalog[sku];
+    if (!item) return false;
+    const existing = rows().find((row) => row.dataset.sku === sku);
+    if (existing) {
+      const qty = existing.querySelector('[data-field="qty"]');
+      qty.value = String(Number(qty.value || 0) + 1);
+      updateRow(existing);
+      return true;
+    }
+    const row = buildRow(sku);
+    if (preset.qty) row.querySelector('[data-field="qty"]').value = String(preset.qty);
+    if (preset.cost) row.querySelector('[data-field="cost"]').value = String(preset.cost);
+    if (preset.margin) row.querySelector('[data-field="margin"]').value = String(preset.margin);
+    if (preset.batch) row.querySelector('[data-field="batch"]').value = preset.batch;
+    if (preset.expiry) row.querySelector('[data-field="expiry"]').value = preset.expiry;
+    updateRow(row);
+    return true;
+  };
+
+  const updateRow = (row) => {
+    const qtyInput = row.querySelector('[data-field="qty"]');
+    const costInput = row.querySelector('[data-field="cost"]');
+    const marginInput = row.querySelector('[data-field="margin"]');
+    const batchInput = row.querySelector('[data-field="batch"]');
+    const expiryInput = row.querySelector('[data-field="expiry"]');
+    const qty = Number(qtyInput.value || 0);
+    const cost = Number(costInput.value || 0);
+    const margin = Number(marginInput.value || 0);
+    const perishable = row.dataset.perishable === 'true';
+
+    const sell = cost * (1 + margin / 100);
+    row.querySelector('[data-part="sell"]').textContent = rupiah(sell);
+    row.querySelector('[data-part="linecost"]').textContent = rupiah(qty * cost);
+
+    const missing = [];
+    if (qty <= 0) missing.push('qty');
+    if (cost <= 0) missing.push('HPP');
+    if (!batchInput.value.trim()) missing.push('nomor batch');
+    if (perishable && !expiryInput.value) missing.push('kedaluwarsa');
+
+    const expired = expiryInput.value ? new Date(expiryInput.value + 'T00:00:00') <= TODAY : false;
+    batchInput.setAttribute('aria-invalid', String(!batchInput.value.trim()));
+    expiryInput.setAttribute('aria-invalid', String(perishable && !expiryInput.value));
+    qtyInput.setAttribute('aria-invalid', String(qty <= 0));
+    costInput.setAttribute('aria-invalid', String(cost <= 0));
+
+    const status = row.querySelector('[data-part="status"]');
+    if (missing.length) {
+      row.dataset.invalid = 'true';
+      status.innerHTML = '<span class="recv__chip recv__chip--danger">Belum lengkap: ' + missing.join(', ') + '</span>';
+    } else if (expired) {
+      row.dataset.invalid = 'true';
+      status.innerHTML = '<span class="recv__chip recv__chip--danger">Kedaluwarsa — perbarui tanggal</span>';
+    } else {
+      row.dataset.invalid = 'false';
+      status.innerHTML = perishable
+        ? '<span class="recv__chip recv__chip--warn">Perishable · FEFO</span>'
+        : '<span class="recv__chip recv__chip--ok">Siap disimpan</span>';
+    }
+    renderSummary();
+  };
+
+  const renderSummary = () => {
+    let units = 0;
+    let cost = 0;
+    let sell = 0;
+    let problems = 0;
+    rows().forEach((row) => {
+      const qty = Number(row.querySelector('[data-field="qty"]').value || 0);
+      const unitCost = Number(row.querySelector('[data-field="cost"]').value || 0);
+      const margin = Number(row.querySelector('[data-field="margin"]').value || 0);
+      units += qty;
+      cost += qty * unitCost;
+      sell += qty * unitCost * (1 + margin / 100);
+      if (row.dataset.invalid === 'true') problems += 1;
+    });
+
+    root.querySelector('[data-part="stat-sku"]').textContent = rows().length + ' baris';
+    root.querySelector('[data-part="stat-qty"]').textContent = units + ' unit diterima';
+    root.querySelector('[data-part="stat-cost"]').textContent = rupiah(cost);
+    root.querySelector('[data-part="sum-units"]').textContent = String(units);
+    root.querySelector('[data-part="sum-cost"]').textContent = rupiah(cost);
+    root.querySelector('[data-part="sum-sell"]').textContent = rupiah(sell);
+    root.querySelector('[data-part="sum-margin"]').textContent = rupiah(sell - cost);
+    root.querySelector('[data-part="sum-margin-pct"]').textContent =
+      (sell > 0 ? ((sell - cost) / sell * 100).toFixed(1).replace('.', ',') : '0,0') + '%';
+    renderIssues(problems);
+  };
+
+  const renderIssues = (problems) => {
+    issuesList.innerHTML = '';
+    const messages = [];
+    if (!rows().length) messages.push({ level: 'warn', text: 'Belum ada baris penerimaan. Pindai SKU untuk menambah baris.' });
+    if (problems) messages.push({ level: 'danger', text: problems + ' baris belum lengkap. Lengkapi batch, kedaluwarsa, qty dan HPP sebelum menyimpan.' });
+
+    const soon = rows().filter((row) => {
+      const value = row.querySelector('[data-field="expiry"]').value;
+      if (!value) return false;
+      const days = (new Date(value + 'T00:00:00') - TODAY) / 86400000;
+      return days >= 0 && days <= 30;
+    });
+    if (soon.length) messages.push({ level: 'warn', text: soon.length + ' batch kedaluwarsa ≤30 hari. Pertimbangkan menurunkan margin agar cepat terjual.' });
+    if (!problems && rows().length) messages.push({ level: 'ok', text: 'Semua baris lengkap dan siap disimpan.' });
+    if (!messages.length) messages.push({ level: 'ok', text: 'Dokumen siap diperiksa.' });
+
+    messages.forEach((message) => {
+      const li = document.createElement('li');
+      li.dataset.level = message.level;
+      const icon = document.createElement('iconify-icon');
+      icon.setAttribute('icon', message.level === 'danger' ? 'lucide:circle-alert' : message.level === 'warn' ? 'lucide:triangle-alert' : 'lucide:circle-check');
+      icon.setAttribute('aria-hidden', 'true');
+      li.append(icon);
+      li.append(document.createTextNode(message.text));
+      issuesList.append(li);
+    });
+    root.querySelector('[data-part="issue-count"]').textContent = messages.length + ' catatan';
+  };
+
+  root.addEventListener('click', (event) => {
+    const control = event.target.closest('[data-action]');
+    if (!control || !root.contains(control)) return;
+    switch (control.dataset.action) {
+      case 'recv:scan':
+        scan.focus();
+        scanHint.textContent = 'Kolom pindai siap menerima input scanner fisik.';
+        break;
+      case 'recv:add-row':
+        scan.focus();
+        scanHint.textContent = 'Ketik atau pindai SKU untuk menambah baris penerimaan.';
+        break;
+      case 'recv:remove': {
+        const row = control.closest('[data-part="row"]');
+        const next = row.nextElementSibling || row.previousElementSibling;
+        row.remove();
+        renderSummary();
+        if (next) next.querySelector('input').focus();
+        else scan.focus();
+        break;
+      }
+      case 'recv:save-close':
+        saveDialog.close();
+        scan.focus();
+        break;
+    }
+  }, { signal });
+
+  root.addEventListener('input', (event) => {
+    scan.setAttribute('aria-invalid', 'false');
+    const row = event.target.closest('[data-part="row"]');
+    if (row) updateRow(row);
+  }, { signal });
+
+  root.addEventListener('keydown', (event) => {
+    if (event.target !== scan || event.key !== 'Enter') return;
+    event.preventDefault();
+    const value = scan.value.trim();
+    if (!value) return;
+    if (makeRow(value)) {
+      scanHint.textContent = 'Baris ditambahkan untuk SKU ' + value + '.';
+      scan.value = '';
+      scan.setAttribute('aria-invalid', 'false');
+      const last = rows().pop();
+      if (last) last.querySelector('[data-field="qty"]').focus();
+    } else {
+      scanHint.textContent = 'SKU ' + value + ' tidak ada di master barang. Gunakan baris manual.';
+      scan.setAttribute('aria-invalid', 'true');
+    }
+  }, { signal });
+
+  root.addEventListener('recv:save-request', () => {
+    const invalid = rows().filter((row) => row.dataset.invalid === 'true');
+    if (invalid.length) {
+      renderIssues(invalid.length);
+      invalid[0].querySelector('input').focus();
+      invalid[0].scrollIntoView({ block: 'center' });
+      return;
+    }
+    if (!rows().length) {
+      renderIssues(0);
+      scan.focus();
+      return;
+    }
+    const summary = saveDialog.querySelector('[data-part="save-summary"]');
+    summary.innerHTML = '';
+    let units = 0;
+    let cost = 0;
+    rows().forEach((row) => {
+      const qty = Number(row.querySelector('[data-field="qty"]').value || 0);
+      const unitCost = Number(row.querySelector('[data-field="cost"]').value || 0);
+      units += qty;
+      cost += qty * unitCost;
+    });
+    [['Baris barang', rows().length + ' SKU'], ['Total unit', units + ' unit'], ['Total HPP masuk', rupiah(cost)]]
+      .forEach(([label, value]) => {
+        const li = document.createElement('li');
+        li.innerHTML = '<span></span><strong></strong>';
+        li.firstElementChild.textContent = label;
+        li.lastElementChild.textContent = value;
+        summary.append(li);
+      });
+    saveDialog.showModal();
+    saveDialog.querySelector('[data-action="recv:save-close"]').focus();
+  }, { signal });
+
+  makeRow('8991002101147', { qty: 24, cost: 2900, margin: 20, batch: 'B2321', expiry: '2026-06-19' });
+  makeRow('8991234567890', { qty: 12, cost: 5900, margin: 25, batch: 'B2322', expiry: '2026-05-02' });
+  makeRow('8992761123456', { qty: 36, cost: 3100, margin: 22, batch: 'B2323' });
+  makeRow('8998765432109', { qty: 12, cost: 14000, margin: 28, batch: 'B2324' });
+  renderIssues(0);
+})();
+</script>

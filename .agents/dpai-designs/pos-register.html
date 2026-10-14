@@ -1,0 +1,801 @@
+<!-- dpai:page {"typography":true,"scoped":true,"title":"Kasir — POS","navKey":"pos-register","layoutProps":{}} -->
+<style>
+  .pos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 420px); gap: var(--space-6, 24px); align-items: start; }
+  .pos__panel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); }
+  .pos__panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .pos__panel-body { padding: var(--space-5, 20px); }
+  .pos__panel-title { margin: 0; font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); }
+
+  .pos__scan { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3, 12px); }
+  .pos__scan-field { position: relative; min-width: 0; }
+  .pos__scan-field iconify-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--color-text-subtle, #8a94a3); pointer-events: none; }
+  .pos__scan input {
+    width: 100%; min-height: 48px;
+    padding: 10px 12px 10px 40px;
+    border: 1px solid var(--color-border-strong, #cbd2dc);
+    border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff);
+    color: inherit; font: inherit; font-size: var(--text-base, 15px);
+  }
+  .pos__scan input:focus-visible { border-color: var(--color-primary, #0f6d5f); }
+  .pos__scan-hint { margin: var(--space-2, 8px) 0 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+
+  .pos__suggest { list-style: none; margin: var(--space-3, 12px) 0 0; padding: 0; display: grid; gap: var(--space-1, 4px); }
+  .pos__suggest button {
+    display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--space-3, 12px);
+    padding: 10px var(--space-3, 12px);
+    border: 1px solid transparent; border-radius: var(--radius-md, 10px);
+    background: var(--color-surface-sunken, #f7f8fa);
+    color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  .pos__suggest button:hover { border-color: var(--color-primary, #0f6d5f); background: var(--color-primary-soft, #e2f2ee); }
+  .pos__suggest-name { font-size: var(--text-sm, 13px); font-weight: var(--weight-medium, 500); }
+  .pos__suggest-sku { font-family: var(--font-mono, monospace); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .pos__suggest-price { font-size: var(--text-sm, 13px); font-variant-numeric: tabular-nums; }
+
+  .pos__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-3, 12px); }
+  .pos__tile {
+    display: grid; gap: var(--space-2, 8px); align-content: start; width: 100%; height: 100%;
+    padding: var(--space-3, 12px);
+    border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; text-align: left; cursor: pointer;
+    transition: border-color 140ms ease-out, transform 140ms ease-out;
+  }
+  .pos__tile-name { font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); line-height: 1.35; }
+  .pos__tile-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2, 8px); font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .pos__tile-price { font-size: var(--text-base, 15px); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; }
+  .pos__tile[data-blocked="true"] { background: var(--color-danger-soft, #fbe8e5); border-color: #e7b7b1; }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .pos__tile:hover { border-color: var(--color-primary, #0f6d5f); transform: translateY(-1px); }
+  }
+
+  .pos__chip {
+    display: inline-flex; align-items: center; gap: var(--space-1, 4px);
+    padding: 2px 8px; border-radius: var(--radius-pill, 999px);
+    font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500);
+    white-space: nowrap;
+  }
+  .pos__chip--ok { background: var(--color-success-soft, #e3f4e9); color: var(--color-success, #136b3f); }
+  .pos__chip--low { background: var(--color-warning-soft, #fdf0da); color: var(--color-warning, #8a5300); }
+  .pos__chip--danger { background: var(--color-danger-soft, #fbe8e5); color: var(--color-danger, #a52b22); }
+  .pos__chip--info { background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); }
+
+  .pos__network {
+    display: flex; align-items: center; gap: var(--space-2, 8px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid var(--color-border, #e2e6ec);
+    background: var(--color-surface-sunken, #f7f8fa);
+    font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675);
+  }
+  .pos__network[data-state="offline"] { background: var(--color-warning-soft, #fdf0da); border-color: #eccf9c; color: var(--color-warning, #8a5300); }
+
+  .pos__cart { position: sticky; top: 96px; display: grid; gap: var(--space-3, 12px); }
+  .pos__lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); max-height: 300px; overflow-y: auto; }
+  .pos__line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2, 8px); padding: var(--space-3, 12px); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px); background: var(--color-surface-sunken, #f7f8fa); }
+  .pos__line-name { margin: 0; font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); }
+  .pos__line-batch { margin: 2px 0 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .pos__line-price { margin: 0; font-size: var(--text-sm, 13px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pos__line-actions { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2, 8px); }
+  .pos__step { display: inline-flex; align-items: center; gap: var(--space-1, 4px); }
+  .pos__step button {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-sm, 6px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; cursor: pointer;
+  }
+  .pos__step output { min-width: 32px; text-align: center; font-size: var(--text-sm, 13px); font-variant-numeric: tabular-nums; }
+
+  .pos__link-btn {
+    display: inline-flex; align-items: center; gap: var(--space-1, 4px);
+    min-height: 32px; padding: 4px 8px;
+    border: 0; border-radius: var(--radius-sm, 6px);
+    background: transparent; color: var(--color-danger, #a52b22);
+    font: inherit; font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); cursor: pointer;
+  }
+  .pos__link-btn:hover { background: var(--color-danger-soft, #fbe8e5); }
+  .pos__link-btn--muted { color: var(--color-text-muted, #5a6675); }
+  .pos__link-btn--muted:hover { background: var(--color-border, #e2e6ec); }
+
+  .pos__totals { display: grid; gap: var(--space-2, 8px); margin: 0; padding: var(--space-4, 16px); border-top: 1px solid var(--color-border, #e2e6ec); }
+  .pos__row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3, 12px); font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+  .pos__row dd, .pos__row dt { margin: 0; }
+  .pos__row--total { font-size: var(--text-xl, 22px); font-weight: var(--weight-bold, 700); color: var(--color-text, #182230); }
+  .pos__amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pos__row--total dd { font-size: var(--text-xl, 22px); }
+
+  .pos__field { display: grid; gap: var(--space-1, 4px); }
+  .pos__field label { font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); color: var(--color-text-muted, #5a6675); }
+  .pos__field input, .pos__field select {
+    min-height: 44px; padding: 8px 12px;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-base, 15px);
+    font-variant-numeric: tabular-nums;
+  }
+  .pos__pay-methods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2, 8px); }
+  .pos__pay-methods button {
+    display: grid; gap: 2px; justify-items: center;
+    min-height: 60px; padding: var(--space-2, 8px);
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-caption, 12px); cursor: pointer;
+  }
+  .pos__pay-methods button[aria-pressed="true"] { border-color: var(--color-primary, #0f6d5f); background: var(--color-primary-soft, #e2f2ee); color: var(--color-primary-hover, #0b564a); font-weight: var(--weight-semibold, 600); }
+  .pos__quick { display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); }
+  .pos__quick button {
+    min-height: 36px; padding: 6px 10px;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-pill, 999px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-caption, 12px); cursor: pointer;
+  }
+  .pos__quick button:hover { border-color: var(--color-primary, #0f6d5f); }
+
+  .pos__primary, .pos__secondary {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2, 8px);
+    min-height: 48px; padding: 12px var(--space-4, 16px);
+    border-radius: var(--radius-md, 10px); border: 1px solid transparent;
+    font: inherit; font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); cursor: pointer;
+  }
+  .pos__primary { width: 100%; background: var(--color-primary, #0f6d5f); color: var(--color-on-primary, #fff); }
+  .pos__primary:hover { background: var(--color-primary-hover, #0b564a); }
+  .pos__primary[data-state="charging"] { opacity: 0.7; cursor: progress; }
+  .pos__secondary { background: var(--color-surface, #fff); border-color: var(--color-border-strong, #cbd2dc); color: inherit; }
+  .pos__secondary:hover { border-color: var(--color-primary, #0f6d5f); }
+  .pos__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2, 8px); }
+
+  .pos__empty { margin: 0; padding: var(--space-5, 20px); text-align: center; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); border: 1px dashed var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px); }
+  .pos__held { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .pos__held li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px); padding: var(--space-3, 12px); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px); font-size: var(--text-sm, 13px); }
+  .pos__held strong { display: block; font-size: var(--text-sm, 13px); }
+  .pos__held span { color: var(--color-text-muted, #5a6675); font-size: var(--text-caption, 12px); }
+
+  .pos__notice { display: flex; gap: var(--space-2, 8px); padding: var(--space-3, 12px); border-radius: var(--radius-md, 10px); background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); font-size: var(--text-caption, 12px); }
+
+  .pos dialog {
+    width: min(440px, 92vw); padding: 0; border: 1px solid var(--color-border, #e2e6ec);
+    border-radius: var(--radius-lg, 14px); background: var(--color-surface, #fff); color: inherit;
+  }
+  .pos dialog::backdrop { background: rgba(15, 22, 33, 0.5); }
+  .pos__dialog-body { display: grid; gap: var(--space-3, 12px); padding: var(--space-5, 20px); }
+  .pos__dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3, 12px); }
+  .pos__dialog-head h2 { margin: 0; font-size: var(--text-lg, 18px); font-weight: var(--weight-bold, 700); }
+  .pos__dialog-foot { display: flex; justify-content: flex-end; gap: var(--space-2, 8px); padding: var(--space-4, 16px) var(--space-5, 20px); border-top: 1px solid var(--color-border, #e2e6ec); background: var(--color-surface-sunken, #f7f8fa); }
+  .pos__pin { font-family: var(--font-mono, monospace); font-size: var(--text-xl, 22px); letter-spacing: 0.4em; text-align: center; }
+  .pos__error { margin: 0; font-size: var(--text-caption, 12px); color: var(--color-danger, #a52b22); font-weight: var(--weight-medium, 500); }
+  .pos__receipt { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); font-size: var(--text-sm, 13px); }
+  .pos__receipt li { display: flex; justify-content: space-between; gap: var(--space-3, 12px); }
+  .pos__dialog[hidden] { display: none; }
+
+  @media (max-width: 1080px) {
+    .pos { grid-template-columns: minmax(0, 1fr); }
+    .pos__cart { position: static; }
+  }
+  @media (max-width: 640px) {
+    .pos__scan { grid-template-columns: minmax(0, 1fr); }
+    .pos__scan > .pos__secondary { width: 100%; }
+    .pos__lines { max-height: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pos__tile { transition: none; }
+  }
+</style>
+
+<template data-slot="content">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+  <main class="pos" data-node-id="pos-register.main">
+    <header class="pos__panel" style="grid-column: 1 / -1; display: grid; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px);" data-node-id="pos-register.statusbar">
+      <div class="pos__panel-head" style="padding: 0; border: 0;">
+        <div>
+          <h2 class="pos__panel-title">Shift kasir · Sari Wulandari</h2>
+          <p style="margin: 4px 0 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675);">Kasir 01 · Cabang Kebayoran · Buka 08:12 · 62 transaksi</p>
+        </div>
+        <span class="pos__chip pos__chip--info" data-node-id="pos-register.modeChip">Antrean normal · 3 pelanggan</span>
+      </div>
+      <div class="pos__network" data-state="online" data-node-id="pos-register.network" role="status" aria-live="polite">
+        <iconify-icon icon="lucide:wifi" aria-hidden="true"></iconify-icon>
+        <span data-part="network-text">Online — stok tersinkron ke cloud. Transaksi tercatat langsung.</span>
+        <button class="pos__link-btn pos__link-btn--muted" type="button" data-action="pos:toggle-network" style="margin-left: auto;">Simulasikan offline</button>
+      </div>
+    </header>
+
+    <section class="pos__panel" data-node-id="pos-register.catalog" aria-labelledby="pos-catalog-title">
+      <div class="pos__panel-head">
+        <h2 class="pos__panel-title" id="pos-catalog-title">Pindai &amp; pilih barang</h2>
+        <span class="pos__chip pos__chip--ok">Scanner siap</span>
+      </div>
+      <div class="pos__panel-body" style="display: grid; gap: var(--space-4, 16px);">
+        <div>
+          <div class="pos__scan">
+            <div class="pos__scan-field">
+              <iconify-icon icon="lucide:scan-barcode" aria-hidden="true"></iconify-icon>
+              <label for="pos-scan-input" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Kode atau nama barang</label>
+              <input id="pos-scan-input" type="search" autocomplete="off" placeholder="Pindai barcode atau ketik nama barang…" data-part="scan-input" data-node-id="pos-register.scanInput">
+            </div>
+            <button class="pos__secondary" type="button" data-action="pos:focus-scan">
+              <iconify-icon icon="lucide:sparkles" aria-hidden="true"></iconify-icon>
+              Aktifkan kamera
+            </button>
+          </div>
+          <p class="pos__scan-hint">Scanner fisik otomatis mengisi kolom ini. Tekan Enter untuk menambah barang bila barcode tidak terdaftar.</p>
+          <ul class="pos__suggest" data-part="suggestions" data-node-id="pos-register.suggestions"></ul>
+        </div>
+
+        <div>
+          <h3 class="pos__panel-title" style="margin-bottom: var(--space-3, 12px); color: var(--color-text-muted, #5a6675); font-size: var(--text-caption, 12px); text-transform: uppercase; letter-spacing: var(--tracking-wide, 0.04em);">Produk cepat</h3>
+          <ul class="pos__grid" data-part="product-grid" data-node-id="pos-register.productGrid">
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8991002101147">
+              <span class="pos__tile-name">Indomie Goreng 85g</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--ok" data-part="stock">Stok 48</span><span>Batch A2311 · 62 hari</span></span>
+              <span class="pos__tile-price">Rp3.500</span>
+            </button></li>
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8992761123456">
+              <span class="pos__tile-name">Aqua 600ml</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--low" data-part="stock">Stok 9</span><span>Batch A2298 · 118 hari</span></span>
+              <span class="pos__tile-price">Rp4.000</span>
+            </button></li>
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8991234567890">
+              <span class="pos__tile-name">Susu Ultra 250ml</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--low" data-part="stock">Stok 12</span><span>Batch B1174 · 5 hari</span></span>
+              <span class="pos__tile-price">Rp7.500</span>
+            </button></li>
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8998765432109">
+              <span class="pos__tile-name">Roti Tawar Sari Roti</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--ok" data-part="stock">Stok 6</span><span>Batch B1180 · 3 hari</span></span>
+              <span class="pos__tile-price">Rp18.000</span>
+            </button></li>
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8991112223334">
+              <span class="pos__tile-name">Teh Pucuk 350ml</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--ok" data-part="stock">Stok 36</span><span>Batch A2305 · 96 hari</span></span>
+              <span class="pos__tile-price">Rp4.500</span>
+            </button></li>
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8995000112233">
+              <span class="pos__tile-name">Kopi Kapal Api 165g</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--ok" data-part="stock">Stok 21</span><span>Batch A2280 · 210 hari</span></span>
+              <span class="pos__tile-price">Rp12.500</span>
+            </button></li>
+            <li><button class="pos__tile" type="button" data-part="product" data-sku="8996000223344" data-blocked="true">
+              <span class="pos__tile-name">Yogurt Cimory 200ml</span>
+              <span class="pos__tile-meta"><span class="pos__chip pos__chip--danger" data-part="stock">Batch kedaluwarsa</span><span>Diblokir otomatis</span></span>
+              <span class="pos__tile-price">Rp9.500</span>
+            </button></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="pos__cart" data-node-id="pos-register.cart" aria-labelledby="pos-cart-title">
+      <div class="pos__panel" style="overflow: hidden;">
+        <div class="pos__panel-head">
+          <h2 class="pos__panel-title" id="pos-cart-title">Keranjang · <span data-part="cart-count">0 item</span></h2>
+          <span class="pos__chip pos__chip--info">FEFO otomatis</span>
+        </div>
+
+        <div class="pos__panel-body" style="padding-bottom: var(--space-3, 12px);">
+          <ul class="pos__lines" data-part="cart-lines" data-node-id="pos-register.cartLines">
+            <li class="pos__empty" data-part="cart-empty" style="border: 0;">Keranjang kosong. Pindai barcode atau pilih produk cepat.</li>
+          </ul>
+        </div>
+
+        <dl class="pos__totals">
+          <div class="pos__row"><dt>Subtotal</dt><dd class="pos__amount" data-part="subtotal">Rp0</dd></div>
+          <div class="pos__row"><dt>Diskon member</dt><dd class="pos__amount" data-part="discount">−Rp0</dd></div>
+          <div class="pos__row pos__row--total"><dt>Total</dt><dd data-part="total" style="font-variant-numeric: tabular-nums;">Rp0</dd></div>
+        </dl>
+      </div>
+
+      <div class="pos__panel" data-node-id="pos-register.payment">
+        <div class="pos__panel-body" style="display: grid; gap: var(--space-3, 12px);">
+          <h2 class="pos__panel-title">Pembayaran</h2>
+          <div class="pos__pay-methods" role="group" aria-label="Metode pembayaran" data-part="pay-methods">
+            <button type="button" data-part="method" data-method="Tunai" aria-pressed="true">
+              <iconify-icon icon="lucide:banknote" aria-hidden="true"></iconify-icon>
+              Tunai
+            </button>
+            <button type="button" data-part="method" data-method="QRIS" aria-pressed="false">
+              <iconify-icon icon="lucide:qr-code" aria-hidden="true"></iconify-icon>
+              QRIS
+            </button>
+            <button type="button" data-part="method" data-method="Kartu" aria-pressed="false">
+              <iconify-icon icon="lucide:credit-card" aria-hidden="true"></iconify-icon>
+              Kartu
+            </button>
+          </div>
+
+          <div class="pos__field" data-part="cash-field">
+            <label for="pos-cash">Uang diterima</label>
+            <input id="pos-cash" type="number" inputmode="numeric" min="0" step="500" value="0" data-part="cash-input">
+          </div>
+          <div class="pos__quick" data-part="cash-quick">
+            <button type="button" data-action="pos:cash-quick" data-amount="50000">Rp50.000</button>
+            <button type="button" data-action="pos:cash-quick" data-amount="100000">Rp100.000</button>
+            <button type="button" data-action="pos:cash-quick" data-amount="exact">Uang pas</button>
+          </div>
+          <div class="pos__row"><dt>Kembalian</dt><dd class="pos__amount" data-part="change" style="color: var(--color-text, #182230); font-weight: var(--weight-semibold, 600);">Rp0</dd></div>
+
+          <div class="pos__actions">
+            <button class="pos__secondary" type="button" data-action="pos:hold">
+              <iconify-icon icon="lucide:pause" aria-hidden="true"></iconify-icon>
+              Tahan
+            </button>
+            <button class="pos__secondary" type="button" data-action="pos:clear">
+              <iconify-icon icon="lucide:trash-2" aria-hidden="true"></iconify-icon>
+              Kosongkan
+            </button>
+          </div>
+          <button class="pos__primary" type="button" data-action="pos:pay" data-node-id="pos-register.payButton">
+            <iconify-icon icon="lucide:check" aria-hidden="true"></iconify-icon>
+            Bayar &amp; cetak struk
+          </button>
+        </div>
+      </div>
+
+      <div class="pos__panel" data-node-id="pos-register.held">
+        <div class="pos__panel-head">
+          <h2 class="pos__panel-title">Transaksi ditahan</h2>
+          <span class="pos__chip pos__chip--info" data-part="held-count">0</span>
+        </div>
+        <div class="pos__panel-body">
+          <ul class="pos__held" data-part="held-list">
+            <li data-part="held-empty" style="border: 0; padding: var(--space-2, 8px) 0; color: var(--color-text-muted, #5a6675);">Belum ada transaksi ditahan.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <dialog class="pos__dialog" data-part="void-dialog" aria-labelledby="pos-void-title">
+      <form method="dialog">
+        <div class="pos__dialog-body">
+          <div class="pos__dialog-head">
+            <div>
+              <h2 id="pos-void-title">Otorisasi admin</h2>
+              <p style="margin: 4px 0 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675);">Hapus <strong data-part="void-target">item</strong> dari keranjang? Masukkan PIN admin 4–6 digit.</p>
+            </div>
+          </div>
+          <div class="pos__field">
+            <label for="pos-void-pin">PIN admin</label>
+            <input id="pos-void-pin" class="pos__pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" data-part="void-pin">
+          </div>
+          <p class="pos__error" data-part="void-error" hidden>PIN salah. Coba lagi atau minta admin memasukkan PIN.</p>
+        </div>
+        <div class="pos__dialog-foot">
+          <button class="pos__secondary" type="button" data-action="pos:void-cancel">Batal</button>
+          <button class="pos__secondary" type="submit" value="confirm" style="background: var(--color-danger, #a52b22); border-color: var(--color-danger, #a52b22); color: #fff;">Hapus item</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="pos__dialog" data-part="receipt-dialog" aria-labelledby="pos-receipt-title">
+      <div class="pos__dialog-body">
+        <div class="pos__dialog-head">
+          <div>
+            <h2 id="pos-receipt-title">Transaksi selesai</h2>
+            <p style="margin: 4px 0 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675);" data-part="receipt-ref">Struk #TRX-0000 · Kasir 01</p>
+          </div>
+          <span class="pos__chip pos__chip--ok" data-part="receipt-sync">Tersinkron</span>
+        </div>
+        <ul class="pos__receipt" data-part="receipt-lines"></ul>
+        <div class="pos__row pos__row--total"><dt>Total</dt><dd class="pos__amount" data-part="receipt-total">Rp0</dd></div>
+        <div class="pos__row"><dt data-part="receipt-method-label">Tunai</dt><dd class="pos__amount" data-part="receipt-paid">Rp0</dd></div>
+        <div class="pos__row"><dt>Kembalian</dt><dd class="pos__amount" data-part="receipt-change">Rp0</dd></div>
+        <p class="pos__notice">
+          <iconify-icon icon="lucide:printer" aria-hidden="true"></iconify-icon>
+          Struk tercetak di printer kasir 01. Antrean berikutnya siap dilayani.
+        </p>
+      </div>
+      <div class="pos__dialog-foot">
+        <button class="pos__primary" type="button" data-action="pos:receipt-close" style="width: auto;">Transaksi baru</button>
+      </div>
+    </dialog>
+  </main>
+</template>
+
+<script>
+(() => {
+  const products = [
+    { sku: '8991002101147', name: 'Indomie Goreng 85g', price: 3500, batch: 'A2311', days: 62, stock: 48 },
+    { sku: '8992761123456', name: 'Aqua 600ml', price: 4000, batch: 'A2298', days: 118, stock: 9 },
+    { sku: '8991234567890', name: 'Susu Ultra 250ml', price: 7500, batch: 'B1174', days: 5, stock: 12 },
+    { sku: '8998765432109', name: 'Roti Tawar Sari Roti', price: 18000, batch: 'B1180', days: 3, stock: 6 },
+    { sku: '8991112223334', name: 'Teh Pucuk 350ml', price: 4500, batch: 'A2305', days: 96, stock: 36 },
+    { sku: '8995000112233', name: 'Kopi Kapal Api 165g', price: 12500, batch: 'A2280', days: 210, stock: 21 },
+    { sku: '8996000223344', name: 'Yogurt Cimory 200ml', price: 9500, batch: 'B1160', days: -2, stock: 4, blocked: true }
+  ];
+
+  const rupiah = (value) => 'Rp' + Math.round(value).toLocaleString('id-ID');
+  const cart = new Map();
+  let held = [];
+  let method = 'Tunai';
+  let online = true;
+  let trxSeq = 2841;
+  let pendingVoidSku = null;
+  let busy = false;
+
+  const cartLines = root.querySelector('[data-part="cart-lines"]');
+  const emptyState = root.querySelector('[data-part="cart-empty"]');
+  const suggestList = root.querySelector('[data-part="suggestions"]');
+  const scanInput = root.querySelector('[data-part="scan-input"]');
+  const cashInput = root.querySelector('[data-part="cash-input"]');
+  const cashField = root.querySelector('[data-part="cash-field"]');
+  const cashQuick = root.querySelector('[data-part="cash-quick"]');
+  const voidDialog = root.querySelector('[data-part="void-dialog"]');
+  const voidPin = root.querySelector('[data-part="void-pin"]');
+  const voidError = root.querySelector('[data-part="void-error"]');
+  const voidTarget = root.querySelector('[data-part="void-target"]');
+  const receiptDialog = root.querySelector('[data-part="receipt-dialog"]');
+  const methodButtons = root.querySelectorAll('[data-part="method"]');
+
+  const findBySku = (sku) => products.find((item) => item.sku === sku);
+  const findByName = (query) => products.filter((item) =>
+    item.name.toLowerCase().includes(query.toLowerCase()) || item.sku.includes(query));
+
+  const cartTotal = () => [...cart.values()].reduce((sum, line) => sum + line.price * line.qty, 0);
+
+  const renderSuggestions = (query) => {
+    suggestList.innerHTML = '';
+    if (!query || query.length < 2) return;
+    const matches = findByName(query).slice(0, 5);
+    if (!matches.length) {
+      const notice = document.createElement('li');
+      notice.className = 'pos__notice';
+      notice.textContent = 'Barcode belum terdaftar. Tekan Enter untuk menambah barang cepat dengan harga manual.';
+      notice.dataset.part = 'quick-add';
+      suggestList.append(notice);
+      return;
+    }
+    matches.forEach((item) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.part = 'suggest';
+      button.dataset.sku = item.sku;
+      button.innerHTML = '<span><span class="pos__suggest-name"></span> <span class="pos__suggest-sku"></span></span><span class="pos__suggest-price"></span>';
+      button.querySelector('.pos__suggest-name').textContent = item.name;
+      button.querySelector('.pos__suggest-sku').textContent = item.sku;
+      button.querySelector('.pos__suggest-price').textContent = rupiah(item.price);
+      suggestList.append(li);
+      li.append(button);
+    });
+  };
+
+  const syncTiles = () => {
+    root.querySelectorAll('[data-part="product"]').forEach((tile) => {
+      const item = findBySku(tile.dataset.sku);
+      if (!item) return;
+      tile.dataset.blocked = String(Boolean(item.blocked));
+      const chip = tile.querySelector('[data-part="stock"]');
+      const inCart = cart.get(item.sku);
+      const remaining = item.stock - (inCart ? inCart.qty : 0);
+      if (item.blocked) {
+        chip.className = 'pos__chip pos__chip--danger';
+        chip.textContent = 'Batch kedaluwarsa';
+      } else if (remaining <= 10) {
+        chip.className = 'pos__chip pos__chip--low';
+        chip.textContent = 'Stok ' + remaining;
+      } else {
+        chip.className = 'pos__chip pos__chip--ok';
+        chip.textContent = 'Stok ' + remaining;
+      }
+    });
+  };
+
+  const renderCart = () => {
+    cartLines.querySelectorAll('[data-part="cart-line"]').forEach((node) => node.remove());
+    const lines = [...cart.values()];
+    emptyState.hidden = lines.length > 0;
+    lines.forEach((line) => {
+      const li = document.createElement('li');
+      li.className = 'pos__line';
+      li.dataset.part = 'cart-line';
+      li.dataset.sku = line.sku;
+      li.innerHTML =
+        '<div><p class="pos__line-name"></p><p class="pos__line-batch"></p></div>' +
+        '<p class="pos__line-price"></p>' +
+        '<div class="pos__line-actions">' +
+          '<span class="pos__step">' +
+            '<button type="button" data-action="pos:qty-down" aria-label="Kurangi jumlah">−</button>' +
+            '<output data-part="line-qty"></output>' +
+            '<button type="button" data-action="pos:qty-up" aria-label="Tambah jumlah">+</button>' +
+          '</span>' +
+          '<button class="pos__link-btn" type="button" data-action="pos:void">Hapus · butuh PIN admin</button>' +
+        '</div>';
+      li.querySelector('.pos__line-name').textContent = line.name;
+      li.querySelector('.pos__line-batch').textContent =
+        'Batch ' + line.batch + ' · ' + (line.days >= 0 ? 'kedaluwarsa ' + line.days + ' hari lagi' : 'batch kedaluwarsa');
+      li.querySelector('.pos__line-price').textContent = rupiah(line.price * line.qty);
+      li.querySelector('[data-part="line-qty"]').textContent = line.qty;
+      cartLines.append(li);
+    });
+
+    const total = cartTotal();
+    const discount = total >= 150000 ? Math.round(total * 0.05) : 0;
+    const net = total - discount;
+    root.querySelector('[data-part="subtotal"]').textContent = rupiah(total);
+    root.querySelector('[data-part="discount"]').textContent = '−' + rupiah(discount);
+    root.querySelector('[data-part="total"]').textContent = rupiah(net);
+    root.querySelector('[data-part="cart-count"]').textContent =
+      [...cart.values()].reduce((n, line) => n + line.qty, 0) + ' item';
+    updateChange();
+    syncTiles();
+  };
+
+  const updateChange = () => {
+    const total = cartTotal() - (cartTotal() >= 150000 ? Math.round(cartTotal() * 0.05) : 0);
+    const paid = method === 'Tunai' ? Number(cashInput.value || 0) : total;
+    const change = Math.max(0, paid - total);
+    root.querySelector('[data-part="change"]').textContent = rupiah(change);
+    if (method !== 'Tunai') root.querySelector('[data-part="change"]').textContent = 'Rp0';
+  };
+
+  const addToCart = (item) => {
+    if (!item || item.blocked) return false;
+    const line = cart.get(item.sku);
+    if (line) line.qty += 1;
+    else cart.set(item.sku, { ...item, qty: 1 });
+    renderCart();
+    return true;
+  };
+
+  const renderHeld = () => {
+    const list = root.querySelector('[data-part="held-list"]');
+    list.innerHTML = '';
+    root.querySelector('[data-part="held-count"]').textContent = String(held.length);
+    if (!held.length) {
+      const li = document.createElement('li');
+      li.style.border = '0';
+      li.style.padding = '8px 0';
+      li.style.color = 'var(--color-text-muted, #5a6675)';
+      li.textContent = 'Belum ada transaksi ditahan.';
+      list.append(li);
+      return;
+    }
+    held.forEach((entry) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span><strong></strong><span></span></span>';
+      li.querySelector('strong').textContent = entry.label;
+      li.querySelector('span span').textContent = entry.count + ' item · ' + rupiah(entry.total);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'pos__link-btn pos__link-btn--muted';
+      button.dataset.action = 'pos:resume';
+      button.dataset.heldId = entry.id;
+      button.textContent = 'Lanjutkan';
+      li.append(button);
+      list.append(li);
+    });
+  };
+
+  const setMethod = (next) => {
+    method = next;
+    methodButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.method === next)));
+    const cashMode = next === 'Tunai';
+    cashField.hidden = !cashMode;
+    cashQuick.hidden = !cashMode;
+    updateChange();
+  };
+
+  const openVoidDialog = (sku) => {
+    pendingVoidSku = sku;
+    const line = cart.get(sku);
+    voidTarget.textContent = line ? line.name : 'item';
+    voidPin.value = '';
+    voidError.hidden = true;
+    voidDialog.showModal();
+    voidPin.focus();
+  };
+
+  const finishSale = () => {
+    const total = cartTotal();
+    const discount = total >= 150000 ? Math.round(total * 0.05) : 0;
+    const net = total - discount;
+    const paid = method === 'Tunai' ? Number(cashInput.value || 0) : net;
+    trxSeq += 1;
+    root.querySelector('[data-part="receipt-ref"]').textContent = 'Struk #TRX-' + trxSeq + ' · Kasir 01';
+    root.querySelector('[data-part="receipt-total"]').textContent = rupiah(net);
+    root.querySelector('[data-part="receipt-paid"]').textContent = rupiah(paid);
+    root.querySelector('[data-part="receipt-change"]').textContent = rupiah(Math.max(0, paid - net));
+    root.querySelector('[data-part="receipt-method-label"]').textContent = method;
+    const sync = root.querySelector('[data-part="receipt-sync"]');
+    sync.textContent = online ? 'Tersinkron' : 'Menunggu sinkronisasi';
+    sync.className = 'pos__chip ' + (online ? 'pos__chip--ok' : 'pos__chip--low');
+
+    const lines = root.querySelector('[data-part="receipt-lines"]');
+    lines.innerHTML = '';
+    cart.forEach((line) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span></span><span class="pos__amount"></span>';
+      li.firstElementChild.textContent = line.qty + '× ' + line.name + ' (' + line.batch + ')';
+      li.lastElementChild.textContent = rupiah(line.price * line.qty);
+      lines.append(li);
+    });
+    if (!cart.size) return false;
+
+    cart.clear();
+    cashInput.value = '0';
+    renderCart();
+    receiptDialog.showModal();
+    root.querySelector('[data-action="pos:receipt-close"]').focus();
+    return true;
+  };
+
+  root.addEventListener('click', (event) => {
+    const control = event.target.closest('[data-action], [data-part="product"], [data-part="suggest"], [data-part="method"]');
+    if (!control || !root.contains(control)) return;
+
+    if (control.dataset.part === 'product' || control.dataset.part === 'suggest') {
+      const item = findBySku(control.dataset.sku);
+      if (item && item.blocked) {
+        scanInput.value = '';
+        renderSuggestions('');
+        scanInput.setAttribute('aria-invalid', 'true');
+        scanInput.placeholder = 'Diblokir: semua batch ' + item.name + ' sudah kedaluwarsa';
+        return;
+      }
+      addToCart(item);
+      scanInput.value = '';
+      renderSuggestions('');
+      scanInput.setAttribute('aria-invalid', 'false');
+      scanInput.placeholder = 'Pindai barcode atau ketik nama barang…';
+      return;
+    }
+
+    if (control.dataset.part === 'method') { setMethod(control.dataset.method); return; }
+
+    switch (control.dataset.action) {
+      case 'pos:qty-up':
+      case 'pos:qty-down': {
+        const line = control.closest('[data-part="cart-line"]');
+        const entry = cart.get(line.dataset.sku);
+        if (!entry) return;
+        entry.qty = control.dataset.action === 'pos:qty-up' ? entry.qty + 1 : Math.max(1, entry.qty - 1);
+        renderCart();
+        break;
+      }
+      case 'pos:void': {
+        const line = control.closest('[data-part="cart-line"]');
+        openVoidDialog(line.dataset.sku);
+        break;
+      }
+      case 'pos:void-cancel':
+        pendingVoidSku = null;
+        voidDialog.close();
+        break;
+      case 'pos:cash-quick': {
+        const amount = control.dataset.amount;
+        const total = cartTotal();
+        const net = total - (total >= 150000 ? Math.round(total * 0.05) : 0);
+        cashInput.value = String(amount === 'exact' ? net : Number(amount));
+        updateChange();
+        break;
+      }
+      case 'pos:clear':
+        cart.clear();
+        cashInput.value = '0';
+        renderCart();
+        break;
+      case 'pos:hold': {
+        if (!cart.size) return;
+        held.push({
+          id: 'hold-' + (held.length + 1),
+          label: 'Pelanggan ' + (held.length + 1),
+          count: [...cart.values()].reduce((n, line) => n + line.qty, 0),
+          total: cartTotal(),
+          lines: [...cart.values()].map((line) => ({ ...line }))
+        });
+        cart.clear();
+        cashInput.value = '0';
+        renderCart();
+        renderHeld();
+        break;
+      }
+      case 'pos:resume': {
+        const entry = held.find((item) => item.id === control.dataset.heldId);
+        if (!entry) return;
+        entry.lines.forEach((line) => {
+          const existing = cart.get(line.sku);
+          if (existing) existing.qty += line.qty;
+          else cart.set(line.sku, { ...line });
+        });
+        held = held.filter((item) => item.id !== entry.id);
+        renderCart();
+        renderHeld();
+        break;
+      }
+      case 'pos:focus-scan':
+        scanInput.focus();
+        break;
+      case 'pos:toggle-network': {
+        online = !online;
+        const banner = root.querySelector('[data-part="network"]');
+        const container = banner.closest('[data-node-id="pos-register.network"]');
+        container.dataset.state = online ? 'online' : 'offline';
+        container.querySelector('iconify-icon').setAttribute('icon', online ? 'lucide:wifi' : 'lucide:wifi-off');
+        container.querySelector('[data-part="network-text"]').textContent = online
+          ? 'Online — stok tersinkron ke cloud. Transaksi tercatat langsung.'
+          : 'Offline — 14 transaksi menunggu sinkronisasi. Stok lokal boleh minus agar antrean tetap lancar.';
+        control.textContent = online ? 'Simulasikan offline' : 'Coba sambungkan ulang';
+        break;
+      }
+      case 'pos:pay': {
+        if (busy || !cart.size) return;
+        const total = cartTotal();
+        const net = total - (total >= 150000 ? Math.round(total * 0.05) : 0);
+        if (method === 'Tunai' && Number(cashInput.value || 0) < net) {
+          cashInput.setAttribute('aria-invalid', 'true');
+          cashInput.focus();
+          root.querySelector('[data-part="change"]').textContent = 'Uang kurang ' + rupiah(net - Number(cashInput.value || 0));
+          return;
+        }
+        cashInput.setAttribute('aria-invalid', 'false');
+        const payButton = root.querySelector('[data-action="pos:pay"]');
+        busy = true;
+        payButton.dataset.state = 'charging';
+        payButton.disabled = true;
+        const timer = setTimeout(() => {
+          busy = false;
+          payButton.dataset.state = '';
+          payButton.disabled = false;
+          finishSale();
+        }, 700);
+        onCleanup(() => clearTimeout(timer));
+        break;
+      }
+      case 'pos:receipt-close':
+        receiptDialog.close();
+        scanInput.focus();
+        break;
+    }
+  }, { signal });
+
+  root.querySelector('[data-part="void-dialog"]').addEventListener('close', () => {
+    if (voidDialog.returnValue === 'confirm' && pendingVoidSku) {
+      const pin = voidPin.value.trim();
+      if (pin === '246810') {
+        cart.delete(pendingVoidSku);
+        pendingVoidSku = null;
+        renderCart();
+      } else {
+        voidError.hidden = false;
+        voidPin.value = '';
+        voidDialog.showModal();
+      }
+    }
+    voidDialog.returnValue = '';
+  }, { signal });
+
+  root.addEventListener('input', (event) => {
+    if (event.target === scanInput) renderSuggestions(scanInput.value.trim());
+    if (event.target === cashInput) updateChange();
+  }, { signal });
+
+  root.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    if (event.target === scanInput) {
+      event.preventDefault();
+      const query = scanInput.value.trim();
+      if (!query) return;
+      const exact = findBySku(query) || products.find((item) => item.name.toLowerCase() === query.toLowerCase());
+      if (exact) {
+        if (exact.blocked) {
+          scanInput.setAttribute('aria-invalid', 'true');
+          scanInput.placeholder = 'Diblokir: ' + exact.name + ' kedaluwarsa';
+          return;
+        }
+        addToCart(exact);
+        scanInput.value = '';
+        renderSuggestions('');
+      } else {
+        const fallback = findByName(query)[0];
+        if (fallback && !fallback.blocked) {
+          addToCart(fallback);
+          scanInput.value = '';
+          renderSuggestions('');
+        }
+      }
+    }
+    if (event.target === voidPin) event.preventDefault();
+  }, { signal });
+
+  setMethod('Tunai');
+  renderCart();
+  renderHeld();
+  scanInput.focus();
+})();
+</script>

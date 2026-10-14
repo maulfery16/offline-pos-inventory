@@ -1,0 +1,539 @@
+<!-- dpai:page {"typography":true,"scoped":true,"title":"Inventaris & Stok Opname","navKey":"inventory-overview","layoutProps":{}} -->
+<style>
+  .inv { display: grid; gap: var(--space-6, 24px); min-width: 0; }
+  .inv > * { min-width: 0; }
+  .inv__panel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); min-width: 0; }
+  .inv__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .inv__head h2 { margin: 0; font-size: var(--text-base, 15px); font-weight: var(--weight-semibold, 600); }
+  .inv__body { padding: var(--space-5, 20px); }
+
+  .inv__kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3, 12px); }
+  .inv__kpi { display: grid; gap: 6px; padding: var(--space-4, 16px); background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); min-width: 0; }
+  .inv__kpi-label { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .inv__kpi-value { font-size: var(--text-2xl, 28px); font-weight: var(--weight-bold, 700); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-tight, -0.01em); overflow-wrap: break-word; }
+  .inv__kpi-foot { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .inv__kpi-foot[data-tone="warn"] { color: var(--color-warning, #8a5300); }
+  .inv__kpi-foot[data-tone="danger"] { color: var(--color-danger, #a52b22); }
+
+  .inv__toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3, 12px); padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .inv__tabs { display: inline-flex; flex-wrap: wrap; gap: var(--space-1, 4px); padding: 4px; background: var(--color-surface-sunken, #f7f8fa); border-radius: var(--radius-md, 10px); }
+  .inv__tabs button {
+    display: inline-flex; align-items: center; gap: var(--space-2, 8px);
+    min-height: 38px; padding: 8px var(--space-3, 12px);
+    border: 0; border-radius: var(--radius-sm, 6px);
+    background: transparent; color: var(--color-text-muted, #5a6675);
+    font: inherit; font-size: var(--text-sm, 13px); font-weight: var(--weight-medium, 500); cursor: pointer;
+  }
+  .inv__tabs button[aria-selected="true"] { background: var(--color-surface, #fff); color: var(--color-text, #182230); font-weight: var(--weight-semibold, 600); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08); }
+  .inv__tabs span[data-part="count"] { padding: 1px 6px; border-radius: var(--radius-pill, 999px); background: var(--color-border, #e2e6ec); font-size: 11px; color: var(--color-text-muted, #5a6675); }
+  .inv__tabs button[aria-selected="true"] span[data-part="count"] { background: var(--color-primary-soft, #e2f2ee); color: var(--color-primary-hover, #0b564a); }
+
+  .inv__search { position: relative; min-width: 220px; flex: 1 1 220px; max-width: 340px; }
+  .inv__search input {
+    width: 100%; min-height: 42px; padding: 8px 12px 8px 36px;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-base, 15px);
+  }
+  .inv__search iconify-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--color-text-subtle, #8a94a3); pointer-events: none; }
+
+  .inv__list { list-style: none; margin: 0; padding: 0; display: grid; }
+  .inv__row { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(80px, 0.7fr)) minmax(0, 1fr) auto; gap: var(--space-3, 12px); align-items: center; padding: var(--space-4, 16px) var(--space-5, 20px); border-bottom: 1px solid var(--color-border, #e2e6ec); }
+  .inv__row:last-child { border-bottom: 0; }
+  .inv__row--header { background: var(--color-surface-sunken, #f7f8fa); font-size: var(--text-caption, 12px); text-transform: uppercase; letter-spacing: var(--tracking-wide, 0.04em); color: var(--color-text-muted, #5a6675); }
+  .inv__item { display: grid; gap: 2px; min-width: 0; }
+  .inv__item-name { font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); overflow-wrap: break-word; }
+  .inv__item-meta { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .inv__num { font-size: var(--text-sm, 13px); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .inv__num-label { display: none; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .inv__num--strong { font-weight: var(--weight-semibold, 600); }
+  .inv__diff[data-dir="down"] { color: var(--color-danger, #a52b22); }
+  .inv__diff[data-dir="up"] { color: var(--color-success, #136b3f); }
+  .inv__diff[data-dir="none"] { color: var(--color-text-muted, #5a6675); }
+
+  .inv__chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-pill, 999px); font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); }
+  .inv__chip--ok { background: var(--color-success-soft, #e3f4e9); color: var(--color-success, #136b3f); }
+  .inv__chip--warn { background: var(--color-warning-soft, #fdf0da); color: var(--color-warning, #8a5300); }
+  .inv__chip--danger { background: var(--color-danger-soft, #fbe8e5); color: var(--color-danger, #a52b22); }
+  .inv__chip--info { background: var(--color-info-soft, #e8eef7); color: var(--color-accent, #12507f); }
+
+  .inv__btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2, 8px); min-height: 42px; padding: 8px var(--space-4, 16px); border: 1px solid transparent; border-radius: var(--radius-md, 10px); font: inherit; font-size: var(--text-sm, 13px); font-weight: var(--weight-semibold, 600); cursor: pointer; }
+  .inv__btn--primary { background: var(--color-primary, #0f6d5f); color: var(--color-on-primary, #fff); }
+  .inv__btn--primary:hover { background: var(--color-primary-hover, #0b564a); }
+  .inv__btn--ghost { background: var(--color-surface, #fff); border-color: var(--color-border-strong, #cbd2dc); color: inherit; }
+  .inv__btn--ghost:hover { border-color: var(--color-primary, #0f6d5f); }
+  .inv__btn--sm { min-height: 36px; padding: 6px 12px; font-size: var(--text-caption, 12px); }
+
+  .inv__split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: var(--space-6, 24px); align-items: start; }
+  .inv__split > * { min-width: 0; }
+
+  .inv__alerts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2, 8px); }
+  .inv__alerts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2, 8px); align-items: center; padding: var(--space-3, 12px); border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-md, 10px); background: var(--color-surface-sunken, #f7f8fa); }
+  .inv__alerts strong { display: block; font-size: var(--text-sm, 13px); }
+  .inv__alerts span { font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .inv__alerts .inv__suggest { font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold, 600); color: var(--color-primary-hover, #0b564a); white-space: nowrap; }
+
+  .inv__empty { margin: 0; padding: var(--space-6, 24px); text-align: center; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+
+  .inv dialog { width: min(520px, 92vw); padding: 0; border: 1px solid var(--color-border, #e2e6ec); border-radius: var(--radius-lg, 14px); background: var(--color-surface, #fff); color: inherit; }
+  .inv dialog::backdrop { background: rgba(15, 22, 33, 0.5); }
+  .inv__dialog-body { display: grid; gap: var(--space-4, 16px); padding: var(--space-5, 20px); }
+  .inv__dialog-body h2 { margin: 0; font-size: var(--text-lg, 18px); font-weight: var(--weight-bold, 700); }
+  .inv__dialog-foot { display: flex; justify-content: flex-end; gap: var(--space-2, 8px); padding: var(--space-4, 16px) var(--space-5, 20px); border-top: 1px solid var(--color-border, #e2e6ec); background: var(--color-surface-sunken, #f7f8fa); }
+  .inv__field { display: grid; gap: 6px; min-width: 0; }
+  .inv__field label { font-size: var(--text-caption, 12px); font-weight: var(--weight-medium, 500); color: var(--color-text-muted, #5a6675); }
+  .inv__field input, .inv__field select, .inv__field textarea {
+    width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px;
+    border: 1px solid var(--color-border-strong, #cbd2dc); border-radius: var(--radius-md, 10px);
+    background: var(--color-surface, #fff); color: inherit; font: inherit; font-size: var(--text-base, 15px);
+  }
+  .inv__field textarea { min-height: 84px; resize: vertical; }
+  .inv__field input[aria-invalid="true"] { border-color: var(--color-danger, #a52b22); background: #fff7f6; }
+  .inv__hint { margin: 0; font-size: var(--text-caption, 12px); color: var(--color-text-muted, #5a6675); }
+  .inv__err { margin: 0; font-size: var(--text-caption, 12px); color: var(--color-danger, #a52b22); font-weight: var(--weight-medium, 500); }
+  .inv__summary-line { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3, 12px); font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675); }
+  .inv__summary-line strong { color: var(--color-text, #182230); font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 1120px) {
+    .inv__split { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 980px) {
+    .inv__row--header { display: none; }
+    .inv__row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .inv__item { grid-column: 1 / -1; }
+    .inv__num { text-align: left; }
+    .inv__num-label { display: block; }
+    .inv__cell--action { grid-column: 1 / -1; }
+  }
+  @media (max-width: 640px) {
+    .inv__body { padding: var(--space-4, 16px); }
+    .inv__toolbar { padding: var(--space-4, 16px); }
+    .inv__search { max-width: none; }
+    .inv__alerts li { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+
+<template data-slot="content">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+  <main class="inv" data-node-id="inventory-overview.main">
+    <section class="inv__kpis" aria-label="Metrik inventaris">
+      <div class="inv__kpi">
+        <span class="inv__kpi-label">Nilai persediaan (HPP)</span>
+        <span class="inv__kpi-value">Rp284.750.000</span>
+        <span class="inv__kpi-foot">1.240 SKU aktif · 8 batch baru minggu ini</span>
+      </div>
+      <div class="inv__kpi">
+        <span class="inv__kpi-label">SKU di bawah reorder point</span>
+        <span class="inv__kpi-value" data-part="kpi-low">3</span>
+        <span class="inv__kpi-foot" data-tone="warn">Perlu pesan ulang dalam 2 hari</span>
+      </div>
+      <div class="inv__kpi">
+        <span class="inv__kpi-label">Kedaluwarsa ≤30 hari</span>
+        <span class="inv__kpi-value" data-part="kpi-expiry">5 batch</span>
+        <span class="inv__kpi-foot" data-tone="danger">Nilai HPP berisiko Rp4.180.000</span>
+      </div>
+      <div class="inv__kpi">
+        <span class="inv__kpi-label">Selisih opname terakhir</span>
+        <span class="inv__kpi-value" data-part="kpi-variance">−9 unit</span>
+        <span class="inv__kpi-foot">Opname 14 Apr · 4 SKU berselisih</span>
+      </div>
+    </section>
+
+    <div class="inv__split">
+      <section class="inv__panel" aria-labelledby="inv-list-title">
+        <div class="inv__head">
+          <h2 id="inv-list-title">Daftar stok cabang</h2>
+          <span class="inv__chip inv__chip--info" data-part="result-count">9 SKU ditampilkan</span>
+        </div>
+        <div class="inv__toolbar">
+          <div class="inv__tabs" role="tablist" aria-label="Filter stok" data-part="tabs">
+            <button type="button" role="tab" id="inv-tab-all" aria-controls="inv-panel" aria-selected="true" tabindex="0" data-filter="all">Semua <span data-part="count">9</span></button>
+            <button type="button" role="tab" id="inv-tab-low" aria-controls="inv-panel" aria-selected="false" tabindex="-1" data-filter="low">Menipis <span data-part="count">3</span></button>
+            <button type="button" role="tab" id="inv-tab-expiry" aria-controls="inv-panel" aria-selected="false" tabindex="-1" data-filter="expiry">Akan kedaluwarsa <span data-part="count">2</span></button>
+            <button type="button" role="tab" id="inv-tab-variance" aria-controls="inv-panel" aria-selected="false" tabindex="-1" data-filter="variance">Selisih opname <span data-part="count">2</span></button>
+          </div>
+          <div class="inv__search">
+            <iconify-icon icon="lucide:search" aria-hidden="true"></iconify-icon>
+            <label for="inv-search" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Cari barang</label>
+            <input id="inv-search" type="search" placeholder="Cari nama atau SKU…" autocomplete="off" data-part="search">
+          </div>
+        </div>
+
+        <div id="inv-panel" role="tabpanel" aria-labelledby="inv-tab-all" tabindex="0">
+          <div class="inv__row inv__row--header" aria-hidden="true">
+            <span>Barang</span>
+            <span class="inv__num">Tersedia</span>
+            <span class="inv__num">Fisik</span>
+            <span class="inv__num">Selisih</span>
+            <span>Status</span>
+            <span>Aksi</span>
+          </div>
+          <ul class="inv__list" data-part="rows" data-node-id="inventory-overview.rows"></ul>
+          <p class="inv__empty" data-part="empty" hidden>Tidak ada SKU yang cocok dengan filter dan pencarian ini.</p>
+        </div>
+      </section>
+
+      <aside class="inv__split" style="grid-template-columns: minmax(0, 1fr);">
+        <section class="inv__panel" aria-labelledby="inv-alert-title">
+          <div class="inv__head">
+            <h2 id="inv-alert-title">Peringatan stok menipis</h2>
+            <span class="inv__chip inv__chip--warn" data-part="alert-count">3 SKU</span>
+          </div>
+          <div class="inv__body">
+            <ul class="inv__alerts" data-part="alerts"></ul>
+          </div>
+        </section>
+
+        <section class="inv__panel" aria-labelledby="inv-opname-title">
+          <div class="inv__head"><h2 id="inv-opname-title">Sesi stok opname</h2></div>
+          <div class="inv__body" style="display: grid; gap: var(--space-3, 12px);">
+            <p style="margin: 0; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675);">
+              Mode opname memakai kamera ponsel untuk memindai dan menyesuaikan stok fisik di rak. Selisih ditandai sebelum disimpan.
+            </p>
+            <div class="inv__summary-line"><span>SKU sudah dihitung</span><strong data-part="opname-done">6 dari 9</strong></div>
+            <div class="inv__summary-line"><span>Selisih terdeteksi</span><strong data-part="opname-diff">2 SKU</strong></div>
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2, 8px);">
+              <button class="inv__btn inv__btn--primary" type="button" data-action="inv:finish-opname">Simpan hasil opname</button>
+              <button class="inv__btn inv__btn--ghost" type="button" data-action="inv:reset-opname">Reset penghitungan</button>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <dialog class="inv dialog" data-part="adjust-dialog" aria-labelledby="inv-adjust-title">
+      <div class="inv__dialog-body">
+        <h2 id="inv-adjust-title">Sesuaikan stok fisik</h2>
+        <p style="margin: 0; font-size: var(--text-sm, 13px); color: var(--color-text-muted, #5a6675);" data-part="adjust-target"></p>
+        <div class="inv__field">
+          <label for="inv-adjust-qty">Jumlah fisik hasil hitung</label>
+          <input id="inv-adjust-qty" type="number" min="0" step="1" inputmode="numeric" data-part="adjust-qty">
+          <p class="inv__err" data-part="adjust-error" hidden>Masukkan angka 0 atau lebih besar.</p>
+        </div>
+        <div class="inv__field">
+          <label for="inv-adjust-reason">Alasan penyesuaian</label>
+          <select id="inv-adjust-reason">
+            <option value="Opname tidak cocok">Opname tidak cocok</option>
+            <option value="Barang rusak">Barang rusak</option>
+            <option value="Salah input kasir">Salah input kasir</option>
+            <option value="Retur supplier">Retur supplier</option>
+          </select>
+        </div>
+        <div class="inv__field">
+          <label for="inv-adjust-note">Catatan (opsional)</label>
+          <textarea id="inv-adjust-note" placeholder="Misal: 4 sachet bocor ditemukan di rak gantung."></textarea>
+        </div>
+        <div class="inv__summary-line"><span>Selisih setelah penyesuaian</span><strong data-part="adjust-diff">0</strong></div>
+      </div>
+      <div class="inv__dialog-foot">
+        <button class="inv__btn inv__btn--ghost" type="button" data-action="inv:adjust-cancel">Batal</button>
+        <button class="inv__btn inv__btn--primary" type="button" data-action="inv:adjust-save">Simpan penyesuaian</button>
+      </div>
+    </dialog>
+
+    <dialog class="inv dialog" data-part="opname-dialog" aria-labelledby="inv-opname-result-title">
+      <div class="inv__dialog-body">
+        <h2 id="inv-opname-result-title">Hasil opname tersimpan</h2>
+        <ul class="inv__alerts" data-part="opname-summary"></ul>
+        <p class="inv__hint">Stok cloud diperbarui langsung karena perangkat sedang online. Bila offline, perubahan masuk antrean sinkronisasi.</p>
+      </div>
+      <div class="inv__dialog-foot">
+        <button class="inv__btn inv__btn--primary" type="button" data-action="inv:opname-close">Tutup</button>
+      </div>
+    </dialog>
+  </main>
+</template>
+
+<script>
+(() => {
+  const items = [
+    { sku: '8991002101147', name: 'Indomie Goreng 85g', category: 'Makanan instan', available: 48, physical: 48, reorder: 24, expiring: 62 },
+    { sku: '8992761123456', name: 'Aqua 600ml', category: 'Minuman', available: 9, physical: 7, reorder: 24, expiring: 118 },
+    { sku: '8991234567890', name: 'Susu Ultra 250ml', category: 'Susu & olahan', available: 12, physical: 12, reorder: 18, expiring: 5 },
+    { sku: '8998765432109', name: 'Roti Tawar Sari Roti', category: 'Bakery', available: 6, physical: 4, reorder: 10, expiring: 3 },
+    { sku: '8991112223334', name: 'Teh Pucuk 350ml', category: 'Minuman', available: 36, physical: 36, reorder: 20, expiring: 96 },
+    { sku: '8995000112233', name: 'Kopi Kapal Api 165g', category: 'Minuman', available: 21, physical: 21, reorder: 12, expiring: 210 },
+    { sku: '8996000223344', name: 'Yogurt Cimory 200ml', category: 'Susu & olahan', available: 4, physical: 4, reorder: 8, expiring: -2 },
+    { sku: '8997000334455', name: 'Sabun Lifebuoy 85g', category: 'Perawatan diri', available: 54, physical: 54, reorder: 20, expiring: 400 },
+    { sku: '8998000445566', name: 'Beras Pandan Wangi 5kg', category: 'Sembako', available: 14, physical: 14, reorder: 8, expiring: 320 }
+  ];
+
+  const rupiah = (value) => 'Rp' + Math.round(value).toLocaleString('id-ID');
+  const list = root.querySelector('[data-part="rows"]');
+  const empty = root.querySelector('[data-part="empty"]');
+  const search = root.querySelector('[data-part="search"]');
+  const tabs = [...root.querySelectorAll('[data-part="tabs"] button')];
+  const adjustDialog = root.querySelector('[data-part="adjust-dialog"]');
+  const opnameDialog = root.querySelector('[data-part="opname-dialog"]');
+  const adjustQty = root.querySelector('[data-part="adjust-qty"]');
+  const adjustError = root.querySelector('[data-part="adjust-error"]');
+  let filter = 'all';
+  let query = '';
+  let activeSku = null;
+  let counted = new Set(['8991002101147', '8992761123456', '8991234567890', '8998765432109', '8991112223334', '8995000112233']);
+
+  const isLow = (item) => item.available <= item.reorder;
+  const isExpiring = (item) => item.expiring <= 30;
+  const variance = (item) => item.physical - item.available;
+
+  const matches = (item) => {
+    if (query && !(item.name.toLowerCase().includes(query) || item.sku.includes(query))) return false;
+    if (filter === 'low') return isLow(item);
+    if (filter === 'expiry') return isExpiring(item);
+    if (filter === 'variance') return variance(item) !== 0;
+    return true;
+  };
+
+  const statusOf = (item) => {
+    if (item.expiring <= 0) return { chip: 'inv__chip--danger', text: 'Batch kedaluwarsa · diblokir' };
+    if (isLow(item)) return { chip: 'inv__chip--warn', text: 'Menipis · di bawah reorder' };
+    if (!counted.has(item.sku)) return { chip: 'inv__chip--info', text: 'Perlu opname' };
+    return { chip: 'inv__chip--ok', text: 'Aman' };
+  };
+
+  const renderCounts = () => {
+    const counts = {
+      all: items.length,
+      low: items.filter(isLow).length,
+      expiry: items.filter(isExpiring).length,
+      variance: items.filter((item) => variance(item) !== 0).length
+    };
+    tabs.forEach((tab) => {
+      tab.querySelector('[data-part="count"]').textContent = String(counts[tab.dataset.filter]);
+    });
+    root.querySelector('[data-part="result-count"]').textContent =
+      items.filter(matches).length + ' SKU ditampilkan';
+    root.querySelector('[data-part="kpi-low"]').textContent = String(counts.low);
+    root.querySelector('[data-part="kpi-expiry"]').textContent =
+      items.filter(isExpiring).length + ' batch';
+  };
+
+  const renderRows = () => {
+    list.innerHTML = '';
+    const visible = items.filter(matches);
+    empty.hidden = visible.length > 0;
+    visible.forEach((item) => {
+      const status = statusOf(item);
+      const diff = variance(item);
+      const li = document.createElement('li');
+      li.className = 'inv__row';
+      li.dataset.part = 'row';
+      li.dataset.sku = item.sku;
+      li.dataset.low = String(isLow(item));
+      li.dataset.expiry = String(isExpiring(item));
+      li.dataset.variance = String(diff !== 0);
+      li.innerHTML =
+        '<span class="inv__item"><span class="inv__item-name"></span><span class="inv__item-meta"></span></span>' +
+        '<span class="inv__num"><span class="inv__num-label">Tersedia</span><span data-part="available"></span></span>' +
+        '<span class="inv__num"><span class="inv__num-label">Fisik</span><span data-part="physical"></span></span>' +
+        '<span class="inv__num inv__num--strong"><span class="inv__num-label">Selisih</span><span class="inv__diff" data-part="diff"></span></span>' +
+        '<span><span class="inv__chip ' + status.chip + '">' + status.text + '</span></span>' +
+        '<span class="inv__cell--action"><button class="inv__btn inv__btn--ghost inv__btn--sm" type="button" data-action="inv:adjust" data-sku="' + item.sku + '">Sesuaikan</button></span>';
+      li.querySelector('.inv__item-name').textContent = item.name;
+      li.querySelector('.inv__item-meta').textContent = item.sku + ' · ' + item.category + ' · reorder ' + item.reorder;
+      li.querySelector('[data-part="available"]').textContent = String(item.available);
+      const physicalInput = li.querySelector('[data-part="physical"]');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '1';
+      input.value = String(item.physical);
+      input.dataset.field = 'physical';
+      input.setAttribute('aria-label', 'Stok fisik ' + item.name);
+      input.style.width = '100%';
+      input.style.maxWidth = '96px';
+      input.style.minHeight = '38px';
+      input.style.padding = '6px 8px';
+      input.style.border = '1px solid var(--color-border-strong, #cbd2dc)';
+      input.style.borderRadius = 'var(--radius-sm, 6px)';
+      input.style.background = 'var(--color-surface, #fff)';
+      input.style.color = 'inherit';
+      input.style.font = 'inherit';
+      input.style.fontSize = 'var(--text-sm, 13px)';
+      input.style.fontVariantNumeric = 'tabular-nums';
+      physicalInput.replaceWith(input);
+      const diffNode = li.querySelector('[data-part="diff"]');
+      const dir = diff === 0 ? 'none' : diff > 0 ? 'up' : 'down';
+      diffNode.dataset.dir = dir;
+      diffNode.textContent = diff > 0 ? '+' + diff : String(diff);
+      list.append(li);
+    });
+    renderCounts();
+  };
+
+  const renderAlerts = () => {
+    const alerts = root.querySelector('[data-part="alerts"]');
+    alerts.innerHTML = '';
+    const low = items.filter(isLow);
+    root.querySelector('[data-part="alert-count"]').textContent = low.length + ' SKU';
+    if (!low.length) {
+      const li = document.createElement('li');
+      li.textContent = 'Semua SKU berada di atas titik pemesanan ulang.';
+      li.style.gridTemplateColumns = 'minmax(0, 1fr)';
+      alerts.append(li);
+      return;
+    }
+    low.forEach((item) => {
+      const suggested = Math.max(item.reorder * 2 - item.available, item.reorder);
+      const li = document.createElement('li');
+      li.innerHTML = '<span><strong></strong><span></span></span><span class="inv__suggest"></span>';
+      li.querySelector('strong').textContent = item.name;
+      li.querySelector('span span').textContent = 'Sisa ' + item.available + ' dari reorder ' + item.reorder;
+      li.querySelector('.inv__suggest').textContent = 'Pesan ' + suggested + ' pcs';
+      alerts.append(li);
+    });
+  };
+
+  const renderOpname = () => {
+    root.querySelector('[data-part="opname-done"]').textContent = counted.size + ' dari ' + items.length;
+    root.querySelector('[data-part="opname-diff"]').textContent =
+      items.filter((item) => variance(item) !== 0).length + ' SKU';
+    const totalDiff = items.reduce((sum, item) => sum + variance(item), 0);
+    root.querySelector('[data-part="kpi-variance"]').textContent = (totalDiff > 0 ? '+' : '') + totalDiff + ' unit';
+  };
+
+  const setFilter = (next, focusTab) => {
+    filter = next;
+    tabs.forEach((tab) => {
+      const selected = tab.dataset.filter === next;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected) {
+        root.querySelector('#inv-panel').setAttribute('aria-labelledby', tab.id);
+        if (focusTab) tab.focus();
+      }
+    });
+    renderRows();
+  };
+
+  root.addEventListener('click', (event) => {
+    const tabButton = event.target.closest('[data-part="tabs"] button');
+    if (tabButton && root.contains(tabButton)) {
+      setFilter(tabButton.dataset.filter, false);
+      return;
+    }
+    const control = event.target.closest('[data-action]');
+    if (!control || !root.contains(control)) return;
+    switch (control.dataset.action) {
+      case 'inv:adjust': {
+        activeSku = control.dataset.sku;
+        const item = items.find((entry) => entry.sku === activeSku);
+        root.querySelector('[data-part="adjust-target"]').textContent =
+          item.name + ' · tersedia ' + item.available + ' unit. Masukkan jumlah fisik hasil hitung.';
+        adjustQty.value = String(item.physical);
+        adjustError.hidden = true;
+        adjustQty.setAttribute('aria-invalid', 'false');
+        root.querySelector('[data-part="adjust-diff"]').textContent = String(variance(item));
+        adjustDialog.showModal();
+        adjustQty.focus();
+        break;
+      }
+      case 'inv:adjust-cancel':
+        adjustDialog.close();
+        break;
+      case 'inv:adjust-save': {
+        const value = Number(adjustQty.value);
+        if (!Number.isFinite(value) || value < 0) {
+          adjustError.hidden = false;
+          adjustQty.setAttribute('aria-invalid', 'true');
+          adjustQty.focus();
+          return;
+        }
+        const item = items.find((entry) => entry.sku === activeSku);
+        item.physical = value;
+        counted.add(item.sku);
+        adjustDialog.close();
+        renderRows();
+        renderOpname();
+        break;
+      }
+      case 'inv:finish-opname': {
+        const summary = root.querySelector('[data-part="opname-summary"]');
+        summary.innerHTML = '';
+        const diffs = items.filter((item) => variance(item) !== 0);
+        const rows = diffs.length
+          ? diffs.map((item) => [item.name, (variance(item) > 0 ? '+' : '') + variance(item) + ' unit dari ' + item.available])
+          : [['Tidak ada selisih', 'Semua SKU cocok dengan catatan sistem']];
+        rows.forEach(([label, detail]) => {
+          const li = document.createElement('li');
+          li.innerHTML = '<span><strong></strong><span></span></span>';
+          li.querySelector('strong').textContent = label;
+          li.querySelector('span span').textContent = detail;
+          summary.append(li);
+        });
+        opnameDialog.showModal();
+        root.querySelector('[data-action="inv:opname-close"]').focus();
+        break;
+      }
+      case 'inv:reset-opname':
+        counted = new Set();
+        renderOpname();
+        renderRows();
+        search.focus();
+        break;
+      case 'inv:opname-close':
+        opnameDialog.close();
+        break;
+    }
+  }, { signal });
+
+  root.addEventListener('keydown', (event) => {
+    const tabButton = event.target.closest('[data-part="tabs"] button');
+    if (tabButton) {
+      const index = tabs.indexOf(tabButton);
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      if (nextIndex !== null) {
+        event.preventDefault();
+        setFilter(tabs[nextIndex].dataset.filter, true);
+      }
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setFilter(tabButton.dataset.filter, true);
+      }
+    }
+    if (event.target === adjustQty && event.key === 'Enter') {
+      event.preventDefault();
+      root.querySelector('[data-action="inv:adjust-save"]').click();
+    }
+  }, { signal });
+
+  root.addEventListener('input', (event) => {
+    if (event.target === search) {
+      query = search.value.trim().toLowerCase();
+      renderRows();
+      return;
+    }
+    const row = event.target.closest('[data-part="row"]');
+    if (row && event.target.dataset.field === 'physical') {
+      const item = items.find((entry) => entry.sku === row.dataset.sku);
+      const value = Number(event.target.value);
+      if (Number.isFinite(value) && value >= 0) {
+        item.physical = value;
+        counted.add(item.sku);
+        const diff = variance(item);
+        const diffNode = row.querySelector('[data-part="diff"]');
+        diffNode.dataset.dir = diff === 0 ? 'none' : diff > 0 ? 'up' : 'down';
+        diffNode.textContent = diff > 0 ? '+' + diff : String(diff);
+        renderOpname();
+      }
+    }
+  }, { signal });
+
+  root.addEventListener('change', (event) => {
+    if (event.target === adjustQty) {
+      const value = Number(adjustQty.value);
+      const item = items.find((entry) => entry.sku === activeSku);
+      adjustError.hidden = Number.isFinite(value) && value >= 0;
+      adjustQty.setAttribute('aria-invalid', String(!Number.isFinite(value) || value < 0));
+      if (item && Number.isFinite(value)) root.querySelector('[data-part="adjust-diff"]').textContent = String(value - item.available);
+    }
+  }, { signal });
+
+  renderRows();
+  renderAlerts();
+  renderOpname();
+})();
+</script>
