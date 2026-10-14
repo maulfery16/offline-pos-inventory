@@ -11,14 +11,13 @@ export default function DashboardLayout({
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
-    // Deteksi online/offline status
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
-
     // Set initial state
     setIsOffline(!navigator.onLine);
 
     // Listen to online/offline events
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
