@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ScanBarcode, Plus, Info, CircleAlert, TriangleAlert, CircleCheck, Trash2 } from 'lucide-react';
+import { ScanBarcode, Plus, Info, CircleAlert, TriangleAlert, CircleCheck, Trash2, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
 
 interface ReceivingLine {
@@ -170,16 +170,19 @@ export default function BarangMasukPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="grid gap-1.5">
                 <label htmlFor="supplier" className="text-xs font-medium text-[#5a6675]">Supplier</label>
-                <select
-                  id="supplier"
-                  value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  className="min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f]"
-                >
-                  <option>PT Sumber Pangan Jaya</option>
-                  <option>CV Anugerah Snack</option>
-                  <option>PT Dairy Prima Nusantara</option>
-                </select>
+                <div className="relative">
+                  <select
+                    id="supplier"
+                    value={supplier}
+                    onChange={(e) => setSupplier(e.target.value)}
+                    className="w-full min-h-[44px] px-3 pr-10 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f]"
+                  >
+                    <option>PT Sumber Pangan Jaya</option>
+                    <option>CV Anugerah Snack</option>
+                    <option>PT Dairy Prima Nusantara</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+                </div>
               </div>
               <div className="grid gap-1.5">
                 <label htmlFor="invoice" className="text-xs font-medium text-[#5a6675]">Nomor faktur supplier</label>
@@ -203,15 +206,18 @@ export default function BarangMasukPage() {
               </div>
               <div className="grid gap-1.5">
                 <label htmlFor="warehouse" className="text-xs font-medium text-[#5a6675]">Gudang tujuan</label>
-                <select
-                  id="warehouse"
-                  value={warehouse}
-                  onChange={(e) => setWarehouse(e.target.value)}
-                  className="min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f]"
-                >
-                  <option>Gudang Utama — Kebayoran</option>
-                  <option>Gudang Cabang Bintaro</option>
-                </select>
+                <div className="relative">
+                  <select
+                    id="warehouse"
+                    value={warehouse}
+                    onChange={(e) => setWarehouse(e.target.value)}
+                    className="w-full min-h-[44px] px-3 pr-10 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f]"
+                  >
+                    <option>Gudang Utama — Kebayoran</option>
+                    <option>Gudang Cabang Bintaro</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+                </div>
               </div>
             </div>
           </div>

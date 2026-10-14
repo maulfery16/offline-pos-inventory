@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
 
 interface InventoryItem {
@@ -336,17 +336,20 @@ export default function InventarisPage() {
               </div>
               <div className="grid gap-1.5">
                 <label htmlFor="adjust-reason" className="text-xs font-medium text-[#5a6675]">Alasan penyesuaian</label>
-                <select
-                  id="adjust-reason"
-                  value={adjustReason}
-                  onChange={(e) => setAdjustReason(e.target.value)}
-                  className="min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f]"
-                >
-                  <option>Opname tidak cocok</option>
-                  <option>Barang rusak</option>
-                  <option>Salah input kasir</option>
-                  <option>Retur supplier</option>
-                </select>
+                <div className="relative">
+                  <select
+                    id="adjust-reason"
+                    value={adjustReason}
+                    onChange={(e) => setAdjustReason(e.target.value)}
+                    className="w-full min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] appearance-none cursor-pointer"
+                  >
+                    <option>Opname tidak cocok</option>
+                    <option>Barang rusak</option>
+                    <option>Salah input kasir</option>
+                    <option>Retur supplier</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+                </div>
               </div>
               <div className="grid gap-1.5">
                 <label htmlFor="adjust-note" className="text-xs font-medium text-[#5a6675]">Catatan (opsional)</label>
