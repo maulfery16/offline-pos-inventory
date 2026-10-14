@@ -45,7 +45,6 @@ next-env.d.ts
 /public/worker-*.js.map
 
 # Prisma
-prisma/migrations
 
 # Kiro AI session data (lokal, tidak perlu di-commit)
 .kiro/sessions/
