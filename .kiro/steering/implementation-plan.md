@@ -6,9 +6,9 @@ description: Rencana implementasi bertahap (Phase 1-4, 24 tasks) untuk project o
 
 # Implementation Plan: Offline POS Inventory System
 
-> **Status keseluruhan**: ~30% complete  
-> **Yang sudah ada**: UI shell lengkap, 5 halaman dashboard dengan data mock, Prisma schema, design system, semua dependencies terpasang  
-> **Yang belum ada**: Semua backend (API routes), WatermelonDB setup, sync engine, auth real, koneksi UI ke data nyata
+> **Status keseluruhan**: ~55% complete  
+> **Yang sudah ada**: UI shell lengkap, 5 halaman dashboard dengan data mock, Prisma schema, design system, semua dependencies terpasang, **semua backend API routes Phase 1 selesai** (auth, sync, products, inbound, reports, middleware)  
+> **Yang belum ada**: WatermelonDB offline engine (Phase 2), koneksi UI ke data nyata (Phase 3), hardware & polish (Phase 4)
 
 Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat mengerjakan fitur baru. Setiap task di bawah adalah atomic dan dapat dikerjakan secara independen dalam satu sesi agent.
 
@@ -30,7 +30,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 > Goal: Backend "nyala" — database terhubung, API dapat menerima request, auth berfungsi.
 
 ### TASK-1.1 · Environment & Database Bootstrap
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `.env.local`, `prisma/migrations/`  
 **Apa yang dikerjakan**:
 - Buat `.env.local` dari `.env.example` dengan nilai placeholder yang jelas
@@ -48,7 +48,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.2 · Auth Core: JWT Utilities
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/auth/index.ts`, `src/core/auth/types.ts`  
 **Apa yang dikerjakan**:
 - Implementasikan `signJWT(payload, expiresIn)` menggunakan library `jose` (sudah terpasang)
@@ -63,7 +63,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.3 · API Route: Device Registration
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/auth/register/route.ts`  
 **Apa yang dikerjakan**:
 - `POST /api/auth/register`
@@ -79,7 +79,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.4 · API Route: PIN Verification (Kasir Login)
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/auth/pin-verify/route.ts`  
 **Apa yang dikerjakan**:
 - `POST /api/auth/pin-verify`
@@ -93,7 +93,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.5 · Next.js Middleware: API Route Guard
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/middleware.ts`  
 **Apa yang dikerjakan**:
 - Guard semua `/api/*` routes kecuali `/api/auth/*`
@@ -105,7 +105,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.6 · API Route: Sync Pull (GET /api/sync)
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/sync/route.ts` (GET handler)  
 **Apa yang dikerjakan**:
 - `GET /api/sync?lastPulledAt={timestamp}`
@@ -127,7 +127,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.7 · API Route: Sync Push (POST /api/sync)
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/sync/route.ts` (POST handler)  
 **Apa yang dikerjakan**:
 - `POST /api/sync`
@@ -150,7 +150,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.8 · API Route: Products Listing
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/products/route.ts`  
 **Apa yang dikerjakan**:
 - `GET /api/products?search=&page=&limit=`
@@ -163,7 +163,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.9 · API Route: Inbound / Barang Masuk
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/inbound/route.ts`  
 **Apa yang dikerjakan**:
 - `POST /api/inbound`
@@ -175,7 +175,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.10 · API Route: Reports
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/reports/profit/route.ts`, `src/app/api/reports/shift/route.ts`  
 **Apa yang dikerjakan**:
 - `GET /api/reports/profit?from=&to=&branchId=`
@@ -187,7 +187,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.11 · Fix: tailwindcss-animate Plugin
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `tailwind.config.ts`  
 **Apa yang dikerjakan**:
 - Tambahkan `require('tailwindcss-animate')` ke array `plugins` di `tailwind.config.ts`
