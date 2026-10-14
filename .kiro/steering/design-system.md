@@ -1,3 +1,9 @@
+---
+inclusion: auto
+name: design-system
+description: Design system reference untuk project ini — komponen UI, design tokens, Tailwind classes, dan pola implementasi. Load saat menulis atau memodifikasi komponen React, halaman UI, atau styling.
+---
+
 # Design System Reference
 
 ## Product Vision

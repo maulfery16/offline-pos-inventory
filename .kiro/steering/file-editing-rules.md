@@ -1,3 +1,9 @@
+---
+inclusion: always
+name: file-editing-rules
+description: Aturan wajib penggunaan file tools — kapan pakai str_replace vs fs_write vs execute_bash, dan kenapa tidak boleh pakai shell untuk edit file JSX/TSX.
+---
+
 # File Editing Rules (CRITICAL)
 
 ## Rule 1: ALWAYS use dedicated file tools for file operations
