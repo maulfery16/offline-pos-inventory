@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
-import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle } from 'lucide-react';
 import { cn } from '@/shared/utils';
 
 type PaymentMethod = 'Tunai' | 'QRIS' | 'Kartu';
@@ -39,9 +39,13 @@ interface HeldTransaction {
 
 const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID');
 
+const discount = 0;
+
 export default function KasirPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [scanInput, setScanInput] = useState('');
+  const [scanError, setScanError] = useState('');
+  const [shaking, setShaking] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Tunai');
   const [cashReceived, setCashReceived] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
@@ -51,8 +55,16 @@ export default function KasirPage() {
   const [voidPin, setVoidPin] = useState('');
   const [voidError, setVoidError] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number } | null>(null);
+  const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number; syncedOnline: boolean } | null>(null);
+  const [cartSnapshot, setCartSnapshot] = useState<CartItem[]>([]);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  // P1-A: Auto-focus on mount
+  useEffect(() => {
+    scanInputRef.current?.focus();
+  }, []);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const change = Math.max(0, cashReceived - total);
@@ -84,6 +96,12 @@ export default function KasirPage() {
       if (exactMatch) {
         addToCart(exactMatch);
         setScanInput('');
+        setScanError('');
+      } else if (scanInput.trim().length > 0) {
+        // P0-B: Barcode not found error
+        setScanError('Barcode tidak ditemukan. Cari manual atau tambah produk baru.');
+        setShaking(true);
+        setTimeout(() => setScanError(''), 3000);
       }
     }
   };
@@ -129,13 +147,21 @@ export default function KasirPage() {
       },
     ]);
     setCart([]);
+    // P2-B: reset cash on hold
+    setCashReceived(0);
   };
 
+  // P1-C: restoreHeld with guard
   const restoreHeld = (held: HeldTransaction) => {
-    setCart(held.items);
-    setHeldTransactions((prev) => prev.filter((h) => h.id !== held.id));
+    if (cart.length > 0) {
+      setPendingRestoreId(held.id);
+    } else {
+      setCart(held.items);
+      setHeldTransactions((prev) => prev.filter((h) => h.id !== held.id));
+    }
   };
 
+  // P1-B: clearCart called only after confirmation
   const clearCart = () => {
     setCart([]);
     setCashReceived(0);
@@ -143,8 +169,12 @@ export default function KasirPage() {
 
   const processPayment = () => {
     if (cart.length === 0) return;
+    if (paymentMethod === 'Tunai' && cashReceived < total) return;
     const actualCash = paymentMethod === 'Tunai' ? cashReceived : total;
-    setLastTransaction({ total, method: paymentMethod, cash: actualCash, change: paymentMethod === 'Tunai' ? change : 0 });
+    // P1-D: snapshot cart before clearing
+    setCartSnapshot([...cart]);
+    // P2-A: record sync state
+    setLastTransaction({ total, method: paymentMethod, cash: actualCash, change: paymentMethod === 'Tunai' ? change : 0, syncedOnline: isOnline });
     setShowReceiptDialog(true);
     setCart([]);
     setCashReceived(0);
@@ -183,12 +213,15 @@ export default function KasirPage() {
           'flex items-center gap-2 p-3 rounded-[10px] border text-sm',
           isOnline
             ? 'bg-[#f7f8fa] border-[#e2e6ec] text-[#5a6675]'
-            : 'bg-[#fdf0da] border-[#eccf9c] text-[#8a5300]'
+            : 'bg-[#fdf0da] border-[#f3d88a] text-[#8a5300]'
         )}>
           {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-          <span>{isOnline ? 'Online — stok tersinkron ke cloud.' : 'Offline — transaksi disimpan lokal.'}</span>
+          {/* A11y-A: aria-live on connectivity status */}
+          <span aria-live="polite" aria-atomic="true">{isOnline ? 'Online — stok tersinkron ke cloud.' : 'Offline — transaksi disimpan lokal.'}</span>
+          {/* A11y-F: aria-pressed on simulate offline */}
           <button
             type="button"
+            aria-pressed={!isOnline}
             onClick={() => setIsOnline((prev) => !prev)}
             className="ml-auto px-2 py-1 text-xs font-medium text-[#5a6675] hover:text-[#0f6d5f] cursor-pointer"
           >
@@ -206,13 +239,17 @@ export default function KasirPage() {
         <div className="p-4 lg:p-5 space-y-4">
           {/* Scan Input */}
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
-            <div className="relative">
+            {/* P0-B: scan-shake wrapper */}
+            <div
+              className={cn('relative', shaking && 'scan-shake')}
+              onAnimationEnd={() => setShaking(false)}
+            >
               <ScanBarcode className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#8a94a3]" />
               <input
                 ref={scanInputRef}
                 type="search"
                 value={scanInput}
-                onChange={(e) => setScanInput(e.target.value)}
+                onChange={(e) => { setScanInput(e.target.value); setScanError(''); }}
                 onKeyDown={handleScanKeyDown}
                 placeholder="Pindai barcode atau ketik nama barang…"
                 className="w-full min-h-[48px] pl-10 pr-3 text-[15px] border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
@@ -227,6 +264,13 @@ export default function KasirPage() {
             </button>
           </div>
           <p className="text-xs text-[#5a6675]">Scanner fisik otomatis mengisi kolom ini. Tekan Enter untuk menambah barang.</p>
+          {/* P0-B: Scan error alert */}
+          {scanError && (
+            <div role="alert" className="flex gap-2 items-start p-3 rounded-[10px] bg-[#fbe8e5] text-[#a52b22] text-sm">
+              <AlertCircle className="w-4 h-4 flex-none mt-0.5" />
+              {scanError}
+            </div>
+          )}
           {/* Suggestions */}
           {suggestions.length > 0 && (
             <ul className="mt-3 grid gap-1 list-none m-0 p-0">
@@ -238,17 +282,18 @@ export default function KasirPage() {
                     className="flex w-full items-center justify-between gap-3 px-3 py-2.5 border border-transparent rounded-[10px] bg-[#f7f8fa] text-left cursor-pointer hover:border-[#0f6d5f] hover:bg-[#e2f2ee]"
                   >
                     <span>
-                      <span className="text-[13px] font-medium">{item.name}</span>
+                      {/* D-C: text-sm for name, text-xs for SKU */}
+                      <span className="text-sm font-medium">{item.name}</span>
                       {' '}
                       <span className="font-mono text-xs text-[#5a6675]">{item.sku}</span>
                     </span>
-                    <span className="text-[13px] tabular-nums">{rupiah(item.price)}</span>
+                    <span className="text-sm tabular-nums">{rupiah(item.price)}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {scanInput.length >= 2 && suggestions.length === 0 && (
+          {scanInput.length >= 2 && suggestions.length === 0 && !scanError && (
             <div className="mt-3 flex gap-2 p-3 rounded-[10px] bg-[#e8eef7] text-[#12507f] text-xs">
               <span>Barcode belum terdaftar. Tekan Enter untuk menambah barang cepat dengan harga manual.</span>
             </div>
@@ -267,11 +312,12 @@ export default function KasirPage() {
                     className={cn(
                       'w-full h-full grid gap-2 content-start p-3 text-left border rounded-[10px] transition-all cursor-pointer',
                       product.blocked
-                        ? 'bg-[#fbe8e5] border-[#e7b7b1] cursor-not-allowed'
+                        ? 'bg-[#fbe8e5] border-[#e8b4ae] cursor-not-allowed'
                         : 'bg-white border-[#e2e6ec] hover:border-[#0f6d5f] hover:-translate-y-0.5'
                     )}
                   >
-                    <span className="text-[13px] font-semibold leading-snug">{product.name}</span>
+                    {/* D-C: text-sm for product name */}
+                    <span className="text-sm font-semibold leading-snug">{product.name}</span>
                     <span className="flex flex-wrap items-center gap-2 text-xs text-[#5a6675]">
                       {getStockChip(product)}
                       {!product.blocked && <span>Batch {product.batch} · {product.days} hari</span>}
@@ -291,7 +337,8 @@ export default function KasirPage() {
         <div className="bg-white border border-[#e2e6ec] rounded-[14px] overflow-hidden">
           <div className="flex items-center justify-between gap-3 p-4 lg:p-5 border-b border-[#e2e6ec]">
             <h2 className="m-0 text-[15px] font-semibold">
-              Keranjang · <span>{cart.reduce((sum, item) => sum + item.qty, 0)} item</span>
+              {/* D-B: tabular-nums on cart item count */}
+              Keranjang · <span className="tabular-nums">{cart.reduce((sum, item) => sum + item.qty, 0)}</span> item
             </h2>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">FEFO otomatis</span>
           </div>
@@ -305,28 +352,34 @@ export default function KasirPage() {
                 {cart.map((item) => (
                   <li key={item.sku} className="grid grid-cols-[1fr_auto] gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
                     <div>
-                      <p className="m-0 text-[13px] font-semibold">{item.name}</p>
+                      {/* D-C: text-sm for cart item name */}
+                      <p className="m-0 text-sm font-semibold">{item.name}</p>
                       <p className="m-0 mt-0.5 text-xs text-[#5a6675]">Batch {item.batch} · FEFO</p>
                     </div>
-                    <p className="m-0 text-[13px] tabular-nums whitespace-nowrap">{rupiah(item.price * item.qty)}</p>
+                    <p className="m-0 text-sm tabular-nums whitespace-nowrap">{rupiah(item.price * item.qty)}</p>
                     <div className="col-span-2 flex items-center flex-wrap gap-2">
                       <div className="flex items-center gap-1">
+                        {/* A11y-D: aria-label on qty steppers */}
                         <button
                           type="button"
                           onClick={() => updateQty(item.sku, -1)}
+                          aria-label={`Kurangi jumlah ${item.name}`}
                           className="w-8 h-8 grid place-items-center border border-[#cbd2dc] rounded-[6px] bg-white cursor-pointer"
                         >
                           −
                         </button>
-                        <output className="min-w-[32px] text-center text-[13px] tabular-nums">{item.qty}</output>
+                        {/* D-C: text-sm for qty */}
+                        <output className="min-w-[32px] text-center text-sm tabular-nums">{item.qty}</output>
                         <button
                           type="button"
                           onClick={() => updateQty(item.sku, 1)}
+                          aria-label={`Tambah jumlah ${item.name}`}
                           className="w-8 h-8 grid place-items-center border border-[#cbd2dc] rounded-[6px] bg-white cursor-pointer"
                         >
                           +
                         </button>
                       </div>
+                      {/* D-C: text-xs for remove button */}
                       <button
                         type="button"
                         onClick={() => handleVoidRequest(item.sku)}
@@ -346,13 +399,17 @@ export default function KasirPage() {
               <dt>Subtotal</dt>
               <dd className="tabular-nums">{rupiah(total)}</dd>
             </div>
-            <div className="flex items-baseline justify-between text-sm text-[#5a6675]">
-              <dt>Diskon member</dt>
-              <dd className="tabular-nums">−Rp0</dd>
-            </div>
-            <div className="flex items-baseline justify-between text-[22px] font-bold text-[#182230]">
+            {/* P2-D: hide discount row when zero */}
+            {discount > 0 && (
+              <div className="flex items-baseline justify-between text-sm text-[#5a6675]">
+                <dt>Diskon member</dt>
+                <dd className="tabular-nums">−{rupiah(discount)}</dd>
+              </div>
+            )}
+            {/* P3: 20px/700, A11y-B: aria-live on total */}
+            <div className="flex items-baseline justify-between text-[20px] font-bold text-[#182230]">
               <dt>Total</dt>
-              <dd className="tabular-nums">{rupiah(total)}</dd>
+              <dd className="tabular-nums" aria-live="polite" aria-atomic="true">{rupiah(total)}</dd>
             </div>
           </dl>
         </div>
@@ -389,14 +446,22 @@ export default function KasirPage() {
               <>
                 <div className="grid gap-1">
                   <label htmlFor="cash" className="text-xs font-medium text-[#5a6675]">Uang diterima</label>
+                  {/* P2-B: min="0" */}
                   <input
                     id="cash"
                     type="number"
+                    min="0"
                     value={cashReceived || ''}
                     onChange={(e) => setCashReceived(Number(e.target.value) || 0)}
                     className="min-h-[44px] px-3 text-[15px] tabular-nums border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
                   />
                 </div>
+                {/* P0-A: shortfall warning */}
+                {paymentMethod === 'Tunai' && cashReceived > 0 && cashReceived < total && (
+                  <div className="text-sm text-[#a52b22] bg-[#fbe8e5] px-3 py-2 rounded-[8px]">
+                    Uang kurang {rupiah(total - cashReceived)}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {[50000, 100000].map((amount) => (
                     <button
@@ -418,7 +483,8 @@ export default function KasirPage() {
                 </div>
                 <div className="flex items-baseline justify-between text-sm">
                   <span className="text-[#5a6675]">Kembalian</span>
-                  <strong className="tabular-nums text-[#182230] font-semibold">{rupiah(change)}</strong>
+                  {/* A11y-C: aria-live on kembalian */}
+                  <strong className="tabular-nums text-[#182230] font-semibold" aria-live="polite" aria-atomic="true">{rupiah(change)}</strong>
                 </div>
               </>
             )}
@@ -433,19 +499,21 @@ export default function KasirPage() {
                 <Pause className="w-4 h-4" />
                 Tahan
               </button>
+              {/* P1-B: Kosongkan triggers confirmation */}
               <button
                 type="button"
-                onClick={clearCart}
-                className="flex items-center justify-center gap-2 min-h-[48px] px-4 text-[15px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center justify-center gap-2 min-h-[48px] px-4 text-[15px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#a52b22] hover:text-[#a52b22] cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
                 Kosongkan
               </button>
             </div>
+            {/* P0-A: disabled when underpayment */}
             <button
               type="button"
               onClick={processPayment}
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || (paymentMethod === 'Tunai' && cashReceived < total)}
               className="flex items-center justify-center gap-2 min-h-[48px] w-full px-4 text-[15px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
             >
               <Check className="w-4 h-4" />
@@ -454,23 +522,24 @@ export default function KasirPage() {
           </div>
         </div>
 
-        {/* Held Transactions */}
-        <div className="bg-white border border-[#e2e6ec] rounded-[14px]">
-          <div className="flex items-center justify-between gap-3 p-4 lg:p-5 border-b border-[#e2e6ec]">
-            <h2 className="m-0 text-[15px] font-semibold">Transaksi ditahan</h2>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">{heldTransactions.length}</span>
-          </div>
-          <div className="p-4 lg:p-5">
-            {heldTransactions.length === 0 ? (
-              <p className="py-2 text-sm text-[#5a6675]">Belum ada transaksi ditahan.</p>
-            ) : (
+        {/* P2-C: Held Transactions — only shown when non-empty */}
+        {heldTransactions.length > 0 && (
+          <div className="bg-white border border-[#e2e6ec] rounded-[14px]">
+            <div className="flex items-center justify-between gap-3 p-4 lg:p-5 border-b border-[#e2e6ec]">
+              <h2 className="m-0 text-[15px] font-semibold">Transaksi ditahan</h2>
+              {/* D-B: tabular-nums on held count */}
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]"><span className="tabular-nums">{heldTransactions.length}</span></span>
+            </div>
+            <div className="p-4 lg:p-5">
               <ul className="grid gap-2 list-none m-0 p-0">
                 {heldTransactions.map((held) => (
                   <li key={held.id} className="flex items-center justify-between gap-3 p-3 border border-[#e2e6ec] rounded-[10px] text-sm">
                     <div>
-                      <strong className="text-[13px]">{held.items.length} item</strong>
-                      <span className="block text-xs text-[#5a6675]">{held.time} · {rupiah(held.total)}</span>
+                      {/* D-B: tabular-nums on held total; D-C: text-sm for item count */}
+                      <strong className="text-sm">{held.items.length} item</strong>
+                      <span className="block text-xs text-[#5a6675]">{held.time} · <span className="tabular-nums">{rupiah(held.total)}</span></span>
                     </div>
+                    {/* P1-C: guard against active cart */}
                     <button
                       type="button"
                       onClick={() => restoreHeld(held)}
@@ -481,19 +550,20 @@ export default function KasirPage() {
                   </li>
                 ))}
               </ul>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Void Dialog */}
       {showVoidDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(440px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
+          {/* A11y-E: role/aria on void dialog */}
+          <div role="dialog" aria-modal="true" aria-labelledby="void-dialog-title" className="w-[min(440px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
             <div className="p-5 grid gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="m-0 text-lg font-bold">Otorisasi admin</h2>
+                  <h2 id="void-dialog-title" className="m-0 text-lg font-bold">Otorisasi admin</h2>
                   <p className="m-0 mt-1 text-xs text-[#5a6675]">
                     Hapus <strong>item</strong> dari keranjang? Masukkan PIN admin 4–6 digit.
                   </p>
@@ -518,14 +588,15 @@ export default function KasirPage() {
               <button
                 type="button"
                 onClick={() => { setShowVoidDialog(false); setVoidPin(''); setVoidError(false); }}
-                className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
+                className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
               >
                 Batal
               </button>
+              {/* D-A: hover:opacity-90 instead of hardcoded hover bg; D-C: text-sm */}
               <button
                 type="button"
                 onClick={confirmVoid}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:bg-[#8a241c] cursor-pointer"
+                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer"
               >
                 Hapus item
               </button>
@@ -537,14 +608,19 @@ export default function KasirPage() {
       {/* Receipt Dialog */}
       {showReceiptDialog && lastTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(440px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
+          {/* A11y-E: role/aria on receipt dialog */}
+          <div role="dialog" aria-modal="true" aria-labelledby="receipt-dialog-title" className="w-[min(440px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
             <div className="p-5 grid gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="m-0 text-lg font-bold">Transaksi selesai</h2>
+                  <h2 id="receipt-dialog-title" className="m-0 text-lg font-bold">Transaksi selesai</h2>
                   <p className="m-0 mt-1 text-xs text-[#5a6675]">Struk #TRX-0000 · Kasir 01</p>
                 </div>
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e3f4e9] text-[#136b3f]">Tersinkron</span>
+                {/* P2-A: conditional sync badge */}
+                {lastTransaction.syncedOnline
+                  ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#e3f4e9] text-[#136b3f]">Tersinkron</span>
+                  : <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#fdf0da] text-[#8a5300]">Tersimpan lokal · akan disinkron</span>
+                }
               </div>
               <ul className="grid gap-2 list-none m-0 p-0 text-sm">
                 <li className="flex justify-between"><span>Total</span><strong className="tabular-nums">{rupiah(lastTransaction.total)}</strong></li>
@@ -553,6 +629,17 @@ export default function KasirPage() {
                   <li className="flex justify-between"><span>Kembalian</span><span className="tabular-nums">{rupiah(lastTransaction.change)}</span></li>
                 )}
               </ul>
+              {/* P1-D: itemized cart snapshot */}
+              {cartSnapshot.length > 0 && (
+                <div className="max-h-[180px] overflow-y-auto border border-[#e2e6ec] rounded-[10px] divide-y divide-[#e2e6ec]">
+                  {cartSnapshot.map(item => (
+                    <div key={item.sku} className="flex justify-between gap-3 px-3 py-2 text-sm">
+                      <span>{item.name} ×{item.qty}</span>
+                      <span className="tabular-nums whitespace-nowrap">{rupiah(item.price * item.qty)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2 p-3 rounded-[10px] bg-[#e8eef7] text-[#12507f] text-xs">
                 <Printer className="w-4 h-4 flex-none" />
                 <span>Struk tercetak di printer kasir 01. Antrean berikutnya siap dilayani.</span>
@@ -561,10 +648,59 @@ export default function KasirPage() {
             <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
               <button
                 type="button"
-                onClick={() => { setShowReceiptDialog(false); setLastTransaction(null); }}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+                onClick={() => {
+                  setShowReceiptDialog(false);
+                  setLastTransaction(null);
+                  // P1-A: refocus scan input on new transaction
+                  setTimeout(() => scanInputRef.current?.focus(), 50);
+                }}
+                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:opacity-90 cursor-pointer"
               >
                 Transaksi baru
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* P1-B: Clear cart confirmation dialog */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
+          <div role="dialog" aria-modal="true" aria-labelledby="clear-dialog-title" className="w-[min(400px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
+            <div className="p-5 grid gap-2">
+              <h2 id="clear-dialog-title" className="m-0 text-lg font-bold">Kosongkan keranjang?</h2>
+              <p className="m-0 text-sm text-[#5a6675]">{cart.length} item akan dihapus. Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+              <button onClick={() => setShowClearConfirm(false)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
+              <button onClick={() => { clearCart(); setShowClearConfirm(false); }} className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer">Kosongkan</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* P1-C: Restore held transaction confirmation dialog */}
+      {pendingRestoreId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
+          <div role="dialog" aria-modal="true" aria-labelledby="restore-dialog-title" className="w-[min(400px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
+            <div className="p-5 grid gap-2">
+              <h2 id="restore-dialog-title" className="m-0 text-lg font-bold">Ganti keranjang aktif?</h2>
+              <p className="m-0 text-sm text-[#5a6675]">Keranjang aktif berisi {cart.length} item. Item ini akan digantikan dengan transaksi yang ditahan.</p>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+              <button onClick={() => setPendingRestoreId(null)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
+              <button
+                onClick={() => {
+                  const held = heldTransactions.find(h => h.id === pendingRestoreId);
+                  if (held) {
+                    setCart(held.items);
+                    setHeldTransactions(prev => prev.filter(h => h.id !== pendingRestoreId));
+                  }
+                  setPendingRestoreId(null);
+                }}
+                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:opacity-90 cursor-pointer"
+              >
+                Ganti keranjang
               </button>
             </div>
           </div>
