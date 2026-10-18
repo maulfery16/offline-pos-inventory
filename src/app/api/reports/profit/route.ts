@@ -2,9 +2,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/core/db/prisma';
 
-const prisma = new PrismaClient();
 
 // GET /api/reports/profit?from=&to=&branchId=
 export async function GET(request: NextRequest) {

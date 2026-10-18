@@ -1,9 +1,8 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/core/db/prisma';
 
-const prisma = new PrismaClient();
 
 interface RouteContext {
   params: { id: string };

@@ -1,11 +1,10 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/core/db/prisma';
 import bcrypt from 'bcryptjs';
 import { signJWT } from '@/core/auth';
 
-const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {

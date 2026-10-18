@@ -2,9 +2,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/core/db/prisma';
 
-const prisma = new PrismaClient();
 
 // GET /api/reports/shift?shiftId=&date=
 // Since we don't have a Shift model yet, we use date-based filtering
