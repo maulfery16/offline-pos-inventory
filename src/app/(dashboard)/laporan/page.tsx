@@ -107,7 +107,7 @@ export default function LaporanPage() {
   const [shiftNote, setShiftNote] = useState('');
   const [showShiftDialog, setShowShiftDialog] = useState(false);
   const [shiftResult, setShiftResult] = useState<'ok' | 'review' | null>(null);
-  const [reportData, setReportData] = useState<any>(null);
+  const [_reportData, setReportData] = useState<any>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 

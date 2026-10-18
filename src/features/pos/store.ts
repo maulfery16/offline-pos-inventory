@@ -17,6 +17,8 @@ export interface HeldTransaction {
   timestamp: number
 }
 
+// eslint-disable-next-line no-unused-vars -- interface parameter names are documentation only
+/* eslint-disable no-unused-vars */
 interface CartState {
   items: CartItem[]
   heldTransactions: HeldTransaction[]
@@ -36,6 +38,7 @@ interface CartState {
   setPaymentMethod: (method: 'tunai' | 'qris' | 'kartu') => void
   setCashReceived: (amount: number) => void
 }
+/* eslint-enable no-unused-vars */
 
 export const useCartStore = create<CartState>()((set, get) => ({
   items: [],

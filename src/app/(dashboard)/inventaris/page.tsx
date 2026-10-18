@@ -30,13 +30,13 @@ export default function InventarisPage() {
   const [showOpnameDialog, setShowOpnameDialog] = useState(false);
 
   // WatermelonDB hooks
-  const db = useDatabase();
+  const _db = useDatabase();
   const { products, isLoading } = useProducts(search);
   const { batches } = useInventoryBatches();
 
   // Derive items from products + batches
   const now = Date.now();
-  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  const _THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
   const items: InventoryItem[] = products.map(product => {
     const productBatches = batches.filter(b => b.productId === product.id && !b.isBlocked);

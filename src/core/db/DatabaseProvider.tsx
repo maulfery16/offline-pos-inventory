@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useEffect, useState } from 'react'
 import { Database } from '@nozbe/watermelondb'
 
 export const DatabaseContext = createContext<Database | null>(null)

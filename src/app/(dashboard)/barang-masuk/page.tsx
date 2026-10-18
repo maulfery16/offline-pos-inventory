@@ -125,7 +125,7 @@ export default function BarangMasukPage() {
       setRowSeq((prev) => prev + 1);
     }
     setScanInput('');
-  }, [scanInput, lines, rowSeq, updateLine]);
+  }, [scanInput, lines, rowSeq, updateLine, db]);
 
   const totalUnits = lines.reduce((sum, line) => sum + line.qty, 0);
   const totalCost = lines.reduce((sum, line) => sum + line.qty * line.cost, 0);

@@ -37,7 +37,7 @@ export default function MasukPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [kasirList, setKasirList] = useState<{ value: string; label: string }[]>([]);
-  const [deviceToken, setDeviceTokenState] = useState<string | null>(null);
+  const [_deviceToken, setDeviceTokenState] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getDeviceToken();

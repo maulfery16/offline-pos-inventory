@@ -7,7 +7,7 @@ export async function syncDatabase(db: Database): Promise<void> {
   await synchronize({
     database: db,
 
-    pullChanges: async ({ lastPulledAt, schemaVersion, migration }) => {
+    pullChanges: async ({ lastPulledAt, schemaVersion: _schemaVersion, migration: _migration }) => {
       const token = localStorage.getItem('deviceToken') || '';
 
       const response = await fetch(

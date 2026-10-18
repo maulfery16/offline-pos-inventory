@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     for (const tx of transactions) {
       for (const item of tx.items) {
         const revenue = item.quantity * Number(item.sellingPrice) - Number(item.discountAmount);
-        const cogs = item.batchesApplied.reduce((sum, b) => {
+        const cogs = item.batchesApplied.reduce((sum: number, b: { qtyDeducted: number; inventoryBatch: { unitCost: unknown } }) => {
           return sum + b.qtyDeducted * Number(b.inventoryBatch.unitCost);
         }, 0);
         const grossProfit = revenue - cogs;

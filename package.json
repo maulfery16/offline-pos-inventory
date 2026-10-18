@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "typecheck": "rm -f tsconfig.tsbuildinfo && tsc --noEmit"
   },
   "dependencies": {
     "@nozbe/watermelondb": "0.27.1",
