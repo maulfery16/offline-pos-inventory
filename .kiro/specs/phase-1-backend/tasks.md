@@ -17,8 +17,8 @@ Complete backend foundation for the Offline POS Inventory system: environment bo
   - [x] 2.2 Implement signJWT using jose library in src/core/auth/index.ts
   - [x] 2.3 Implement verifyJWT using jose library in src/core/auth/index.ts
 
-- [ ] 3. TASK-1.3 · API Route: Device Registration
-  - [ ] 3.1 Create src/app/api/auth/register/route.ts with POST /api/auth/register endpoint
+- [x] 3. TASK-1.3 · API Route: Device Registration
+  - [x] 3.1 Create src/app/api/auth/register/route.ts with POST /api/auth/register endpoint
     - Request body: tenantCode, branchCode, deviceName, adminPassword
     - Validate credentials against database
     - Generate 30-day JWT with tenantId, branchId, deviceId, role device
@@ -26,8 +26,8 @@ Complete backend foundation for the Offline POS Inventory system: environment bo
     - Error 401 for invalid tenant or branch or password
     - Export const runtime nodejs
 
-- [ ] 4. TASK-1.4 · API Route: PIN Verification
-  - [ ] 4.1 Create src/app/api/auth/pin-verify/route.ts with POST /api/auth/pin-verify endpoint
+- [x] 4. TASK-1.4 · API Route: PIN Verification
+  - [x] 4.1 Create src/app/api/auth/pin-verify/route.ts with POST /api/auth/pin-verify endpoint
     - Authorization Bearer header with device JWT
     - Body: userId, pin
     - Extract tenantId and branchId from JWT only, never from body
@@ -35,16 +35,16 @@ Complete backend foundation for the Offline POS Inventory system: environment bo
     - Return 8h session token with sessionToken, userName, role
     - Export const runtime nodejs
 
-- [ ] 5. TASK-1.5 · Next.js Middleware: API Route Guard
-  - [ ] 5.1 Create src/middleware.ts
+- [x] 5. TASK-1.5 · Next.js Middleware: API Route Guard
+  - [x] 5.1 Create src/middleware.ts
     - Guard all /api routes except /api/auth routes
     - Extract and verify JWT from Authorization Bearer header
     - Inject x-tenant-id, x-branch-id, x-device-id to request headers
     - Return 401 if token invalid or missing
     - Do NOT guard frontend pages
 
-- [ ] 6. TASK-1.6 · API Route: Sync Pull
-  - [ ] 6.1 Create GET handler in src/app/api/sync/route.ts
+- [x] 6. TASK-1.6 · API Route: Sync Pull
+  - [x] 6.1 Create GET handler in src/app/api/sync/route.ts
     - GET /api/sync with lastPulledAt timestamp query param
     - Extract tenantId and branchId from request headers set by middleware
     - Pull Products and InventoryBatches updated since lastPulledAt
@@ -52,8 +52,8 @@ Complete backend foundation for the Offline POS Inventory system: environment bo
     - Deleted array contains IDs with deletedAt not null (soft deletes)
     - Export const runtime nodejs
 
-- [ ] 7. TASK-1.7 · API Route: Sync Push
-  - [ ] 7.1 Create POST handler in src/app/api/sync/route.ts
+- [x] 7. TASK-1.7 · API Route: Sync Push
+  - [x] 7.1 Create POST handler in src/app/api/sync/route.ts
     - POST /api/sync with array of Transactions containing TransactionItems
     - Frontend-generated UUIDs used as transaction IDs
     - Per Transaction: Prisma transaction block with idempotent upsert by UUID
@@ -65,19 +65,19 @@ Complete backend foundation for the Offline POS Inventory system: environment bo
     - NEVER accept tenantId or branchId from body
     - Export const runtime nodejs
 
-- [ ] 8. TASK-1.8 · API Route: Products CRUD
-  - [ ] 8.1 Create src/app/api/products/route.ts
+- [x] 8. TASK-1.8 · API Route: Products CRUD
+  - [x] 8.1 Create src/app/api/products/route.ts
     - GET /api/products with search, page, limit params filtered by tenantId from JWT
     - Include active InventoryBatch count per product
     - POST /api/products to create new product
     - Export const runtime nodejs
-  - [ ] 8.2 Create src/app/api/products/[id]/route.ts
+  - [x] 8.2 Create src/app/api/products/[id]/route.ts
     - PUT to update product
     - DELETE as soft delete setting deletedAt to current timestamp
     - Export const runtime nodejs
 
-- [ ] 9. TASK-1.9 · API Route: Inbound Goods
-  - [ ] 9.1 Create src/app/api/inbound/route.ts
+- [x] 9. TASK-1.9 · API Route: Inbound Goods
+  - [x] 9.1 Create src/app/api/inbound/route.ts
     - POST /api/inbound
     - Body: supplierId, invoiceNumber, items array with productId, qty, unitCost, batchNumber, expiryDate, sellingPrice
     - Create InventoryBatch per item
@@ -85,19 +85,19 @@ Complete backend foundation for the Offline POS Inventory system: environment bo
     - Return summary with total HPP
     - Export const runtime nodejs
 
-- [ ] 10. TASK-1.10 · API Routes: Reports
-  - [ ] 10.1 Create src/app/api/reports/profit/route.ts
+- [x] 10. TASK-1.10 · API Routes: Reports
+  - [x] 10.1 Create src/app/api/reports/profit/route.ts
     - GET /api/reports/profit with from, to, branchId params
     - Join Transaction to TransactionItem to TransactionItemBatch to InventoryBatch
     - Calculate revenue as qty times sellingPrice, cogs as qty times unitCost from batch, grossProfit
     - Export const runtime nodejs
-  - [ ] 10.2 Create src/app/api/reports/shift/route.ts
+  - [x] 10.2 Create src/app/api/reports/shift/route.ts
     - GET /api/reports/shift with shiftId param
     - Return expected vs actual cash for Tunai payment transactions
     - Export const runtime nodejs
 
-- [ ] 11. TASK-1.11 · Fix tailwindcss-animate Plugin
-  - [ ] 11.1 Add tailwindcss-animate to plugins array in tailwind.config.ts
+- [x] 11. TASK-1.11 · Fix tailwindcss-animate Plugin
+  - [x] 11.1 Add tailwindcss-animate to plugins array in tailwind.config.ts
     - Plugin already installed in devDependencies but not activated
     - Fixes Shadcn UI animations for dialog, dropdown, etc.
 
