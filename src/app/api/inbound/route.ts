@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/core/db/prisma';
+import type { Prisma } from '@prisma/client';
 
 
 interface InboundItem {
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     let totalHPP = 0;
     const createdBatches: string[] = [];
 
-    await prisma.$transaction(async (prismaTx) => {
+    await prisma.$transaction(async (prismaTx: Prisma.TransactionClient) => {
       for (const item of items) {
         const { productId, qty, unitCost, batchNumber, expiryDate, sellingPrice } = item;
 
