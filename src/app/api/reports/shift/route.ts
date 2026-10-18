@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/core/db/prisma';
+import type { Prisma } from '@prisma/client';
 
 
 // GET /api/reports/shift?shiftId=&date=
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     const endOfDay = new Date(dateParam);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const transactions = await prisma.transaction.findMany({
+    const transactions: Prisma.TransactionGetPayload<{ include: { items: { select: { quantity: true; sellingPrice: true; discountAmount: true } } } }>[] = await prisma.transaction.findMany({
       where: {
         tenantId,
         branchId,
