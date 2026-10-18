@@ -57,5 +57,7 @@ next-env.d.ts
 # Claude Code files (jika muncul)
 .claude/
 
+# Kiro skills (local copies, already tracked via .agents/skills)
+.kiro/skills/
 # VS Code MCP config (machine-specific absolute paths)
 .vscode/mcp.json
