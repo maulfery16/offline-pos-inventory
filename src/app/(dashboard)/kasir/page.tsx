@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle, X } from 'lucide-react';
+import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
+import { useCartStore } from '@/features/pos/store';
+import useSyncManager from '@/core/sync/useSyncManager';
+import { v4 as uuidv4 } from 'uuid';
 
 type PaymentMethod = 'Tunai' | 'QRIS' | 'Kartu';
 
@@ -16,26 +20,15 @@ interface Product {
   blocked?: boolean;
 }
 
-interface CartItem extends Product {
+// CartSnapshot is used only for the receipt dialog display
+interface CartSnapshot {
+  sku: string;
+  name: string;
+  price: number;
+  batch: string;
+  days: number;
+  stock: number;
   qty: number;
-}
-
-// TODO: replace with WatermelonDB query — this is prototype mock data
-const products: Product[] = [
-  { sku: '8991002101147', name: 'Indomie Goreng 85g', price: 3500, batch: 'A2311', days: 62, stock: 48 },
-  { sku: '8992761123456', name: 'Aqua 600ml', price: 4000, batch: 'A2298', days: 118, stock: 9 },
-  { sku: '8991234567890', name: 'Susu Ultra 250ml', price: 7500, batch: 'B1174', days: 5, stock: 12 },
-  { sku: '8998765432109', name: 'Roti Tawar Sari Roti', price: 18000, batch: 'B1180', days: 3, stock: 6 },
-  { sku: '8991112223334', name: 'Teh Pucuk 350ml', price: 4500, batch: 'A2305', days: 96, stock: 36 },
-  { sku: '8995000112233', name: 'Kopi Kapal Api 165g', price: 12500, batch: 'A2280', days: 210, stock: 21 },
-  { sku: '8996000223344', name: 'Yogurt Cimory 200ml', price: 9500, batch: 'B1160', days: -2, stock: 4, blocked: true },
-];
-
-interface HeldTransaction {
-  id: string;
-  items: CartItem[];
-  total: number;
-  time: string;
 }
 
 const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID');
@@ -43,49 +36,94 @@ const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID
 const discount = 0;
 
 export default function KasirPage() {
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [scanInput, setScanInput] = useState('');
   const [scanError, setScanError] = useState('');
   const [shaking, setShaking] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Tunai');
   const [cashReceived, setCashReceived] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
-  const [heldTransactions, setHeldTransactions] = useState<HeldTransaction[]>([]);
+  // heldTransactions now from Zustand store (see storeHeldTransactions above)
   const [showVoidDialog, setShowVoidDialog] = useState(false);
   const [voidTargetSku, setVoidTargetSku] = useState<string | null>(null);
   const [voidPin, setVoidPin] = useState('');
   const [voidError, setVoidError] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number; syncedOnline: boolean; ref: string } | null>(null);
-  const [cartSnapshot, setCartSnapshot] = useState<CartItem[]>([]);
+  const [cartSnapshot, setCartSnapshot] = useState<CartSnapshot[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const clearConfirmBtnRef = useRef<HTMLButtonElement>(null);
   const restoreConfirmBtnRef = useRef<HTMLButtonElement>(null);
 
+  // WatermelonDB hooks (5.1)
+  const db = useDatabase();
+  const { products: rawProducts } = useProducts(scanInput.length >= 2 ? scanInput : undefined);
+  const { batches: allBatches } = useInventoryBatches();
+  const { isSyncing, triggerSync } = useSyncManager(db);
+
+  // Map WatermelonDB products to the Product interface used by the UI
+  const now = Date.now();
+  const products: Product[] = rawProducts.map(p => {
+    const productBatches = allBatches.filter(b => b.productId === p.id && !b.isBlocked);
+    const totalStock = productBatches.reduce((sum, b) => sum + b.currentQty, 0);
+    const nearestBatch = productBatches
+      .filter(b => b.expiryDate)
+      .sort((a, b) => {
+        const aT = a.expiryDate instanceof Date ? a.expiryDate.getTime() : Number(a.expiryDate);
+        const bT = b.expiryDate instanceof Date ? b.expiryDate.getTime() : Number(b.expiryDate);
+        return aT - bT;
+      })[0];
+    const daysToExpiry = nearestBatch
+      ? Math.floor(((nearestBatch.expiryDate instanceof Date ? nearestBatch.expiryDate.getTime() : Number(nearestBatch.expiryDate)) - now) / 86400000)
+      : 999;
+    const allExpired = productBatches.length > 0 && productBatches.every(b => {
+      const expT = b.expiryDate instanceof Date ? b.expiryDate.getTime() : Number(b.expiryDate);
+      return expT < now;
+    });
+    return {
+      sku: p.sku,
+      name: p.name,
+      price: p.sellingPrice,
+      batch: nearestBatch?.batchNumber || '—',
+      days: daysToExpiry,
+      stock: Math.max(0, totalStock),
+      blocked: allExpired || productBatches.every(b => b.isBlocked),
+    };
+  });
+
+  // Zustand cart store (5.2)
+  const cartItems = useCartStore(state => state.items);
+  const storeAddItem = useCartStore(state => state.addItem);
+  const storeUpdateQty = useCartStore(state => state.updateQty);
+  const storeRemoveItem = useCartStore(state => state.removeItem);
+  const storeHoldTransaction = useCartStore(state => state.holdTransaction);
+  const storeRestoreTransaction = useCartStore(state => state.restoreTransaction);
+  const storeClearCart = useCartStore(state => state.clearCart);
+  const storeSubtotal = useCartStore(state => state.subtotal);
+  const storeHeldTransactions = useCartStore(state => state.heldTransactions);
+  const cart = cartItems; // alias for existing UI code
+
   // P1-A: Auto-focus on mount
   useEffect(() => {
     scanInputRef.current?.focus();
   }, []);
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const total = storeSubtotal();
   const change = Math.max(0, cashReceived - total);
 
   const addToCart = useCallback((product: Product) => {
     if (product.blocked) return;
     setScanError('');
-    setCart((prev) => {
-      const existing = prev.find((item) => item.sku === product.sku);
-      if (existing) {
-        return prev.map((item) =>
-          item.sku === product.sku ? { ...item, qty: item.qty + 1 } : item
-        );
-      }
-      return [...prev, { ...product, qty: 1 }];
+    storeAddItem({
+      productId: product.sku,
+      name: product.name,
+      sku: product.sku,
+      sellingPrice: product.price,
+      expiryStatus: product.days <= 0 ? 'blocked' : product.days <= 7 ? 'warning' : 'ok',
     });
     setTimeout(() => scanInputRef.current?.focus(), 0);
-  }, []);
+  }, [storeAddItem]);
 
   const suggestions = scanInput.length >= 2
     ? products.filter((p) =>
@@ -113,20 +151,20 @@ export default function KasirPage() {
   };
 
   const updateQty = useCallback((sku: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => (item.sku === sku ? { ...item, qty: Math.max(0, item.qty + delta) } : item))
-        .filter((item) => item.qty > 0)
-    );
-  }, []);
+    const existing = cartItems.find(i => i.sku === sku);
+    if (existing) {
+      const newQty = existing.quantity + delta;
+      storeUpdateQty(sku, Math.max(0, newQty));
+    }
+  }, [cartItems, storeUpdateQty]);
 
   const removeFromCart = useCallback((sku: string) => {
-    setCart((prev) => prev.filter((item) => item.sku !== sku));
+    storeRemoveItem(sku);
     setShowVoidDialog(false);
     setVoidTargetSku(null);
     setVoidPin('');
     setVoidError(false);
-  }, []);
+  }, [storeRemoveItem]);
 
   const handleVoidRequest = (sku: string) => {
     setVoidTargetSku(sku);
@@ -144,50 +182,76 @@ export default function KasirPage() {
   };
 
   const holdTransaction = useCallback(() => {
-    if (cart.length === 0) return;
-    setHeldTransactions((prev) => [
-      ...prev,
-      {
-        id: `held-${Date.now()}`,
-        items: [...cart],
-        total,
-        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-    setCart([]);
-    // P2-B: reset cash on hold
+    if (cartItems.length === 0) return;
+    storeHoldTransaction();
     setCashReceived(0);
-  }, [cart, total]);
+  }, [cartItems, storeHoldTransaction]);
 
   // P1-C: restoreHeld with guard
-  const restoreHeld = (held: HeldTransaction) => {
-    if (cart.length > 0) {
+  const restoreHeld = (held: { id: string }) => {
+    if (cartItems.length > 0) {
       setPendingRestoreId(held.id);
     } else {
-      setCart(held.items);
-      setHeldTransactions((prev) => prev.filter((h) => h.id !== held.id));
+      storeRestoreTransaction(held.id);
     }
   };
 
   // P1-B: clearCart called only after confirmation
   const clearCart = () => {
-    setCart([]);
+    storeClearCart();
     setCashReceived(0);
   };
 
-  const processPayment = useCallback(() => {
-    if (cart.length === 0) return;
+  // processPayment — writes to WatermelonDB (5.3), never fetch/API (critical constraint)
+  const processPayment = useCallback(async () => {
+    if (cartItems.length === 0) return;
     if (paymentMethod === 'Tunai' && cashReceived < total) return;
     const actualCash = paymentMethod === 'Tunai' ? cashReceived : total;
-    const txRef = 'TRX-' + Date.now().toString(36).toUpperCase();
+    const txRef = uuidv4();
+
+    // Write transaction to WatermelonDB — NEVER call fetch/API directly
+    if (db) {
+      try {
+        await db.write(async () => {
+          const txCollection = db.collections.get('transactions');
+          await txCollection.create((tx: any) => {
+            tx._raw.id = txRef;
+            tx.branchId = 'local'; // will be overwritten by sync with real branchId from JWT
+            tx.cashierId = 'local';
+            tx.paymentMethod = paymentMethod.toLowerCase();
+            tx.totalAmount = total;
+            tx.cashReceived = actualCash;
+            tx.status = 'pending_sync';
+            // synced_at stays null until sync engine processes it
+          });
+          const itemsCollection = db.collections.get('transaction_items');
+          for (const item of cartItems) {
+            await itemsCollection.create((ti: any) => {
+              ti.transactionId = txRef;
+              ti.productId = item.productId;
+              ti.productName = item.name;
+              ti.quantity = item.quantity;
+              ti.sellingPrice = item.sellingPrice;
+            });
+          }
+        });
+        // Trigger background sync after write (5.4)
+        triggerSync();
+      } catch (err) {
+        console.error('Failed to write transaction to WatermelonDB:', err);
+      }
+    }
+
     // P1-D: snapshot cart before clearing
-    setCartSnapshot([...cart]);
+    setCartSnapshot([...cartItems.map(i => ({
+      sku: i.sku, name: i.name, price: i.sellingPrice, batch: '—', days: 0, stock: 0, qty: i.quantity
+    }))]);
     // P2-A: record sync state
     setLastTransaction({ total, method: paymentMethod, cash: actualCash, change: paymentMethod === 'Tunai' ? change : 0, syncedOnline: isOnline, ref: txRef });
     setShowReceiptDialog(true);
-    setCart([]);
+    storeClearCart();
     setCashReceived(0);
-  }, [cart, paymentMethod, cashReceived, total, change, isOnline]);
+  }, [cartItems, paymentMethod, cashReceived, total, change, isOnline, db, triggerSync, storeClearCart]);
 
   // Keyboard shortcuts: F4 = Hold, F9 = Pay
   useEffect(() => {
@@ -253,7 +317,7 @@ export default function KasirPage() {
             ? 'bg-[#f7f8fa] border-[#e2e6ec] text-[#5a6675]'
             : 'bg-[#fdf0da] border-[#f1c97a] text-[#8a5300]'
         )}>
-          {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+          {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
           {/* A11y-A: aria-live on connectivity status */}
           <span aria-live="polite" aria-atomic="true">{isOnline ? 'Online — stok tersinkron ke cloud.' : 'Offline — transaksi disimpan lokal.'}</span>
           {/* A11y-F: aria-pressed on simulate offline */}
@@ -397,7 +461,7 @@ export default function KasirPage() {
           <div className="flex items-center justify-between gap-3 p-4 lg:p-5 border-b border-[#e2e6ec]">
             <h2 className="m-0 text-[15px] font-semibold">
               {/* D-B: tabular-nums on cart item count */}
-              Keranjang · <span className="tabular-nums">{cart.reduce((sum, item) => sum + item.qty, 0)}</span> item
+              Keranjang · <span className="tabular-nums">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span> item
             </h2>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">FEFO otomatis</span>
           </div>
@@ -413,9 +477,9 @@ export default function KasirPage() {
                     <div>
                       {/* D-C: text-sm for cart item name */}
                       <p className="m-0 text-sm font-semibold">{item.name}</p>
-                      <p className="m-0 mt-0.5 text-xs text-[#5a6675]">Batch {item.batch} · FEFO</p>
+                      <p className="m-0 mt-0.5 text-xs text-[#5a6675]">FEFO</p>
                     </div>
-                    <p className="m-0 text-sm tabular-nums whitespace-nowrap">{rupiah(item.price * item.qty)}</p>
+                    <p className="m-0 text-sm tabular-nums whitespace-nowrap">{rupiah(item.sellingPrice * item.quantity)}</p>
                     <div className="col-span-2 flex items-center flex-wrap gap-2">
                       <div className="flex items-center gap-1">
                         {/* A11y-D: aria-label on qty steppers */}
@@ -428,7 +492,7 @@ export default function KasirPage() {
                           −
                         </button>
                         {/* D-C: text-sm for qty */}
-                        <output className="min-w-[32px] text-center text-sm tabular-nums">{item.qty}</output>
+                        <output className="min-w-[32px] text-center text-sm tabular-nums">{item.quantity}</output>
                         <button
                           type="button"
                           onClick={() => updateQty(item.sku, 1)}
@@ -587,21 +651,25 @@ export default function KasirPage() {
         </div>
 
         {/* P2-C: Held Transactions — only shown when non-empty */}
-        {heldTransactions.length > 0 && (
+        {storeHeldTransactions.length > 0 && (
           <div className="bg-white border border-[#e2e6ec] rounded-[14px]">
             <div className="flex items-center justify-between gap-3 p-4 lg:p-5 border-b border-[#e2e6ec]">
               <h2 className="m-0 text-[15px] font-semibold">Transaksi ditahan</h2>
               {/* D-B: tabular-nums on held count */}
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]"><span className="tabular-nums">{heldTransactions.length}</span></span>
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]"><span className="tabular-nums">{storeHeldTransactions.length}</span></span>
             </div>
             <div className="p-4 lg:p-5">
               <ul className="grid gap-2 list-none m-0 p-0">
-                {heldTransactions.map((held) => (
+                {storeHeldTransactions.map((held) => (
                   <li key={held.id} className="flex items-center justify-between gap-3 p-3 border border-[#e2e6ec] rounded-[10px] text-sm">
                     <div>
                       {/* D-B: tabular-nums on held total; D-C: text-sm for item count */}
                       <strong className="text-sm">{held.items.length} item</strong>
-                      <span className="block text-xs text-[#5a6675]">{held.time} · <span className="tabular-nums">{rupiah(held.total)}</span></span>
+                      <span className="block text-xs text-[#5a6675]">
+                        {new Date(held.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        {' · '}
+                        <span className="tabular-nums">{rupiah(held.items.reduce((s, i) => s + i.quantity * i.sellingPrice, 0))}</span>
+                      </span>
                     </div>
                     {/* P1-C: guard against active cart */}
                     <button
@@ -757,11 +825,7 @@ export default function KasirPage() {
               <button ref={restoreConfirmBtnRef} onClick={() => setPendingRestoreId(null)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
               <button
                 onClick={() => {
-                  const held = heldTransactions.find(h => h.id === pendingRestoreId);
-                  if (held) {
-                    setCart(held.items);
-                    setHeldTransactions(prev => prev.filter(h => h.id !== pendingRestoreId));
-                  }
+                  storeRestoreTransaction(pendingRestoreId!);
                   setPendingRestoreId(null);
                 }}
                 className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:opacity-90 cursor-pointer"

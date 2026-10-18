@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
+import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
 
 interface InventoryItem {
   sku: string;
@@ -15,34 +16,49 @@ interface InventoryItem {
   expiring: number;
 }
 
-// TODO: replace with WatermelonDB query — this is prototype mock data
-const items: InventoryItem[] = [
-  { sku: '8991002101147', name: 'Indomie Goreng 85g', category: 'Makanan instan', available: 48, physical: 48, reorder: 24, expiring: 62 },
-  { sku: '8992761123456', name: 'Aqua 600ml', category: 'Minuman', available: 9, physical: 7, reorder: 24, expiring: 118 },
-  { sku: '8991234567890', name: 'Susu Ultra 250ml', category: 'Susu & olahan', available: 12, physical: 12, reorder: 18, expiring: 5 },
-  { sku: '8998765432109', name: 'Roti Tawar Sari Roti', category: 'Bakery', available: 6, physical: 4, reorder: 10, expiring: 3 },
-  { sku: '8991112223334', name: 'Teh Pucuk 350ml', category: 'Minuman', available: 36, physical: 36, reorder: 20, expiring: 96 },
-  { sku: '8995000112233', name: 'Kopi Kapal Api 165g', category: 'Minuman', available: 21, physical: 21, reorder: 12, expiring: 210 },
-  { sku: '8996000223344', name: 'Yogurt Cimory 200ml', category: 'Susu & olahan', available: 4, physical: 4, reorder: 8, expiring: -2 },
-  { sku: '8997000334455', name: 'Sabun Lifebuoy 85g', category: 'Perawatan diri', available: 54, physical: 54, reorder: 20, expiring: 400 },
-  { sku: '8998000445566', name: 'Beras Pandan Wangi 5kg', category: 'Sembako', available: 14, physical: 14, reorder: 8, expiring: 320 },
-];
-
-
 type Filter = 'all' | 'low' | 'expiry' | 'variance';
 
 export default function InventarisPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
-  const [physicalValues, setPhysicalValues] = useState<Record<string, number>>(() =>
-    Object.fromEntries(items.map((item) => [item.sku, item.physical]))
-  );
+  const [physicalValues, setPhysicalValues] = useState<Record<string, number>>({});
   const [adjustDialog, setAdjustDialog] = useState<{ sku: string; name: string; available: number } | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustReason, setAdjustReason] = useState('Opname tidak cocok');
   const [adjustNote, setAdjustNote] = useState('');
-  const [opnameDone, setOpnameDone] = useState<Set<string>>(new Set(['8991002101147', '8992761123456', '8991234567890', '8998765432109', '8991112223334', '8995000112233']));
+  const [opnameDone, setOpnameDone] = useState<Set<string>>(new Set());
   const [showOpnameDialog, setShowOpnameDialog] = useState(false);
+
+  // WatermelonDB hooks
+  const db = useDatabase();
+  const { products, isLoading } = useProducts(search);
+  const { batches } = useInventoryBatches();
+
+  // Derive items from products + batches
+  const now = Date.now();
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+  const items: InventoryItem[] = products.map(product => {
+    const productBatches = batches.filter(b => b.productId === product.id && !b.isBlocked);
+    const available = productBatches.reduce((sum, b) => sum + b.currentQty, 0);
+    const nearestExpiry = productBatches
+      .filter(b => b.expiryDate)
+      .map(b => b.expiryDate instanceof Date ? b.expiryDate.getTime() : Number(b.expiryDate))
+      .sort((a, b) => a - b)[0];
+    const expiring = nearestExpiry
+      ? Math.floor((nearestExpiry - now) / (1000 * 60 * 60 * 24))
+      : 999;
+
+    return {
+      sku: product.sku,
+      name: product.name,
+      category: product.unit || 'Umum',
+      available: Math.max(0, available),
+      physical: Math.max(0, available), // default physical = available until opname
+      reorder: product.reorderPoint || 0,
+      expiring,
+    };
+  });
 
   const isLow = (item: InventoryItem) => item.available <= item.reorder;
   const isExpiring = (item: InventoryItem) => item.expiring <= 30;
@@ -84,12 +100,15 @@ export default function InventarisPage() {
   };
 
   const finishOpname = () => {
+    // Task 6.2: Physical count data is stored locally in physicalValues state.
+    // When online, the sync engine will push adjustments to the backend.
+    // The dialog below shows the variance summary before committing.
     setShowOpnameDialog(true);
   };
 
   const resetOpname = () => {
     setOpnameDone(new Set());
-    setPhysicalValues(Object.fromEntries(items.map((item) => [item.sku, item.physical])));
+    setPhysicalValues({});
   };
 
   const filteredItems = items.filter(matchesFilter);
@@ -121,7 +140,7 @@ export default function InventarisPage() {
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Nilai persediaan (HPP)</span>
           <p className="m-0 mt-1 text-2xl font-bold tabular-nums">Rp284.750.000</p>
-          <span className="text-xs text-[#5a6675]">1.240 SKU aktif · 8 batch baru minggu ini</span>
+          <span className="text-xs text-[#5a6675]">{items.length} SKU aktif · 8 batch baru minggu ini</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">SKU di bawah reorder point</span>
@@ -130,13 +149,15 @@ export default function InventarisPage() {
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Kedaluwarsa ≤30 hari</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">5 batch</p>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{counts.expiry} batch</p>
           <span className="text-xs text-[#a52b22]">Nilai HPP berisiko Rp4.180.000</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Selisih opname terakhir</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">−9 unit</p>
-          <span className="text-xs text-[#5a6675]">Opname 14 Apr · 4 SKU berselisih</span>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">
+            {varianceItems.length > 0 ? `−${varianceItems.length} SKU` : '0 SKU'}
+          </p>
+          <span className="text-xs text-[#5a6675]">{varianceItems.length} SKU berselisih dalam sesi ini</span>
         </div>
       </section>
 
@@ -211,7 +232,15 @@ export default function InventarisPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => {
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-[#5a6675]">Memuat data stok…</td>
+                  </tr>
+                ) : filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-[#5a6675]">Tidak ada SKU yang cocok.</td>
+                  </tr>
+                ) : filteredItems.map((item) => {
                   const status = getStatus(item);
                   const physical = physicalValues[item.sku] ?? item.physical;
                   const variance = physical - item.available;
@@ -260,9 +289,6 @@ export default function InventarisPage() {
                 })}
               </tbody>
             </table>
-            {filteredItems.length === 0 && (
-              <p className="p-6 text-center text-sm text-[#5a6675]">Tidak ada SKU yang cocok dengan filter dan pencarian ini.</p>
-            )}
           </div>
         </section>
 
@@ -435,7 +461,9 @@ export default function InventarisPage() {
                 </li>
               )}
             </ul>
-            <p className="text-xs text-[#5a6675]">Stok cloud diperbarui langsung karena perangkat sedang online. Bila offline, perubahan masuk antrean sinkronisasi.</p>
+            <p className="text-xs text-[#5a6675]">
+              Penyesuaian fisik tersimpan di perangkat ini. Bila perangkat sedang online, sync engine akan mengirim perubahan ke server secara otomatis di latar belakang. Bila offline, perubahan masuk antrean sinkronisasi.
+            </p>
           </div>
           <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
             <button

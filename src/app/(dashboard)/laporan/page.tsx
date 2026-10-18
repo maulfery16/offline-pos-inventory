@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Info } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
+import { getAuthHeaders } from '@/core/auth/client';
 
 type Period = 'today' | 'week' | 'month';
 
@@ -106,6 +107,35 @@ export default function LaporanPage() {
   const [shiftNote, setShiftNote] = useState('');
   const [showShiftDialog, setShowShiftDialog] = useState(false);
   const [shiftResult, setShiftResult] = useState<'ok' | 'review' | null>(null);
+  const [reportData, setReportData] = useState<any>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
+  }, []);
+
+  useEffect(() => {
+    if (!isOnline) return;
+    const now = new Date();
+    const from = new Date(now);
+    if (period === 'today') from.setHours(0, 0, 0, 0);
+    else if (period === 'week') from.setDate(now.getDate() - 6);
+    else from.setDate(now.getDate() - 29);
+    setIsLoadingReport(true);
+    fetch(`/api/reports/profit?from=${from.toISOString()}&to=${now.toISOString()}`, {
+      headers: { ...getAuthHeaders() },
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setReportData(json); })
+      .catch(() => {})
+      .finally(() => setIsLoadingReport(false));
+  }, [period, isOnline]);
 
   const data = periodsData[period];
 
@@ -158,6 +188,23 @@ export default function LaporanPage() {
 
   return (
     <div className="grid gap-6">
+      {/* Offline / loading state */}
+      {!isOnline && (
+        <div className="flex gap-2 p-3 rounded-[10px] bg-[#fdf0da] text-[#8a5300] text-[13px]">
+          <Info className="w-4 h-4 flex-none mt-0.5" />
+          <span>Data tidak tersedia offline. Sambungkan ke internet untuk memuat laporan terbaru.</span>
+        </div>
+      )}
+      {isOnline && isLoadingReport && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white animate-pulse">
+              <div className="h-3 w-24 bg-[#e2e6ec] rounded mb-3" />
+              <div className="h-7 w-32 bg-[#e2e6ec] rounded" />
+            </div>
+          ))}
+        </div>
+      )}
       {/* KPIs */}
       <section className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">

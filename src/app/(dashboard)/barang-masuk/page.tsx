@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ScanBarcode, Plus, Info, CircleAlert, TriangleAlert, CircleCheck, Trash2, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
+import { useDatabase } from '@/core/db/hooks';
+import { getAuthHeaders } from '@/core/auth/client';
+import { toast } from 'sonner';
 
 interface ReceivingLine {
   id: string;
@@ -33,6 +36,19 @@ const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID
 const TODAY = new Date(); // TODO: replace with WatermelonDB server-synced timestamp for testability
 
 export default function BarangMasukPage() {
+  const db = useDatabase();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
+  }, []);
+
   const [lines, setLines] = useState<ReceivingLine[]>([
     { id: '1', sku: '8991002101147', name: 'Indomie Goreng 85g', unit: 'pcs', perishable: true, qty: 24, cost: 2900, margin: 20, batch: 'B2321', expiry: '2026-06-19' },
     { id: '2', sku: '8991234567890', name: 'Susu Ultra 250ml', unit: 'pcs', perishable: true, qty: 12, cost: 5900, margin: 25, batch: 'B2322', expiry: '2026-05-02' },
@@ -59,10 +75,33 @@ export default function BarangMasukPage() {
     setLines((prev) => prev.filter((line) => line.id !== id));
   }, []);
 
-  const handleScan = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleScan = useCallback(async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const sku = scanInput.trim();
+
+    // Try WatermelonDB lookup first
+    if (db) {
+      try {
+        const Q = await import('@nozbe/watermelondb').then(m => m.Q);
+        const products = await db.collections.get('products')
+          .query(Q.where('sku', sku))
+          .fetch();
+        if (products.length > 0) {
+          const p = products[0] as any;
+          const existing = lines.find((line) => line.sku === sku);
+          if (existing) { updateLine(existing.id, 'qty', existing.qty + 1); }
+          else {
+            const newLine = { id: String(rowSeq), sku, name: p.name, unit: p.unit || 'pcs', perishable: true, qty: 1, cost: 0, margin: 20, batch: `B${2320 + rowSeq}`, expiry: '' };
+            setLines((prev) => [...prev, newLine]);
+            setRowSeq((prev) => prev + 1);
+          }
+          setScanInput('');
+          return;
+        }
+      } catch { /* fall through to mock catalog */ }
+    }
+
     const item = catalog[sku];
     if (!item) return;
 
@@ -132,6 +171,36 @@ export default function BarangMasukPage() {
     if (incompleteLines.length > 0) return;
     if (lines.length === 0) return;
     setShowSaveDialog(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!isOnline) { toast.error('Penerimaan barang membutuhkan koneksi internet.'); return; }
+    setIsSaving(true);
+    try {
+      const payload = {
+        items: lines.map(line => ({
+          productId: line.sku,
+          qty: line.qty,
+          unitCost: line.cost,
+          batchNumber: line.batch,
+          expiryDate: line.expiry || null,
+          sellingPrice: Math.round(line.cost * (1 + line.margin / 100)),
+        })),
+      };
+      const res = await fetch('/api/inbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Gagal menyimpan');
+      toast.success('Penerimaan barang berhasil disimpan.');
+      setLines([]);
+      setShowSaveDialog(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Terjadi kesalahan. Coba lagi.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -478,9 +547,17 @@ export default function BarangMasukPage() {
             <button
               type="button"
               onClick={() => setShowSaveDialog(false)}
-              className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+              className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#a52b22] cursor-pointer"
             >
-              Tutup
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmSave}
+              disabled={isSaving}
+              className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
+            >
+              {isSaving ? 'Menyimpan…' : 'Konfirmasi simpan'}
             </button>
           </div>
         </DialogContent>

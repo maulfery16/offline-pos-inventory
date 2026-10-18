@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJWT } from '@/core/auth';
 
+// Page-level auth (dashboard routes: /kasir, /inventaris, /laporan, /barang-masuk, /kedaluwarsa)
+// is handled client-side. The device token is stored in localStorage (not cookies), so middleware
+// cannot access it. Client-side guards live in each page and in src/app/page.tsx (root redirect).
+// This middleware only enforces JWT on /api/* routes.
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 

@@ -1,17 +1,13 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff } from 'lucide-react';
+import { getDeviceToken, setSessionToken, getAuthHeaders } from '@/core/auth/client';
 
 type Role = 'kasir' | 'admin' | 'owner';
 
-// TODO: replace with WatermelonDB query — this is prototype mock data
-const kasirOptions = [
-  { value: 'rina', label: 'Rina — Shift pagi (07:00–15:00)' },
-  { value: 'dwi', label: 'Dwi — Shift siang (15:00–23:00)' },
-  { value: 'agus', label: 'Agus — Shift malam (23:00–07:00)' },
-];
+// kasirOptions loaded from API in useEffect
 
 // TODO: replace with WatermelonDB query — this is prototype mock data
 const cabangOptions = [
@@ -21,8 +17,7 @@ const cabangOptions = [
   { value: 'surabaya', label: 'Cabang Surabaya — Diponegoro' },
 ];
 
-// TODO: replace with the real sync-queue length from the sync engine — prototype mock data
-const pendingSyncCount = 3;
+const pendingSyncCount = 0; // TODO: wire to useSyncManager in TASK-3.5
 
 // Debug-only: the offline simulator toggle is only rendered in dev builds.
 const isDev = process.env.NODE_ENV === 'development';
@@ -40,6 +35,29 @@ export default function MasukPage() {
   const [isOffline, setIsOffline] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [kasirList, setKasirList] = useState<{ value: string; label: string }[]>([]);
+  const [deviceToken, setDeviceTokenState] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getDeviceToken();
+    setDeviceTokenState(token);
+    if (!token) return;
+    // Load cashier list from API
+    fetch('/api/users?role=kasir', { headers: getAuthHeaders() })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.users) {
+          setKasirList(data.users.map((u: { id: string; name: string; shift?: string }) => ({
+            value: u.id,
+            label: u.shift ? `${u.name} — ${u.shift}` : u.name,
+          })));
+        }
+      })
+      .catch(() => {
+        // offline or API error — leave list empty, user can still attempt login
+      });
+  }, []);
 
   const pinInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -81,29 +99,56 @@ export default function MasukPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
     setError('');
 
     if (selectedRole === 'kasir') {
-      if (!selectedKasir) {
-        setError('Pilih kasir aktif terlebih dahulu.');
-        return;
-      }
-      if (pin.length < 4) {
-        setError('PIN harus 4–6 digit angka.');
-        return;
-      }
+      if (!selectedKasir) { setError('Pilih kasir aktif terlebih dahulu.'); return; }
+      if (pin.length < 4) { setError('PIN harus 4–6 digit angka.'); return; }
       setIsSubmitting(true);
-      router.push('/kasir');
+      try {
+        const res = await fetch('/api/auth/pin-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ userId: selectedKasir, pin }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || 'PIN salah. Coba lagi.');
+          return;
+        }
+        const data = await res.json();
+        setSessionToken(data.sessionToken);
+        router.push('/kasir');
+      } catch {
+        setError('Koneksi gagal. Periksa jaringan internet.');
+      } finally {
+        setIsSubmitting(false);
+      }
     } else {
-      if (!email || !password) {
-        setError('Isi email dan kata sandi terlebih dahulu.');
-        return;
-      }
+      if (!email || !password) { setError('Isi email dan kata sandi terlebih dahulu.'); return; }
       setIsSubmitting(true);
-      router.push(selectedRole === 'owner' ? '/laporan' : '/inventaris');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || 'Email atau kata sandi salah.');
+          return;
+        }
+        const data = await res.json();
+        setSessionToken(data.sessionToken);
+        router.push(selectedRole === 'owner' ? '/laporan' : '/inventaris');
+      } catch {
+        setError('Koneksi gagal. Periksa jaringan internet.');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -210,9 +255,12 @@ export default function MasukPage() {
                       className="w-full min-h-[46px] px-3 pr-10 text-base border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
                     >
                       <option value="" disabled>— Pilih kasir —</option>
-                      {kasirOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
+                      {kasirList.length > 0
+                        ? kasirList.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))
+                        : <option value="" disabled>— Memuat daftar kasir… —</option>
+                      }
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
                   </div>
