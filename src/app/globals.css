@@ -46,6 +46,7 @@
     --radius: 0.625rem;
   }
 
+  /* NOTE: Dark mode tokens are defined but not yet wired. To enable, add a theme toggle that sets document.documentElement.classList.toggle('dark'). No page uses dark: variants yet. */
   .dark {
     /* Dark mode colors */
     --primary: 168 78% 24%;
@@ -101,4 +102,28 @@
 }
 .scan-shake {
   animation: shake 0.3s ease-in-out;
+}
+
+/* A11y: screen-reader-only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* A11y: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .scan-shake { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

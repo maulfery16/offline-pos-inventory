@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
 
 type Period = 'today' | 'week' | 'month';
 
@@ -26,6 +27,7 @@ interface ProductData {
   cogs: number;
 }
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const periodsData: Record<Period, { label: string; trx: number; days: DayData[]; branches: BranchData[]; products: ProductData[] }> = {
   today: {
     label: 'Hari ini',
@@ -218,7 +220,8 @@ export default function LaporanPage() {
                   {p.label}
                 </button>
               ))}
-            </div>            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto" preserveAspectRatio="none">
+            </div>            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto aspect-[4/1]" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="sales-chart-title">
+              <title id="sales-chart-title">Penjualan 7 hari terakhir</title>
               {[0, 0.5, 1].map((ratio, i) => {
                 const value = max * ratio;
                 const yy = y(value);
@@ -307,12 +310,12 @@ export default function LaporanPage() {
             <table className="w-full min-w-[600px] text-[13px]">
               <thead>
                 <tr className="text-xs uppercase tracking-wider text-[#5a6675] bg-[#f7f8fa]">
-                  <th className="text-left p-3 w-[30%]">Produk</th>
-                  <th className="text-right p-3 w-[10%]">Qty terjual</th>
-                  <th className="text-right p-3 w-[17%]">Penjualan</th>
-                  <th className="text-right p-3 w-[15%]">HPP</th>
-                  <th className="text-right p-3 w-[15%]">Laba kotor</th>
-                  <th className="text-right p-3 w-[13%]">Margin</th>
+                  <th scope="col" className="text-left p-3 w-[30%]">Produk</th>
+                  <th scope="col" className="text-right p-3 w-[10%]">Qty terjual</th>
+                  <th scope="col" className="text-right p-3 w-[17%]">Penjualan</th>
+                  <th scope="col" className="text-right p-3 w-[15%]">HPP</th>
+                  <th scope="col" className="text-right p-3 w-[15%]">Laba kotor</th>
+                  <th scope="col" className="text-right p-3 w-[13%]">Margin</th>
                 </tr>
               </thead>
               <tbody>
@@ -424,47 +427,49 @@ export default function LaporanPage() {
       </div>
 
       {/* Shift Result Dialog */}
-      {showShiftDialog && shiftResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(460px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
-            <div className="p-5 grid gap-3">
-              <h2 className="m-0 text-lg font-bold">
-                {shiftResult === 'ok' ? 'Shift berhasil ditutup' : 'Selisih perlu ditinjau'}
-              </h2>
-              <ul className="grid gap-2 list-none m-0 p-0 text-[13px]">
-                <li className="flex items-center justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                  <strong>Kas seharusnya</strong>
-                  <span className="tabular-nums">{rupiah(expectedCash)}</span>
-                </li>
-                <li className="flex items-center justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                  <strong>Kas fisik</strong>
-                  <span className="tabular-nums">{rupiah(cashValue)}</span>
-                </li>
-                <li className="flex items-center justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                  <strong>Selisih</strong>
-                  <span className={cn('tabular-nums font-semibold', variance < 0 ? 'text-[#a52b22]' : variance > 0 ? 'text-[#136b3f]' : '')}>
-                    {rupiah(variance)}
-                  </span>
-                </li>
-              </ul>
-              <p className="text-xs text-[#5a6675]">
-                {shiftResult === 'ok'
-                  ? 'Shift ditandai selesai dan siap untuk rekap harian.'
-                  : 'Shift ditandai perlu ditinjau. Manajer akan memverifikasi selisih.'}
-              </p>
-            </div>
-            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button
-                type="button"
-                onClick={() => { setShowShiftDialog(false); setShiftResult(null); }}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={showShiftDialog && !!shiftResult} onOpenChange={(open) => { if (!open) { setShowShiftDialog(false); setShiftResult(null); } }}>
+        <DialogContent className="w-[min(460px,92vw)] max-w-none gap-0 p-0 bg-white border-[#e2e6ec] rounded-[14px] shadow-none">
+          {shiftResult && (
+            <>
+              <div className="p-5 grid gap-3">
+                <DialogTitle className="m-0 text-lg font-bold">
+                  {shiftResult === 'ok' ? 'Shift berhasil ditutup' : 'Selisih perlu ditinjau'}
+                </DialogTitle>
+                <ul className="grid gap-2 list-none m-0 p-0 text-[13px]">
+                  <li className="flex items-center justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                    <strong>Kas seharusnya</strong>
+                    <span className="tabular-nums">{rupiah(expectedCash)}</span>
+                  </li>
+                  <li className="flex items-center justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                    <strong>Kas fisik</strong>
+                    <span className="tabular-nums">{rupiah(cashValue)}</span>
+                  </li>
+                  <li className="flex items-center justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                    <strong>Selisih</strong>
+                    <span className={cn('tabular-nums font-semibold', variance < 0 ? 'text-[#a52b22]' : variance > 0 ? 'text-[#136b3f]' : '')}>
+                      {rupiah(variance)}
+                    </span>
+                  </li>
+                </ul>
+                <DialogDescription className="text-xs text-[#5a6675] m-0">
+                  {shiftResult === 'ok'
+                    ? 'Shift ditandai selesai dan siap untuk rekap harian.'
+                    : 'Shift ditandai perlu ditinjau. Manajer akan memverifikasi selisih.'}
+                </DialogDescription>
+              </div>
+              <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+                <button
+                  type="button"
+                  onClick={() => { setShowShiftDialog(false); setShiftResult(null); }}
+                  className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

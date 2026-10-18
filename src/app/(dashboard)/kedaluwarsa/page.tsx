@@ -17,8 +17,9 @@ interface Batch {
   action: string | null;
 }
 
-const TODAY = new Date('2026-04-18');
+const TODAY = new Date(); // TODO: replace with WatermelonDB server-synced timestamp for testability
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const batches: Batch[] = [
   { id: 'b1', sku: '8991234567890', name: 'Susu Ultra 250ml', batch: 'B1174', expiry: '2026-04-23', branch: 'Kebayoran', qty: 12, cost: 5900, blocked: false, action: null },
   { id: 'b2', sku: '8998765432109', name: 'Roti Tawar Sari Roti', batch: 'B1180', expiry: '2026-04-21', branch: 'Kebayoran', qty: 6, cost: 14000, blocked: false, action: null },
@@ -183,7 +184,11 @@ export default function KedaluwarsaPage() {
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e3f4e9] text-[#136b3f]">{batches.length} batch terdaftar</span>
             </div>
             <div className="p-4 lg:p-5">
-              <div className="grid grid-cols-5 gap-3 items-end h-[200px] p-3 rounded-[10px] bg-[#f7f8fa]">
+              <div
+                className="grid grid-cols-5 gap-3 items-end h-[200px] p-3 rounded-[10px] bg-[#f7f8fa]"
+                role="img"
+                aria-label={`Diagram batang sebaran batch per rentang kedaluwarsa. ${chartData.map((d) => `${d.label} ${d.count} batch`).join(', ')}.`}
+              >
                 {chartData.map((d, i) => (
                   <div key={i} className="grid items-end justify-items-center gap-2 h-full">
                     <span className="text-xs font-semibold tabular-nums">{d.count}</span>
@@ -248,15 +253,15 @@ export default function KedaluwarsaPage() {
                 <table className="w-full min-w-[660px] text-[13px]">
                   <thead>
                     <tr className="text-xs uppercase tracking-wider text-[#5a6675] bg-[#f7f8fa]">
-                      <th className="text-left p-2.5 w-[21%]">Barang</th>
-                      <th className="text-left p-2.5 w-[9%]">No. batch</th>
-                      <th className="text-left p-2.5 w-[13%]">Kedaluwarsa</th>
-                      <th className="text-right p-2.5 w-[10%]">Sisa hari</th>
-                      <th className="text-left p-2.5 w-[11%]">Cabang</th>
-                      <th className="text-right p-2.5 w-[7%]">Stok batch</th>
-                      <th className="text-right p-2.5 w-[10%]">Nilai HPP</th>
-                      <th className="text-left p-2.5 w-[9%]">Status</th>
-                      <th className="text-left p-2.5 w-[10%]">Tindakan</th>
+                      <th scope="col" className="text-left p-2.5 w-[21%]">Barang</th>
+                      <th scope="col" className="text-left p-2.5 w-[9%]">No. batch</th>
+                      <th scope="col" className="text-left p-2.5 w-[13%]">Kedaluwarsa</th>
+                      <th scope="col" className="text-right p-2.5 w-[10%]">Sisa hari</th>
+                      <th scope="col" className="text-left p-2.5 w-[11%]">Cabang</th>
+                      <th scope="col" className="text-right p-2.5 w-[7%]">Stok batch</th>
+                      <th scope="col" className="text-right p-2.5 w-[10%]">Nilai HPP</th>
+                      <th scope="col" className="text-left p-2.5 w-[9%]">Status</th>
+                      <th scope="col" className="text-left p-2.5 w-[10%]">Tindakan</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -6,12 +6,14 @@ import { Store, Sparkles, Wifi, Eye, EyeOff, Check, ChevronDown, TrendingUp } fr
 
 type Role = 'kasir' | 'admin' | 'owner';
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const kasirOptions = [
   { value: 'rina', label: 'Rina — Shift pagi (07:00–15:00)' },
   { value: 'dwi', label: 'Dwi — Shift siang (15:00–23:00)' },
   { value: 'agus', label: 'Agus — Shift malam (23:00–07:00)' },
 ];
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const cabangOptions = [
   { value: 'semua', label: 'Semua cabang (konsolidasi)' },
   { value: 'pusat', label: 'Toko Pusat — Jakarta Selatan' },
@@ -209,7 +211,12 @@ export default function MasukPage() {
 
                 <div className="grid gap-2">
                   <span className="text-sm font-medium">PIN 4–6 digit</span>
-                  <div className="flex items-center justify-between gap-3 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                  <div
+                    className="flex items-center justify-between gap-3 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    aria-label={`${pin.length} dari 6 digit PIN dimasukkan`}
+                  >
                     <div className="flex gap-2">
                       {[0, 1, 2, 3, 4, 5].map((i) => (
                         <span

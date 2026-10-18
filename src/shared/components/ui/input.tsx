@@ -27,17 +27,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     disabled,
     ...props 
   }, ref) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const inputId = id || generatedId;
 
     return (
       <div className={cn('flex flex-col gap-1.5', fullWidth && 'w-full')}>
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-gray-700"
+            className="text-sm font-medium text-[#5a6675]"
           >
             {label}
-            {required && <span className="text-red-600 ml-1">*</span>}
+            {required && <span className="text-[#a52b22] ml-1">*</span>}
           </label>
         )}
         
@@ -76,7 +77,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <p
             className={cn(
               'text-sm',
-              error ? 'text-red-600' : 'text-gray-500'
+              error ? 'text-[#a52b22]' : 'text-[#5a6675]'
             )}
           >
             {error || helperText}

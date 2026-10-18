@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
 
 interface InventoryItem {
   sku: string;
@@ -14,6 +15,7 @@ interface InventoryItem {
   expiring: number;
 }
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const items: InventoryItem[] = [
   { sku: '8991002101147', name: 'Indomie Goreng 85g', category: 'Makanan instan', available: 48, physical: 48, reorder: 24, expiring: 62 },
   { sku: '8992761123456', name: 'Aqua 600ml', category: 'Minuman', available: 9, physical: 7, reorder: 24, expiring: 118 },
@@ -101,6 +103,17 @@ export default function InventarisPage() {
     variance: items.filter((item) => getVariance(item) !== 0).length,
   };
 
+  const tabKeys: Filter[] = ['all', 'low', 'expiry', 'variance'];
+  const handleTabKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setFilter(tabKeys[(currentIndex + 1) % tabKeys.length]);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setFilter(tabKeys[(currentIndex - 1 + tabKeys.length) % tabKeys.length]);
+    }
+  };
+
   return (
     <div className="grid gap-6">
       {/* KPIs */}
@@ -142,12 +155,16 @@ export default function InventarisPage() {
                 { key: 'low' as Filter, label: 'Menipis', count: counts.low },
                 { key: 'expiry' as Filter, label: 'Akan kedaluwarsa', count: counts.expiry },
                 { key: 'variance' as Filter, label: 'Selisih opname', count: counts.variance },
-              ].map((tab) => (
+              ].map((tab) => {
+                const tabIndex = tabKeys.indexOf(tab.key);
+                return (
                 <button
                   key={tab.key}
                   type="button"
                   role="tab"
                   aria-selected={filter === tab.key}
+                  tabIndex={filter === tab.key ? 0 : -1}
+                  onKeyDown={(e) => handleTabKeyDown(e, tabIndex)}
                   onClick={() => setFilter(tab.key)}
                   className={cn(
                     'flex items-center gap-2 min-h-[38px] px-3 text-[13px] font-medium rounded-[6px] cursor-pointer transition-colors',
@@ -164,7 +181,8 @@ export default function InventarisPage() {
                     {tab.count}
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
             {/* Search */}
             <div className="relative min-w-[220px] flex-1 max-w-[340px]">
@@ -184,12 +202,12 @@ export default function InventarisPage() {
             <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="bg-[#f7f8fa] text-xs uppercase tracking-wider text-[#5a6675]">
-                  <th className="text-left p-4 lg:px-5">Barang</th>
-                  <th className="text-right p-4 lg:px-5">Tersedia</th>
-                  <th className="text-right p-4 lg:px-5">Fisik</th>
-                  <th className="text-right p-4 lg:px-5">Selisih</th>
-                  <th className="text-left p-4 lg:px-5">Status</th>
-                  <th className="text-left p-4 lg:px-5">Aksi</th>
+                  <th scope="col" className="text-left p-4 lg:px-5">Barang</th>
+                  <th scope="col" className="text-right p-4 lg:px-5">Tersedia</th>
+                  <th scope="col" className="text-right p-4 lg:px-5">Fisik</th>
+                  <th scope="col" className="text-right p-4 lg:px-5">Selisih</th>
+                  <th scope="col" className="text-left p-4 lg:px-5">Status</th>
+                  <th scope="col" className="text-left p-4 lg:px-5">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,118 +335,119 @@ export default function InventarisPage() {
       </div>
 
       {/* Adjust Dialog */}
-      {adjustDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(520px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
-            <div className="p-5 grid gap-4">
-              <h2 className="m-0 text-lg font-bold">Sesuaikan stok fisik</h2>
-              <p className="m-0 text-[13px] text-[#5a6675]">{adjustDialog.name} · tersedia {adjustDialog.available} unit. Masukkan jumlah fisik hasil hitung.</p>
-              <div className="grid gap-1.5">
-                <label htmlFor="adjust-qty" className="text-xs font-medium text-[#5a6675]">Jumlah fisik hasil hitung</label>
-                <input
-                  id="adjust-qty"
-                  type="number"
-                  min={0}
-                  value={adjustQty}
-                  onChange={(e) => setAdjustQty(Number(e.target.value) || 0)}
-                  className="min-h-[44px] px-3 text-[15px] tabular-nums border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <label htmlFor="adjust-reason" className="text-xs font-medium text-[#5a6675]">Alasan penyesuaian</label>
-                <div className="relative">
-                  <select
-                    id="adjust-reason"
-                    value={adjustReason}
-                    onChange={(e) => setAdjustReason(e.target.value)}
-                    className="w-full min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] appearance-none cursor-pointer"
-                  >
-                    <option>Opname tidak cocok</option>
-                    <option>Barang rusak</option>
-                    <option>Salah input kasir</option>
-                    <option>Retur supplier</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+      <Dialog open={!!adjustDialog} onOpenChange={(open) => { if (!open) setAdjustDialog(null); }}>
+        <DialogContent className="w-[min(520px,92vw)] max-w-none gap-0 p-0 bg-white border-[#e2e6ec] rounded-[14px] shadow-none">
+          {adjustDialog && (
+            <>
+              <div className="p-5 grid gap-4">
+                <DialogTitle className="m-0 text-lg font-bold">Sesuaikan stok fisik</DialogTitle>
+                <DialogDescription className="m-0 text-[13px] text-[#5a6675]">{adjustDialog.name} · tersedia {adjustDialog.available} unit. Masukkan jumlah fisik hasil hitung.</DialogDescription>
+                <div className="grid gap-1.5">
+                  <label htmlFor="adjust-qty" className="text-xs font-medium text-[#5a6675]">Jumlah fisik hasil hitung</label>
+                  <input
+                    id="adjust-qty"
+                    type="number"
+                    min={0}
+                    value={adjustQty}
+                    onChange={(e) => setAdjustQty(Number(e.target.value) || 0)}
+                    className="min-h-[44px] px-3 text-[15px] tabular-nums border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <label htmlFor="adjust-reason" className="text-xs font-medium text-[#5a6675]">Alasan penyesuaian</label>
+                  <div className="relative">
+                    <select
+                      id="adjust-reason"
+                      value={adjustReason}
+                      onChange={(e) => setAdjustReason(e.target.value)}
+                      className="w-full min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] appearance-none cursor-pointer"
+                    >
+                      <option>Opname tidak cocok</option>
+                      <option>Barang rusak</option>
+                      <option>Salah input kasir</option>
+                      <option>Retur supplier</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+                  </div>
+                </div>
+                <div className="grid gap-1.5">
+                  <label htmlFor="adjust-note" className="text-xs font-medium text-[#5a6675]">Catatan (opsional)</label>
+                  <textarea
+                    id="adjust-note"
+                    value={adjustNote}
+                    onChange={(e) => setAdjustNote(e.target.value)}
+                    placeholder="Misal: 4 sachet bocor ditemukan di rak gantung."
+                    className="min-h-[84px] px-3 py-2 text-[15px] border border-[#cbd2dc] rounded-[10px] resize-y focus:outline-none focus:border-[#0f6d5f]"
+                  />
+                </div>
+                <div className="flex items-baseline justify-between text-[13px]">
+                  <span className="text-[#5a6675]">Selisih setelah penyesuaian</span>
+                  <strong className={cn(
+                    'tabular-nums',
+                    adjustQty - adjustDialog.available < 0 ? 'text-[#a52b22]' : adjustQty - adjustDialog.available > 0 ? 'text-[#136b3f]' : 'text-[#182230]'
+                  )}>
+                    {adjustQty - adjustDialog.available}
+                  </strong>
                 </div>
               </div>
-              <div className="grid gap-1.5">
-                <label htmlFor="adjust-note" className="text-xs font-medium text-[#5a6675]">Catatan (opsional)</label>
-                <textarea
-                  id="adjust-note"
-                  value={adjustNote}
-                  onChange={(e) => setAdjustNote(e.target.value)}
-                  placeholder="Misal: 4 sachet bocor ditemukan di rak gantung."
-                  className="min-h-[84px] px-3 py-2 text-[15px] border border-[#cbd2dc] rounded-[10px] resize-y focus:outline-none focus:border-[#0f6d5f]"
-                />
+              <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+                <button
+                  type="button"
+                  onClick={() => setAdjustDialog(null)}
+                  className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={saveAdjust}
+                  className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+                >
+                  Simpan penyesuaian
+                </button>
               </div>
-              <div className="flex items-baseline justify-between text-[13px]">
-                <span className="text-[#5a6675]">Selisih setelah penyesuaian</span>
-                <strong className={cn(
-                  'tabular-nums',
-                  adjustQty - adjustDialog.available < 0 ? 'text-[#a52b22]' : adjustQty - adjustDialog.available > 0 ? 'text-[#136b3f]' : 'text-[#182230]'
-                )}>
-                  {adjustQty - adjustDialog.available}
-                </strong>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button
-                type="button"
-                onClick={() => setAdjustDialog(null)}
-                className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={saveAdjust}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
-              >
-                Simpan penyesuaian
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Opname Result Dialog */}
-      {showOpnameDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(520px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
-            <div className="p-5 grid gap-3">
-              <h2 className="m-0 text-lg font-bold">Hasil opname tersimpan</h2>
-              <ul className="grid gap-2 list-none m-0 p-0">
-                {varianceItems.length > 0 ? varianceItems.map((item) => {
-                  const variance = getVariance(item);
-                  return (
-                    <li key={item.sku} className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                      <strong className="text-[13px]">{item.name}</strong>
-                      <span className="text-xs text-[#5a6675]">
-                        {variance > 0 ? '+' : ''}{variance} unit dari {item.available}
-                      </span>
-                    </li>
-                  );
-                }) : (
-                  <li className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                    <strong className="text-[13px]">Tidak ada selisih</strong>
-                    <span className="text-xs text-[#5a6675]">Semua SKU cocok dengan catatan sistem</span>
+      <Dialog open={showOpnameDialog} onOpenChange={setShowOpnameDialog}>
+        <DialogContent className="w-[min(520px,92vw)] max-w-none gap-0 p-0 bg-white border-[#e2e6ec] rounded-[14px] shadow-none">
+          <div className="p-5 grid gap-3">
+            <DialogTitle className="m-0 text-lg font-bold">Hasil opname tersimpan</DialogTitle>
+            <DialogDescription className="sr-only">Ringkasan selisih stok hasil opname.</DialogDescription>
+            <ul className="grid gap-2 list-none m-0 p-0">
+              {varianceItems.length > 0 ? varianceItems.map((item) => {
+                const variance = getVariance(item);
+                return (
+                  <li key={item.sku} className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                    <strong className="text-[13px]">{item.name}</strong>
+                    <span className="text-xs text-[#5a6675]">
+                      {variance > 0 ? '+' : ''}{variance} unit dari {item.available}
+                    </span>
                   </li>
-                )}
-              </ul>
-              <p className="text-xs text-[#5a6675]">Stok cloud diperbarui langsung karena perangkat sedang online. Bila offline, perubahan masuk antrean sinkronisasi.</p>
-            </div>
-            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button
-                type="button"
-                onClick={() => setShowOpnameDialog(false)}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
+                );
+              }) : (
+                <li className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                  <strong className="text-[13px]">Tidak ada selisih</strong>
+                  <span className="text-xs text-[#5a6675]">Semua SKU cocok dengan catatan sistem</span>
+                </li>
+              )}
+            </ul>
+            <p className="text-xs text-[#5a6675]">Stok cloud diperbarui langsung karena perangkat sedang online. Bila offline, perubahan masuk antrean sinkronisasi.</p>
           </div>
-        </div>
-      )}
+          <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+            <button
+              type="button"
+              onClick={() => setShowOpnameDialog(false)}
+              className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

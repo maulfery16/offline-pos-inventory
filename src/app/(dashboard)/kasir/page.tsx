@@ -20,6 +20,7 @@ interface CartItem extends Product {
   qty: number;
 }
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const products: Product[] = [
   { sku: '8991002101147', name: 'Indomie Goreng 85g', price: 3500, batch: 'A2311', days: 62, stock: 48 },
   { sku: '8992761123456', name: 'Aqua 600ml', price: 4000, batch: 'A2298', days: 118, stock: 9 },
@@ -133,6 +134,8 @@ export default function KasirPage() {
   };
 
   const confirmVoid = () => {
+    // TODO: validate voidPin against actual admin PIN via /api/auth/verify-pin before proceeding
+    // Until backend auth is wired, this is a length-only check and does NOT provide real authorization
     if (voidPin.length >= 4) {
       removeFromCart(voidTargetSku!);
     } else {
@@ -236,7 +239,7 @@ export default function KasirPage() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_minmax(360px,420px)] gap-6 items-start">
       {/* Status Bar */}
-      <header className="col-span-full bg-white border border-[#e2e6ec] rounded-[14px] p-4 flex flex-col gap-3">
+      <div role="region" aria-label="Status shift kasir" className="col-span-full bg-white border border-[#e2e6ec] rounded-[14px] p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="m-0 text-[15px] font-semibold">Shift kasir · Sari Wulandari</h2>
@@ -263,7 +266,7 @@ export default function KasirPage() {
             {isOnline ? 'Simulasikan offline' : 'Kembali online'}
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Catalog Panel */}
       <section className="bg-white border border-[#e2e6ec] rounded-[14px]">
@@ -294,11 +297,13 @@ export default function KasirPage() {
               type="button"
               disabled
               title="Kamera SKU — segera hadir"
+              aria-describedby="camera-hint"
               className="flex items-center justify-center gap-2 min-h-[48px] px-4 text-[15px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] opacity-50 cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
               Aktifkan kamera
             </button>
+            <p id="camera-hint" className="sr-only">Fitur kamera SKU akan segera tersedia</p>
           </div>
           <p className="text-xs text-[#5a6675]">Scanner fisik otomatis mengisi kolom ini. Tekan Enter untuk menambah barang.</p>
           {/* P0-B: Scan error alert */}
@@ -386,7 +391,7 @@ export default function KasirPage() {
       </section>
 
       {/* Cart Panel */}
-      <aside className="sticky top-[96px] grid gap-3">
+      <aside className="sticky top-[96px] grid gap-3 max-h-[calc(100dvh-120px)] overflow-y-auto">
         {/* Cart Items */}
         <div className="bg-white border border-[#e2e6ec] rounded-[14px] overflow-hidden">
           <div className="flex items-center justify-between gap-3 p-4 lg:p-5 border-b border-[#e2e6ec]">
