@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/core/db/prisma';
+import type { Prisma } from '@prisma/client';
 
 
 // ---------------------------------------------------------------------------
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     for (const tx of transactions) {
       // Process each transaction in its own Prisma transaction for row-level safety
-      await prisma.$transaction(async (prismaTx) => {
+      await prisma.$transaction(async (prismaTx: Prisma.TransactionClient) => {
         // Idempotent upsert — skip if UUID already exists
         const existing = await prismaTx.transaction.findUnique({
           where: { id: tx.id },
