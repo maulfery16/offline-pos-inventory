@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle } from 'lucide-react';
+import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle, X } from 'lucide-react';
 import { cn } from '@/shared/utils';
 
 type PaymentMethod = 'Tunai' | 'QRIS' | 'Kartu';
@@ -55,11 +55,13 @@ export default function KasirPage() {
   const [voidPin, setVoidPin] = useState('');
   const [voidError, setVoidError] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number; syncedOnline: boolean } | null>(null);
+  const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number; syncedOnline: boolean; ref: string } | null>(null);
   const [cartSnapshot, setCartSnapshot] = useState<CartItem[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
+  const clearConfirmBtnRef = useRef<HTMLButtonElement>(null);
+  const restoreConfirmBtnRef = useRef<HTMLButtonElement>(null);
 
   // P1-A: Auto-focus on mount
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function KasirPage() {
 
   const addToCart = useCallback((product: Product) => {
     if (product.blocked) return;
+    setScanError('');
     setCart((prev) => {
       const existing = prev.find((item) => item.sku === product.sku);
       if (existing) {
@@ -80,6 +83,7 @@ export default function KasirPage() {
       }
       return [...prev, { ...product, qty: 1 }];
     });
+    setTimeout(() => scanInputRef.current?.focus(), 0);
   }, []);
 
   const suggestions = scanInput.length >= 2
@@ -100,8 +104,9 @@ export default function KasirPage() {
       } else if (scanInput.trim().length > 0) {
         // P0-B: Barcode not found error
         setScanError('Barcode tidak ditemukan. Cari manual atau tambah produk baru.');
-        setShaking(true);
-        setTimeout(() => setScanError(''), 3000);
+        setShaking(false); // reset first in case already shaking
+        setTimeout(() => setShaking(true), 10); // force re-trigger
+        setTimeout(() => setShaking(false), 500); // fallback if onAnimationEnd doesn't fire
       }
     }
   };
@@ -135,7 +140,7 @@ export default function KasirPage() {
     }
   };
 
-  const holdTransaction = () => {
+  const holdTransaction = useCallback(() => {
     if (cart.length === 0) return;
     setHeldTransactions((prev) => [
       ...prev,
@@ -149,7 +154,7 @@ export default function KasirPage() {
     setCart([]);
     // P2-B: reset cash on hold
     setCashReceived(0);
-  };
+  }, [cart, total]);
 
   // P1-C: restoreHeld with guard
   const restoreHeld = (held: HeldTransaction) => {
@@ -167,18 +172,48 @@ export default function KasirPage() {
     setCashReceived(0);
   };
 
-  const processPayment = () => {
+  const processPayment = useCallback(() => {
     if (cart.length === 0) return;
     if (paymentMethod === 'Tunai' && cashReceived < total) return;
     const actualCash = paymentMethod === 'Tunai' ? cashReceived : total;
+    const txRef = 'TRX-' + Date.now().toString(36).toUpperCase();
     // P1-D: snapshot cart before clearing
     setCartSnapshot([...cart]);
     // P2-A: record sync state
-    setLastTransaction({ total, method: paymentMethod, cash: actualCash, change: paymentMethod === 'Tunai' ? change : 0, syncedOnline: isOnline });
+    setLastTransaction({ total, method: paymentMethod, cash: actualCash, change: paymentMethod === 'Tunai' ? change : 0, syncedOnline: isOnline, ref: txRef });
     setShowReceiptDialog(true);
     setCart([]);
     setCashReceived(0);
-  };
+  }, [cart, paymentMethod, cashReceived, total, change, isOnline]);
+
+  // Keyboard shortcuts: F4 = Hold, F9 = Pay
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't fire if focus is inside an input/textarea/select
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'F4') {
+        e.preventDefault();
+        holdTransaction();
+      }
+      if (e.key === 'F9') {
+        e.preventDefault();
+        processPayment();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [holdTransaction, processPayment]);
+
+  // Focus management: clear-confirm dialog
+  useEffect(() => {
+    if (showClearConfirm) clearConfirmBtnRef.current?.focus();
+  }, [showClearConfirm]);
+
+  // Focus management: restore-confirm dialog
+  useEffect(() => {
+    if (pendingRestoreId) restoreConfirmBtnRef.current?.focus();
+  }, [pendingRestoreId]);
 
   const setQuickCash = (amount: number | 'exact') => {
     if (amount === 'exact') {
@@ -213,7 +248,7 @@ export default function KasirPage() {
           'flex items-center gap-2 p-3 rounded-[10px] border text-sm',
           isOnline
             ? 'bg-[#f7f8fa] border-[#e2e6ec] text-[#5a6675]'
-            : 'bg-[#fdf0da] border-[#f3d88a] text-[#8a5300]'
+            : 'bg-[#fdf0da] border-[#f1c97a] text-[#8a5300]'
         )}>
           {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
           {/* A11y-A: aria-live on connectivity status */}
@@ -225,7 +260,7 @@ export default function KasirPage() {
             onClick={() => setIsOnline((prev) => !prev)}
             className="ml-auto px-2 py-1 text-xs font-medium text-[#5a6675] hover:text-[#0f6d5f] cursor-pointer"
           >
-            Simulasikan offline
+            {isOnline ? 'Simulasikan offline' : 'Kembali online'}
           </button>
         </div>
       </header>
@@ -257,7 +292,9 @@ export default function KasirPage() {
             </div>
             <button
               type="button"
-              className="flex items-center justify-center gap-2 min-h-[48px] px-4 text-[15px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
+              disabled
+              title="Kamera SKU — segera hadir"
+              className="flex items-center justify-center gap-2 min-h-[48px] px-4 text-[15px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] opacity-50 cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4" />
               Aktifkan kamera
@@ -268,7 +305,15 @@ export default function KasirPage() {
           {scanError && (
             <div role="alert" className="flex gap-2 items-start p-3 rounded-[10px] bg-[#fbe8e5] text-[#a52b22] text-sm">
               <AlertCircle className="w-4 h-4 flex-none mt-0.5" />
-              {scanError}
+              <span className="flex-1">{scanError}</span>
+              <button
+                type="button"
+                onClick={() => setScanError('')}
+                className="flex-none text-[#a52b22] hover:opacity-70 cursor-pointer"
+                aria-label="Tutup pesan error"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
           {/* Suggestions */}
@@ -278,7 +323,7 @@ export default function KasirPage() {
                 <li key={item.sku}>
                   <button
                     type="button"
-                    onClick={() => { addToCart(item); setScanInput(''); }}
+                    onClick={() => { addToCart(item); setScanInput(''); setTimeout(() => scanInputRef.current?.focus(), 0); }}
                     className="flex w-full items-center justify-between gap-3 px-3 py-2.5 border border-transparent rounded-[10px] bg-[#f7f8fa] text-left cursor-pointer hover:border-[#0f6d5f] hover:bg-[#e2f2ee]"
                   >
                     <span>
@@ -307,20 +352,29 @@ export default function KasirPage() {
                 <li key={product.sku}>
                   <button
                     type="button"
-                    onClick={() => addToCart(product)}
+                    onClick={() => { addToCart(product); setTimeout(() => scanInputRef.current?.focus(), 0); }}
                     disabled={product.blocked}
                     className={cn(
                       'w-full h-full grid gap-2 content-start p-3 text-left border rounded-[10px] transition-all cursor-pointer',
                       product.blocked
-                        ? 'bg-[#fbe8e5] border-[#e8b4ae] cursor-not-allowed'
-                        : 'bg-white border-[#e2e6ec] hover:border-[#0f6d5f] hover:-translate-y-0.5'
+                        ? 'bg-[#fbe8e5] border-[#e8b4ae] cursor-not-allowed' /* danger-soft border */
+                        : product.days <= 7
+                          ? 'bg-[#fdf9ec] border-[#f3d88a] hover:border-[#8a5300] hover:-translate-y-0.5'
+                          : 'bg-white border-[#e2e6ec] hover:border-[#0f6d5f] hover:-translate-y-0.5'
                     )}
                   >
                     {/* D-C: text-sm for product name */}
                     <span className="text-sm font-semibold leading-snug">{product.name}</span>
                     <span className="flex flex-wrap items-center gap-2 text-xs text-[#5a6675]">
                       {getStockChip(product)}
-                      {!product.blocked && <span>Batch {product.batch} · {product.days} hari</span>}
+                      {!product.blocked && (
+                        <span className={cn(
+                          'text-xs',
+                          product.days <= 7 ? 'text-[#8a5300] font-medium' : 'text-[#5a6675]'
+                        )}>
+                          {product.days <= 7 ? `⚠ Exp ${product.days} hari` : `Batch ${product.batch} · ${product.days} hari`}
+                        </span>
+                      )}
                     </span>
                     <span className="text-[15px] font-bold tabular-nums">{rupiah(product.price)}</span>
                   </button>
@@ -458,7 +512,7 @@ export default function KasirPage() {
                 </div>
                 {/* P0-A: shortfall warning */}
                 {paymentMethod === 'Tunai' && cashReceived > 0 && cashReceived < total && (
-                  <div className="text-sm text-[#a52b22] bg-[#fbe8e5] px-3 py-2 rounded-[8px]">
+                  <div className="text-sm text-[#a52b22] bg-[#fbe8e5] px-3 py-2 rounded-[10px]">
                     Uang kurang {rupiah(total - cashReceived)}
                   </div>
                 )}
@@ -508,6 +562,11 @@ export default function KasirPage() {
                 <Trash2 className="w-4 h-4" />
                 Kosongkan
               </button>
+            </div>
+            {/* P1-A: Keyboard hints */}
+            <div className="flex justify-between text-xs text-[#8a94a3] px-1">
+              <span>F4 · Tahan</span>
+              <span>F9 · Bayar</span>
             </div>
             {/* P0-A: disabled when underpayment */}
             <button
@@ -614,7 +673,7 @@ export default function KasirPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 id="receipt-dialog-title" className="m-0 text-lg font-bold">Transaksi selesai</h2>
-                  <p className="m-0 mt-1 text-xs text-[#5a6675]">Struk #TRX-0000 · Kasir 01</p>
+                  <p className="m-0 mt-1 text-xs text-[#5a6675]">Struk #{lastTransaction.ref} · Kasir 01</p>
                 </div>
                 {/* P2-A: conditional sync badge */}
                 {lastTransaction.syncedOnline
@@ -631,14 +690,16 @@ export default function KasirPage() {
               </ul>
               {/* P1-D: itemized cart snapshot */}
               {cartSnapshot.length > 0 && (
-                <div className="max-h-[180px] overflow-y-auto border border-[#e2e6ec] rounded-[10px] divide-y divide-[#e2e6ec]">
+                <ul className="max-h-[180px] overflow-y-auto border border-[#e2e6ec] rounded-[10px] divide-y divide-[#e2e6ec] list-none m-0 p-0">
                   {cartSnapshot.map(item => (
-                    <div key={item.sku} className="flex justify-between gap-3 px-3 py-2 text-sm">
+                    <li key={item.sku} className="flex justify-between gap-3 px-3 py-2 text-sm">
                       <span>{item.name} ×{item.qty}</span>
-                      <span className="tabular-nums whitespace-nowrap">{rupiah(item.price * item.qty)}</span>
-                    </div>
+                      <span className="tabular-nums whitespace-nowrap" aria-label={`Harga: ${rupiah(item.price * item.qty)}`}>
+                        {rupiah(item.price * item.qty)}
+                      </span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
               <div className="flex gap-2 p-3 rounded-[10px] bg-[#e8eef7] text-[#12507f] text-xs">
                 <Printer className="w-4 h-4 flex-none" />
@@ -672,7 +733,7 @@ export default function KasirPage() {
               <p className="m-0 text-sm text-[#5a6675]">{cart.length} item akan dihapus. Tindakan ini tidak dapat dibatalkan.</p>
             </div>
             <div className="flex justify-end gap-2 p-4 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button onClick={() => setShowClearConfirm(false)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
+              <button ref={clearConfirmBtnRef} onClick={() => setShowClearConfirm(false)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
               <button onClick={() => { clearCart(); setShowClearConfirm(false); }} className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer">Kosongkan</button>
             </div>
           </div>
@@ -688,7 +749,7 @@ export default function KasirPage() {
               <p className="m-0 text-sm text-[#5a6675]">Keranjang aktif berisi {cart.length} item. Item ini akan digantikan dengan transaksi yang ditahan.</p>
             </div>
             <div className="flex justify-end gap-2 p-4 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button onClick={() => setPendingRestoreId(null)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
+              <button ref={restoreConfirmBtnRef} onClick={() => setPendingRestoreId(null)} className="min-h-[42px] px-4 text-sm font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer">Batal</button>
               <button
                 onClick={() => {
                   const held = heldTransactions.find(h => h.id === pendingRestoreId);
