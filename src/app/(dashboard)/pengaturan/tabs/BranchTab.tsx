@@ -182,6 +182,7 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
             <thead>
               <tr className="border-b border-[#e2e6ec] bg-[#f8fafc]">
                 <th className="px-5 py-3 font-semibold text-[#374151]">Nama Cabang</th>
+                <th className="px-5 py-3 font-semibold text-[#374151]">Kode</th>
                 <th className="px-5 py-3 font-semibold text-[#374151]">Alamat</th>
                 <th className="px-5 py-3 font-semibold text-[#374151]">Status</th>
               </tr>
@@ -197,7 +198,12 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
                 >
                   <td className="px-5 py-3">
                     <span className="font-medium text-[#182230]">{b.name}</span>
-                    <span className="ml-2 text-[11px] text-[#9ca3af]">{b.code}</span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="font-mono text-[12px] font-semibold tracking-wider text-[#0f6d5f] bg-[#e6f4f1] px-2 py-0.5 rounded-[5px]">
+                      {b.code}
+                    </span>
+                    <p className="mt-0.5 text-[11px] text-[#8a94a3]">registrasi perangkat</p>
                   </td>
                   <td className="px-5 py-3 text-[#5a6675]">
                     {b.address ?? <span className="text-[#9ca3af]">—</span>}

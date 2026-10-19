@@ -23,6 +23,7 @@ interface FormState {
 }
 
 export default function StoreTab({ tenantId }: TabProps) {
+  const [tenantCode, setTenantCode] = useState('');
   const [form, setForm] = useState<FormState>({
     name: '',
     address: '',
@@ -41,6 +42,7 @@ export default function StoreTab({ tenantId }: TabProps) {
         });
         if (!res.ok) throw new Error('Gagal memuat data toko');
         const data: TenantInfo = await res.json();
+        setTenantCode(data.code ?? '');
         const state: FormState = {
           name: data.name ?? '',
           address: data.address ?? '',
@@ -134,6 +136,22 @@ export default function StoreTab({ tenantId }: TabProps) {
 
       {/* Form */}
       <form onSubmit={handleSave} className="grid gap-5 px-6 py-5">
+        {/* Kode Toko — read-only, used for device registration */}
+        <div className="grid gap-1.5">
+          <label className="text-xs font-medium text-[#5a6675]">
+            Kode Toko
+          </label>
+          <div className={cn(
+            'flex items-center justify-between h-10 w-full rounded-[10px] border border-[#e2e6ec] bg-[#f8fafc] px-3',
+            'text-[13px]',
+          )}>
+            <span className="font-mono font-semibold tracking-widest text-[#182230]">
+              {tenantCode || '—'}
+            </span>
+            <span className="text-[11px] text-[#8a94a3]">Digunakan untuk registrasi perangkat</span>
+          </div>
+        </div>
+
         {/* Nama Toko */}
         <div className="grid gap-1.5">
           <label
