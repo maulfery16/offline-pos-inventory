@@ -87,8 +87,8 @@ export default function MasukPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenantCode: regTenantCode.toUpperCase().trim(),
-          branchCode: regBranchCode.toUpperCase().trim(),
+          tenantCode: regTenantCode.trim(),
+          branchCode: regBranchCode.trim(),
           deviceName: regDeviceName.trim(),
           adminPassword: regAdminPassword,
         }),
@@ -269,7 +269,7 @@ export default function MasukPage() {
                     id="tenantCode"
                     type="text"
                     value={regTenantCode}
-                    onChange={(e) => setRegTenantCode(e.target.value)}
+                    onChange={(e) => setRegTenantCode(e.target.value.toUpperCase())}
                     placeholder="mis. TLC"
                     autoCapitalize="characters"
                     className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
@@ -281,7 +281,7 @@ export default function MasukPage() {
                     id="branchCode"
                     type="text"
                     value={regBranchCode}
-                    onChange={(e) => setRegBranchCode(e.target.value)}
+                    onChange={(e) => setRegBranchCode(e.target.value.toUpperCase())}
                     placeholder="mis. PUSAT"
                     autoCapitalize="characters"
                     className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
