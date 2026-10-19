@@ -1,5 +1,8 @@
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJWT } from '@/core/auth';
+import { prisma } from '@/core/db/prisma';
 
 // Page-level auth (dashboard routes: /kasir, /inventaris, /laporan, /barang-masuk, /kedaluwarsa)
 // is handled client-side. The device token is stored in localStorage (not cookies), so middleware
@@ -24,6 +27,15 @@ export async function middleware(request: NextRequest) {
 
   try {
     const payload = await verifyJWT(token);
+
+    // Check if device has been revoked
+    const device = await prisma.device.findUnique({
+      where: { id: payload.deviceId },
+      select: { isRevoked: true },
+    });
+    if (!device || device.isRevoked) {
+      return NextResponse.json({ error: 'Device revoked' }, { status: 401 });
+    }
 
     // Inject tenant/branch/device context into request headers
     const requestHeaders = new Headers(request.headers);

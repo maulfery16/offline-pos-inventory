@@ -46,8 +46,8 @@ export default function PengaturanPage() {
       return;
     }
 
-    // Role guard: cashiers may not access settings
-    if (payload.role === 'cashier') {
+    // Role guard: kasir may not access settings
+    if (payload.role === 'kasir') {
       router.replace('/kasir');
       return;
     }

@@ -2,6 +2,9 @@
   "name": "offline-pos-inventory",
   "version": "0.1.0",
   "private": true,
+  "prisma": {
+    "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\",\"types\":[\"node\"]}' prisma/seed.ts"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

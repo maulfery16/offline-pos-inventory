@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { useRequireAuth } from '@/core/auth/useRequireAuth';
 import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
 import { useCartStore } from '@/features/pos/store';
 import useSyncManager from '@/core/sync/useSyncManager';
@@ -39,6 +40,8 @@ const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID
 const discount = 0;
 
 export default function KasirPage() {
+  useRequireAuth(['kasir']);
+
   const [scanInput, setScanInput] = useState('');
   const [scanError, setScanError] = useState('');
   const [shaking, setShaking] = useState(false);

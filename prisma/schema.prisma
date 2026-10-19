@@ -54,16 +54,19 @@ model Branch {
 // -----------------------------------------------------------------------------
 
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String   @db.Uuid
-  name      String   @db.VarChar(255)
-  pinHash   String   @db.VarChar(255)
-  role      String   @db.VarChar(50)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @db.Uuid
+  name         String    @db.VarChar(255)
+  email        String?   @db.VarChar(255)   // for admin/owner email login
+  pinHash      String    @db.VarChar(255)
+  passwordHash String?   @db.VarChar(255)   // for admin/owner password login
+  role         String    @db.VarChar(50)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, email])
   @@map("users")
 }
 
