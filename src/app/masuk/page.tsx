@@ -274,6 +274,7 @@ export default function MasukPage() {
                     autoCapitalize="characters"
                     className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
                   />
+                  <p className="text-xs text-[#5a6675]">Tersedia di Pengaturan → Profil Toko.</p>
                 </div>
                 <div className="grid gap-2">
                   <label htmlFor="branchCode" className="text-sm font-medium">Kode Cabang</label>
@@ -286,6 +287,7 @@ export default function MasukPage() {
                     autoCapitalize="characters"
                     className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
                   />
+                  <p className="text-xs text-[#5a6675]">Tersedia di Pengaturan → Cabang.</p>
                 </div>
                 <div className="grid gap-2">
                   <label htmlFor="deviceName" className="text-sm font-medium">Nama Perangkat</label>
