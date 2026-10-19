@@ -27,6 +27,7 @@ model Tenant {
   products         Product[]
   inventoryBatches InventoryBatch[]
   transactions     Transaction[]
+  shiftReports     ShiftReport[]
   @@map("tenants")
 }
 
@@ -43,6 +44,7 @@ model Branch {
   inventoryBatches InventoryBatch[]
   transactions     Transaction[]
   devices          Device[]
+  shiftReports     ShiftReport[]
   @@unique([tenantId, code])
   @@map("branches")
 }
@@ -52,16 +54,19 @@ model Branch {
 // -----------------------------------------------------------------------------
 
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String   @db.Uuid
-  name      String   @db.VarChar(255)
-  pinHash   String   @db.VarChar(255)
-  role      String   @db.VarChar(50)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @db.Uuid
+  name         String    @db.VarChar(255)
+  email        String?   @db.VarChar(255)   // for admin/owner email login
+  pinHash      String    @db.VarChar(255)
+  passwordHash String?   @db.VarChar(255)   // for admin/owner password login
+  role         String    @db.VarChar(50)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, email])
   @@map("users")
 }
 
@@ -185,4 +190,28 @@ model TransactionItemBatch {
   transactionItem     TransactionItem @relation(fields: [transactionItemId], references: [id], onDelete: Cascade)
   inventoryBatch      InventoryBatch  @relation(fields: [inventoryBatchId], references: [id], onDelete: Restrict)
   @@map("transaction_item_batches")
+}
+
+// -----------------------------------------------------------------------------
+// 6. SHIFT REPORTS
+// -----------------------------------------------------------------------------
+
+model ShiftReport {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String   @db.Uuid
+  branchId         String   @db.Uuid
+  closedAt         DateTime @default(now())
+  expectedCash     Decimal  @db.Decimal(12, 2)
+  physicalCash     Decimal  @db.Decimal(12, 2)
+  variance         Decimal  @db.Decimal(12, 2)
+  status           String   @db.VarChar(20)  // 'ok' or 'review'
+  note             String?  @db.Text
+  closedByDeviceId String   @db.Uuid
+  transactionCount Int      @default(0)
+  totalRevenue     Decimal  @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch           Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  @@map("shift_reports")
 }

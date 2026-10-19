@@ -47,8 +47,9 @@ export default function MasukPage() {
     fetch('/api/users?role=kasir', { headers: getAuthHeaders() })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data?.users) {
-          setKasirList(data.users.map((u: { id: string; name: string; shift?: string }) => ({
+        const list = data?.data ?? data?.users ?? [];
+        if (list.length > 0) {
+          setKasirList(list.map((u: { id: string; name: string; shift?: string }) => ({
             value: u.id,
             label: u.shift ? `${u.name} — ${u.shift}` : u.name,
           })));
@@ -259,7 +260,7 @@ export default function MasukPage() {
                         ? kasirList.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                           ))
-                        : <option value="" disabled>— Memuat daftar kasir… —</option>
+                        : <option value="" disabled>— Tidak ada kasir terdaftar —</option>
                       }
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />

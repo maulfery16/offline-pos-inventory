@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ShieldAlert, ArrowDownNarrowWide, Lock, Bell, Calculator, History } from 'lucide-react';
 import { cn } from '@/shared/utils';
-import { useDatabase, useInventoryBatches } from '@/core/db/hooks';
+import { useDatabase, useInventoryBatches, useProducts } from '@/core/db/hooks';
 import type InventoryBatch from '@/core/db/models/InventoryBatch';
 
 interface Batch {
@@ -30,12 +30,17 @@ type Sort = 'fefo' | 'latest' | 'value';
 
 export default function KedaluwarsaPage() {
   const { batches: rawBatches, isLoading } = useInventoryBatches();
+  const { products } = useProducts();
+  const productMap: Record<string, string> = {};
+  for (const p of products) {
+    productMap[p.id] = p.name;
+  }
   const db = useDatabase();
 
   const batches: Batch[] = rawBatches.map(b => ({
     id: b.id,
     sku: b.productId,
-    name: b.batchNumber, // we only have batchNumber, not product name — show batch number as name fallback
+    name: productMap[b.productId] ?? b.batchNumber,
     batch: b.batchNumber,
     expiry: b.expiryDate instanceof Date
       ? b.expiryDate.toISOString().split('T')[0]

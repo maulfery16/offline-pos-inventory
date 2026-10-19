@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Info } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/shared/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
 import { getAuthHeaders } from '@/core/auth/client';
@@ -107,7 +108,7 @@ export default function LaporanPage() {
   const [shiftNote, setShiftNote] = useState('');
   const [showShiftDialog, setShowShiftDialog] = useState(false);
   const [shiftResult, setShiftResult] = useState<'ok' | 'review' | null>(null);
-  const [_reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<any>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 
@@ -155,6 +156,13 @@ export default function LaporanPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, branch]);
 
+  // Override KPI values with real API data when available
+  const apiRevenue = reportData ? reportData.totalRevenue : null;
+  const apiCOGS = reportData ? reportData.totalCOGS : null;
+  const apiGrossProfit = reportData ? reportData.grossProfit : null;
+  const apiMarginPct = reportData ? parseFloat(reportData.grossMarginPct) : null;
+  const apiTrxCount = reportData ? reportData.transactionCount : null;
+
   const cogs = branchData.products.reduce((sum, p) => sum + p.cogs, 0);
   const profit = branchData.branchSales - cogs;
   const margin = branchData.branchSales ? (profit / branchData.branchSales) * 100 : 0;
@@ -181,9 +189,32 @@ export default function LaporanPage() {
   const salesPoints = branchData.days.map((d, i) => `${x(i)},${y(d.sales)}`).join(' ');
   const profitPoints = branchData.days.map((d, i) => `${x(i)},${y(d.profit)}`).join(' ');
 
-  const handleShiftClose = (type: 'ok' | 'review') => {
-    setShiftResult(type);
-    setShowShiftDialog(true);
+  const [isClosingShift, setIsClosingShift] = useState(false);
+
+  const handleShiftClose = async (type: 'ok' | 'review') => {
+    if (!isOnline) {
+      toast.error('Tutup kasir membutuhkan koneksi internet.');
+      return;
+    }
+    const cashAmount = typeof shiftCash === 'number' ? shiftCash : 0;
+    setIsClosingShift(true);
+    try {
+      const res = await fetch('/api/reports/shift/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ cashAmount, note: shiftNote, status: type }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Gagal menutup kasir');
+      }
+      setShiftResult(type);
+      setShowShiftDialog(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Terjadi kesalahan saat menutup kasir.');
+    } finally {
+      setIsClosingShift(false);
+    }
   };
 
   return (
@@ -209,30 +240,30 @@ export default function LaporanPage() {
       <section className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Penjualan bersih</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(branchData.branchSales)}</p>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(apiRevenue ?? branchData.branchSales)}</p>
           <span className="text-xs text-[#5a6675]">Rata-rata {rupiah(basket)} per transaksi</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">HPP aktual (FEFO)</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(cogs)}</p>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(apiCOGS ?? cogs)}</p>
           <span className="text-xs text-[#5a6675]">Dari batch yang benar-benar terjual</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Laba kotor</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(profit)}</p>
-          <span className={cn('text-xs font-medium', margin >= 22 ? 'text-[#136b3f]' : 'text-[#a52b22]')}>
-            {margin >= 22 ? 'Di atas target 22% · komposisi produk sehat' : 'Di bawah target 22% · periksa margin produk cepat laku'}
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(apiGrossProfit ?? profit)}</p>
+          <span className={cn('text-xs font-medium', (apiMarginPct ?? margin) >= 22 ? 'text-[#136b3f]' : 'text-[#a52b22]')}>
+            {(apiMarginPct ?? margin) >= 22 ? 'Di atas target 22% · komposisi produk sehat' : 'Di bawah target 22% · periksa margin produk cepat laku'}
           </span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Margin laba kotor</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{margin.toFixed(1).replace('.', ',')}%</p>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{(apiMarginPct ?? margin).toFixed(1).replace('.', ',')}%</p>
           <span className="text-xs text-[#5a6675]">Target cabang 22%</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Rata-rata nilai transaksi</span>
           <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(basket)}</p>
-          <span className="text-xs text-[#5a6675]">{branchData.trx} transaksi · {branchData.label} · {branch}</span>
+          <span className="text-xs text-[#5a6675]">{apiTrxCount ?? branchData.trx} transaksi · {branchData.label} · {branch}</span>
         </div>
       </section>
 
@@ -457,14 +488,16 @@ export default function LaporanPage() {
               <button
                 type="button"
                 onClick={() => handleShiftClose('ok')}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+                disabled={isClosingShift}
+                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Tutup & tandai selesai
+                {isClosingShift ? 'Menutup…' : 'Tutup & tandai selesai'}
               </button>
               <button
                 type="button"
                 onClick={() => handleShiftClose('review')}
-                className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
+                disabled={isClosingShift}
+                className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Tandai perlu ditinjau
               </button>

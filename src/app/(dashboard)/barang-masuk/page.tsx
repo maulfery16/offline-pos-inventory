@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/
 import { useDatabase } from '@/core/db/hooks';
 import { getAuthHeaders } from '@/core/auth/client';
 import { toast } from 'sonner';
+import useSyncManager from '@/core/sync/useSyncManager';
 
 interface ReceivingLine {
   id: string;
@@ -21,22 +22,13 @@ interface ReceivingLine {
   expiry: string;
 }
 
-// TODO: replace with WatermelonDB query — this is prototype mock data
-const catalog: Record<string, { name: string; unit: string; perishable: boolean; cost: number; margin: number }> = {
-  '8991002101147': { name: 'Indomie Goreng 85g', unit: 'pcs', perishable: true, cost: 2900, margin: 20 },
-  '8991234567890': { name: 'Susu Ultra 250ml', unit: 'pcs', perishable: true, cost: 5900, margin: 25 },
-  '8992761123456': { name: 'Aqua 600ml', unit: 'pcs', perishable: false, cost: 3100, margin: 22 },
-  '8998765432109': { name: 'Roti Tawar Sari Roti', unit: 'pcs', perishable: true, cost: 14000, margin: 28 },
-  '8991112223334': { name: 'Teh Pucuk 350ml', unit: 'pcs', perishable: false, cost: 3400, margin: 30 },
-  '8995000112233': { name: 'Kopi Kapal Api 165g', unit: 'pack', perishable: false, cost: 9800, margin: 27 },
-};
-
 const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID');
 
 const TODAY = new Date(); // TODO: replace with WatermelonDB server-synced timestamp for testability
 
 export default function BarangMasukPage() {
   const db = useDatabase();
+  const { triggerSync } = useSyncManager(db);
   const [isSaving, setIsSaving] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 
@@ -99,32 +91,18 @@ export default function BarangMasukPage() {
           setScanInput('');
           return;
         }
-      } catch { /* fall through to mock catalog */ }
+      } catch { /* WatermelonDB lookup failed — fall through */ }
     }
 
-    const item = catalog[sku];
-    if (!item) return;
-
-    const existing = lines.find((line) => line.sku === sku);
-    if (existing) {
-      updateLine(existing.id, 'qty', existing.qty + 1);
-    } else {
-      const newLine: ReceivingLine = {
-        id: String(rowSeq),
-        sku,
-        name: item.name,
-        unit: item.unit,
-        perishable: item.perishable,
-        qty: 1,
-        cost: item.cost,
-        margin: item.margin,
-        batch: `B${2320 + rowSeq}`,
-        expiry: '',
-      };
-      setLines((prev) => [...prev, newLine]);
-      setRowSeq((prev) => prev + 1);
-    }
+    // Product not found in local DB — prompt user to add via Produk menu
+    toast.error(
+      <span>
+        Produk tidak ditemukan.{' '}
+        <a href="/produk" className="underline font-semibold">Tambahkan di menu Produk</a>
+      </span>
+    );
     setScanInput('');
+    return;
   }, [scanInput, lines, rowSeq, updateLine, db]);
 
   const totalUnits = lines.reduce((sum, line) => sum + line.qty, 0);
@@ -174,10 +152,12 @@ export default function BarangMasukPage() {
   };
 
   const handleConfirmSave = async () => {
+    if (!invoice.trim()) { toast.error('No. Faktur wajib diisi'); return; }
     if (!isOnline) { toast.error('Penerimaan barang membutuhkan koneksi internet.'); return; }
     setIsSaving(true);
     try {
       const payload = {
+        invoiceNumber: invoice,
         items: lines.map(line => ({
           productId: line.sku,
           qty: line.qty,
@@ -194,6 +174,7 @@ export default function BarangMasukPage() {
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Gagal menyimpan');
       toast.success('Penerimaan barang berhasil disimpan.');
+      triggerSync();
       setLines([]);
       setShowSaveDialog(false);
     } catch (err: any) {

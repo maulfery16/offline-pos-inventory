@@ -4,7 +4,7 @@
  * NEVER read these from request body — always extract from verified JWT payload.
  */
 
-export type UserRole = 'device' | 'cashier' | 'manager' | 'owner';
+export type UserRole = 'device' | 'kasir' | 'admin' | 'owner';
 
 export interface JWTPayload {
   /** Tenant identifier — extracted from JWT only, never from request body */
