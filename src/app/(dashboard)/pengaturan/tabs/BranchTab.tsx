@@ -213,45 +213,71 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
             </button>
           </div>
         ) : (
-          <table className="w-full text-left text-[13px]">
-            <thead>
-              <tr className="border-b border-[#e2e6ec] bg-[#f8fafc]">
-                <th className="px-5 py-3 font-semibold text-[#374151]">Nama Cabang</th>
-                <th className="px-5 py-3 font-semibold text-[#374151]">Kode</th>
-                <th className="px-5 py-3 font-semibold text-[#374151]">Alamat</th>
-                <th className="px-5 py-3 font-semibold text-[#374151]">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {branches.map((b, idx) => (
-                <tr
-                  key={b.id}
-                  className={cn(
-                    'border-b border-[#e2e6ec] transition-colors hover:bg-[#f8fafc]',
-                    idx === branches.length - 1 && 'border-b-0',
-                  )}
-                >
-                  <td className="px-5 py-3">
-                    <span className="font-medium text-[#182230]">{b.name}</span>
-                  </td>
-                  <td className="px-5 py-3">
+          <>
+            {/* Desktop table */}
+            <table className="hidden sm:table w-full text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-[#e2e6ec] bg-[#f8fafc]">
+                  <th className="px-5 py-3 font-semibold text-[#374151]">Nama Cabang</th>
+                  <th className="px-5 py-3 font-semibold text-[#374151]">Kode</th>
+                  <th className="px-5 py-3 font-semibold text-[#374151]">Alamat</th>
+                  <th className="px-5 py-3 font-semibold text-[#374151]">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {branches.map((b, idx) => (
+                  <tr
+                    key={b.id}
+                    className={cn(
+                      'border-b border-[#e2e6ec] transition-colors hover:bg-[#f8fafc]',
+                      idx === branches.length - 1 && 'border-b-0',
+                    )}
+                  >
+                    <td className="px-5 py-3">
+                      <span className="font-medium text-[#182230]">{b.name}</span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="font-mono text-[12px] font-semibold tracking-wider text-[#0f6d5f] bg-[#e6f4f1] px-2 py-0.5 rounded-[5px]">
+                        {b.code}
+                      </span>
+                      <p className="mt-0.5 text-[11px] text-[#8a94a3]">registrasi perangkat</p>
+                    </td>
+                    <td className="px-5 py-3 text-[#5a6675]">
+                      {b.address ?? <span className="text-[#9ca3af]">—</span>}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center rounded-full bg-[#e6f4f1] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f6d5f]">
+                        Aktif
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Mobile card list */}
+            <ul className="sm:hidden divide-y divide-[#e2e6ec] list-none m-0 p-0">
+              {branches.map((b) => (
+                <li key={b.id} className="px-5 py-4 grid gap-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="m-0 text-[14px] font-semibold text-[#182230]">{b.name}</p>
+                    <span className="flex-none inline-flex items-center rounded-full bg-[#e6f4f1] px-2 py-0.5 text-[11px] font-semibold text-[#0f6d5f]">
+                      Aktif
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <span className="font-mono text-[12px] font-semibold tracking-wider text-[#0f6d5f] bg-[#e6f4f1] px-2 py-0.5 rounded-[5px]">
                       {b.code}
                     </span>
-                    <p className="mt-0.5 text-[11px] text-[#8a94a3]">registrasi perangkat</p>
-                  </td>
-                  <td className="px-5 py-3 text-[#5a6675]">
-                    {b.address ?? <span className="text-[#9ca3af]">—</span>}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="inline-flex items-center rounded-full bg-[#e6f4f1] px-2.5 py-0.5 text-[11px] font-semibold text-[#0f6d5f]">
-                      Aktif
-                    </span>
-                  </td>
-                </tr>
+                    <span className="text-[11px] text-[#8a94a3]">kode registrasi</span>
+                  </div>
+                  {b.address && (
+                    <p className="m-0 text-[12px] text-[#5a6675]">{b.address}</p>
+                  )}
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </>
         )}
       </div>
     </div>

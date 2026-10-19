@@ -69,22 +69,17 @@ export default function PengaturanPage() {
 
   return (
     <div className="grid gap-6">
-      {/* Page header */}
-      <header>
-        <h1 className="m-0 text-xl font-bold text-[#182230]">Pengaturan</h1>
-        <p className="m-0 mt-1 text-[13px] text-[#5a6675]">
-          Kelola cabang, kasir, perangkat, produk, dan informasi toko.
-        </p>
-      </header>
-
       <Tabs defaultValue="cabang">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="cabang">Cabang</TabsTrigger>
-          <TabsTrigger value="kasir">Kasir</TabsTrigger>
-          <TabsTrigger value="perangkat">Perangkat</TabsTrigger>
-          <TabsTrigger value="produk">Produk</TabsTrigger>
-          <TabsTrigger value="info-toko">Info Toko</TabsTrigger>
-        </TabsList>
+        {/* Tab strip — scrolls horizontally on narrow screens, no wrapping */}
+        <div className="overflow-x-auto -mx-4 min-[900px]:mx-0 px-4 min-[900px]:px-0">
+          <TabsList className="w-max min-w-full">
+            <TabsTrigger value="cabang">Cabang</TabsTrigger>
+            <TabsTrigger value="kasir">Kasir</TabsTrigger>
+            <TabsTrigger value="perangkat">Perangkat</TabsTrigger>
+            <TabsTrigger value="produk">Produk</TabsTrigger>
+            <TabsTrigger value="info-toko">Info Toko</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="cabang">
           <Suspense fallback={<TabFallback />}>

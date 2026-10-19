@@ -231,72 +231,114 @@ export default function ProductTab({ tenantId }: TabProps) {
           Belum ada produk. Klik &ldquo;Tambah Produk&rdquo; untuk mulai.
         </p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-[12px]">Nama</TableHead>
-              <TableHead className="text-[12px]">SKU</TableHead>
-              <TableHead className="text-[12px]">Satuan</TableHead>
-              <TableHead className="text-[12px]">Harga Jual</TableHead>
-              <TableHead className="text-[12px]">Status</TableHead>
-              <TableHead className="text-[12px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-[12px]">Nama</TableHead>
+                  <TableHead className="text-[12px]">SKU</TableHead>
+                  <TableHead className="text-[12px]">Satuan</TableHead>
+                  <TableHead className="text-[12px]">Harga Jual</TableHead>
+                  <TableHead className="text-[12px]">Status</TableHead>
+                  <TableHead className="text-[12px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map(product => {
+                  const active = isActive(product);
+                  return (
+                    <TableRow key={product.id} className={cn(!active && 'opacity-50')}>
+                      <TableCell className="text-[13px] font-medium text-[#182230]">{product.name}</TableCell>
+                      <TableCell className="font-mono text-[12px] text-[#5a6675]">{product.sku}</TableCell>
+                      <TableCell className="text-[13px] text-[#5a6675]">{product.unit}</TableCell>
+                      <TableCell className="text-[13px] tabular-nums text-[#182230]">{rupiah(product.defaultPrice)}</TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                          active ? 'bg-[#e6f4f0] text-[#0f6d5f]' : 'bg-[#f0f2f5] text-[#8a94a3]',
+                        )}>
+                          {active ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEdit(product)}
+                            className="flex items-center gap-1 rounded-md border border-[#e2e6ec] px-2 py-1 text-[12px] text-[#5a6675] hover:border-[#0f6d5f] hover:text-[#0f6d5f] transition-colors"
+                            aria-label={`Edit ${product.name}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Edit
+                          </button>
+                          {active && (
+                            <button
+                              onClick={() => void handleDeactivate(product)}
+                              className="rounded-md border border-[#e2e6ec] px-2 py-1 text-[12px] text-[#a52b22] hover:border-[#a52b22] transition-colors"
+                              aria-label={`Nonaktifkan ${product.name}`}
+                            >
+                              Nonaktifkan
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile card list */}
+          <ul className="sm:hidden -mx-5 divide-y divide-[#e2e6ec] list-none m-0 p-0 border-t border-[#e2e6ec]">
             {products.map(product => {
               const active = isActive(product);
               return (
-                <TableRow key={product.id} className={cn(!active && 'opacity-50')}>
-                  <TableCell className="text-[13px] font-medium text-[#182230]">
-                    {product.name}
-                  </TableCell>
-                  <TableCell className="font-mono text-[12px] text-[#5a6675]">
-                    {product.sku}
-                  </TableCell>
-                  <TableCell className="text-[13px] text-[#5a6675]">
-                    {product.unit}
-                  </TableCell>
-                  <TableCell className="text-[13px] tabular-nums text-[#182230]">
-                    {rupiah(product.defaultPrice)}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                        active
-                          ? 'bg-[#e6f4f0] text-[#0f6d5f]'
-                          : 'bg-[#f0f2f5] text-[#8a94a3]',
-                      )}
-                    >
-                      {active ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(product)}
-                        className="flex items-center gap-1 rounded-md border border-[#e2e6ec] px-2 py-1 text-[12px] text-[#5a6675] hover:border-[#0f6d5f] hover:text-[#0f6d5f] transition-colors"
-                        aria-label={`Edit ${product.name}`}
-                      >
-                        <Pencil className="h-3 w-3" />
-                        Edit
-                      </button>
-                      {active && (
-                        <button
-                          onClick={() => void handleDeactivate(product)}
-                          className="rounded-md border border-[#e2e6ec] px-2 py-1 text-[12px] text-[#a52b22] hover:border-[#a52b22] transition-colors"
-                          aria-label={`Nonaktifkan ${product.name}`}
-                        >
-                          Nonaktifkan
-                        </button>
-                      )}
+                <li key={product.id} className={cn('px-5 py-4 grid gap-2', !active && 'opacity-50')}>
+                  {/* Name + status + price */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="m-0 text-[14px] font-semibold text-[#182230] truncate">{product.name}</p>
+                      <p className="m-0 mt-0.5 font-mono text-[12px] text-[#5a6675]">{product.sku} · {product.unit}</p>
                     </div>
-                  </TableCell>
-                </TableRow>
+                    <div className="flex-none flex flex-col items-end gap-1">
+                      <span className="text-[14px] font-semibold tabular-nums text-[#182230]">
+                        {rupiah(product.defaultPrice)}
+                      </span>
+                      <span className={cn(
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                        active ? 'bg-[#e6f4f0] text-[#0f6d5f]' : 'bg-[#f0f2f5] text-[#8a94a3]',
+                      )}>
+                        {active ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEdit(product)}
+                      className="flex items-center gap-1.5 rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] text-[#5a6675] hover:border-[#0f6d5f] hover:text-[#0f6d5f] transition-colors"
+                      aria-label={`Edit ${product.name}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                    {active && (
+                      <button
+                        onClick={() => void handleDeactivate(product)}
+                        className="rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] text-[#a52b22] hover:border-[#a52b22] hover:bg-[#fff5f5] transition-colors"
+                        aria-label={`Nonaktifkan ${product.name}`}
+                      >
+                        Nonaktifkan
+                      </button>
+                    )}
+                  </div>
+                </li>
               );
             })}
-          </TableBody>
-        </Table>
+          </ul>
+        </>
       )}
 
       {/* Add / Edit Dialog */}

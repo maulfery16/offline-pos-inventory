@@ -138,90 +138,136 @@ export default function DeviceTab({ tenantId }: TabProps) {
           <span className="text-[13px] text-[#5a6675]">Belum ada perangkat terdaftar.</span>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="border-b border-[#e2e6ec] bg-[#f8fafc]">
-                <th className="px-5 py-3 text-left font-medium text-[#5a6675]">
-                  Nama Perangkat
-                </th>
-                <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Cabang</th>
-                <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Terdaftar</th>
-                <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Status</th>
-                <th className="px-5 py-3 text-right font-medium text-[#5a6675]">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e2e6ec]">
-              {devices.map((device) => (
-                <tr key={device.id} className="hover:bg-[#f8fafc] transition-colors">
-                  {/* Name */}
-                  <td className="px-5 py-3 font-medium text-[#182230]">{device.name}</td>
-
-                  {/* Branch */}
-                  <td className="px-5 py-3 text-[#374151]">{device.branch.name}</td>
-
-                  {/* Registered date */}
-                  <td className="px-5 py-3 text-[#374151]">{formatDate(device.createdAt)}</td>
-
-                  {/* Status badge */}
-                  <td className="px-5 py-3">
-                    {device.isRevoked ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fee2e2] px-2.5 py-0.5 text-[11px] font-medium text-[#dc2626]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#dc2626]" />
-                        Dicabut
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d1fae5] px-2.5 py-0.5 text-[11px] font-medium text-[#059669]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#059669]" />
-                        Aktif
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Action */}
-                  <td className="px-5 py-3 text-right">
-                    {device.isRevoked ? (
-                      <span className="text-[12px] text-[#8a94a3]">—</span>
-                    ) : confirmId === device.id ? (
-                      /* Inline confirm */
-                      <span className="inline-flex items-center gap-2">
-                        <span className="text-[12px] text-[#374151]">Yakin?</span>
+        <>
+          {/* Desktop: table. Mobile: card list */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-[#e2e6ec] bg-[#f8fafc]">
+                  <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Nama Perangkat</th>
+                  <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Cabang</th>
+                  <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Terdaftar</th>
+                  <th className="px-5 py-3 text-left font-medium text-[#5a6675]">Status</th>
+                  <th className="px-5 py-3 text-right font-medium text-[#5a6675]">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e2e6ec]">
+                {devices.map((device) => (
+                  <tr key={device.id} className="hover:bg-[#f8fafc] transition-colors">
+                    <td className="px-5 py-3 font-medium text-[#182230]">{device.name}</td>
+                    <td className="px-5 py-3 text-[#374151]">{device.branch.name}</td>
+                    <td className="px-5 py-3 text-[#374151]">{formatDate(device.createdAt)}</td>
+                    <td className="px-5 py-3">
+                      {device.isRevoked ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fee2e2] px-2.5 py-0.5 text-[11px] font-medium text-[#dc2626]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#dc2626]" />
+                          Dicabut
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d1fae5] px-2.5 py-0.5 text-[11px] font-medium text-[#059669]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#059669]" />
+                          Aktif
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {device.isRevoked ? (
+                        <span className="text-[12px] text-[#8a94a3]">—</span>
+                      ) : confirmId === device.id ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="text-[12px] text-[#374151]">Yakin?</span>
+                          <button
+                            onClick={() => void handleRevoke(device.id)}
+                            disabled={revoking === device.id}
+                            className={cn(
+                              'rounded-md px-3 py-1 text-[12px] font-medium text-white',
+                              'bg-[#dc2626] hover:bg-[#b91c1c] transition-colors',
+                              'disabled:opacity-60 disabled:cursor-not-allowed'
+                            )}
+                          >
+                            {revoking === device.id ? 'Mencabut…' : 'Cabut'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmId(null)}
+                            disabled={revoking === device.id}
+                            className="rounded-md border border-[#e2e6ec] px-3 py-1 text-[12px] font-medium text-[#374151] hover:bg-[#f8fafc] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            Batal
+                          </button>
+                        </span>
+                      ) : (
                         <button
-                          onClick={() => void handleRevoke(device.id)}
-                          disabled={revoking === device.id}
+                          onClick={() => setConfirmId(device.id)}
                           className={cn(
-                            'rounded-md px-3 py-1 text-[12px] font-medium text-white',
-                            'bg-[#dc2626] hover:bg-[#b91c1c] transition-colors',
-                            'disabled:opacity-60 disabled:cursor-not-allowed'
+                            'rounded-md border border-[#e2e6ec] px-3 py-1.5 text-[12px] font-medium',
+                            'text-[#dc2626] hover:border-[#dc2626] hover:bg-[#fee2e2] transition-colors'
                           )}
                         >
-                          {revoking === device.id ? 'Mencabut…' : 'Cabut'}
+                          Cabut Akses
                         </button>
-                        <button
-                          onClick={() => setConfirmId(null)}
-                          disabled={revoking === device.id}
-                          className="rounded-md border border-[#e2e6ec] px-3 py-1 text-[12px] font-medium text-[#374151] hover:bg-[#f8fafc] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          Batal
-                        </button>
-                      </span>
-                    ) : (
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: card list */}
+          <ul className="sm:hidden divide-y divide-[#e2e6ec] list-none m-0 p-0">
+            {devices.map((device) => (
+              <li key={device.id} className="px-5 py-4 grid gap-3">
+                {/* Name + status */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="m-0 text-[14px] font-semibold text-[#182230] truncate">{device.name}</p>
+                    <p className="m-0 mt-0.5 text-[12px] text-[#5a6675]">{device.branch.name} · {formatDate(device.createdAt)}</p>
+                  </div>
+                  {device.isRevoked ? (
+                    <span className="flex-none inline-flex items-center gap-1 rounded-full bg-[#fee2e2] px-2 py-0.5 text-[11px] font-medium text-[#dc2626]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#dc2626]" />
+                      Dicabut
+                    </span>
+                  ) : (
+                    <span className="flex-none inline-flex items-center gap-1 rounded-full bg-[#d1fae5] px-2 py-0.5 text-[11px] font-medium text-[#059669]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#059669]" />
+                      Aktif
+                    </span>
+                  )}
+                </div>
+                {/* Action */}
+                {!device.isRevoked && (
+                  confirmId === device.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] text-[#374151]">Yakin cabut akses perangkat ini?</span>
                       <button
-                        onClick={() => setConfirmId(device.id)}
-                        className={cn(
-                          'rounded-md border border-[#e2e6ec] px-3 py-1.5 text-[12px] font-medium',
-                          'text-[#dc2626] hover:border-[#dc2626] hover:bg-[#fee2e2] transition-colors'
-                        )}
+                        onClick={() => void handleRevoke(device.id)}
+                        disabled={revoking === device.id}
+                        className="rounded-[7px] bg-[#dc2626] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[#b91c1c] transition-colors disabled:opacity-60"
                       >
-                        Cabut Akses
+                        {revoking === device.id ? 'Mencabut…' : 'Ya, cabut'}
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        disabled={revoking === device.id}
+                        className="rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] font-medium text-[#374151] hover:bg-[#f8fafc] transition-colors"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmId(device.id)}
+                      className="self-start rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] font-medium text-[#dc2626] hover:border-[#dc2626] hover:bg-[#fee2e2] transition-colors"
+                    >
+                      Cabut Akses
+                    </button>
+                  )
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {/* Footer count */}
