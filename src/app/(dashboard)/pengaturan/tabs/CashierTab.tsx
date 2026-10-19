@@ -48,7 +48,7 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
   const fetchCashiers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/users?role=cashier', {
+      const res = await fetch('/api/users?role=kasir', {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Gagal memuat daftar kasir');
