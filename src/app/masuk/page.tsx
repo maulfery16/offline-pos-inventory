@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff, Tablet } from 'lucide-react';
 import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders } from '@/core/auth/client';
+import { usePendingSyncCount } from '@/core/sync/usePendingSyncCount';
 import { deviceRegistrationSchema, kasirLoginSchema, adminLoginSchema, type DeviceRegistrationForm, type AdminLoginForm } from '@/core/auth/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
 import { fieldBorder } from '@/shared/components/forms/fieldBorder';
@@ -14,21 +15,13 @@ type Role = 'kasir' | 'admin' | 'owner';
 
 // kasirOptions loaded from API in useEffect
 
-// TODO: replace with WatermelonDB query — this is prototype mock data
-const cabangOptions = [
-  { value: 'semua', label: 'Semua cabang (konsolidasi)' },
-  { value: 'pusat', label: 'Toko Pusat — Jakarta Selatan' },
-  { value: 'bandung', label: 'Cabang Bandung — Dago' },
-  { value: 'surabaya', label: 'Cabang Surabaya — Diponegoro' },
-];
-
-const pendingSyncCount = 0; // TODO: wire to useSyncManager in TASK-3.5
 
 // Debug-only: the offline simulator toggle is only rendered in dev builds.
 const isDev = process.env.NODE_ENV === 'development';
 
 export default function MasukPage() {
   const router = useRouter();
+  const pendingSyncCount = usePendingSyncCount();
   const [selectedRole, setSelectedRole] = useState<Role>('kasir');
   const [pin, setPin] = useState('');
   const [selectedKasir, setSelectedKasir] = useState('');
@@ -43,6 +36,10 @@ export default function MasukPage() {
 
   const [kasirList, setKasirList] = useState<{ value: string; label: string }[]>([]);
   const [deviceToken, setDeviceTokenState] = useState<string | null>(null);
+  const [cabangOptions, setCabangOptions] = useState<{ value: string; label: string }[]>([
+    { value: 'semua', label: 'Semua cabang (konsolidasi)' }, // default fallback
+  ]);
+  const [cabangLoading, setCabangLoading] = useState(false);
 
   // Device registration state
   const [showRegister, setShowRegister] = useState(false);
@@ -104,6 +101,30 @@ export default function MasukPage() {
     loadKasirList(token);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!deviceToken) return;
+    setCabangLoading(true);
+    fetch('/api/branches', { headers: getAuthHeaders() })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        const branches = data?.data ?? data?.branches ?? [];
+        if (branches.length > 0) {
+          const options = [
+            { value: 'semua', label: 'Semua cabang (konsolidasi)' },
+            ...branches.map((b: { id: string; name: string; code?: string }) => ({
+              value: b.id,
+              label: b.name,
+            })),
+          ];
+          setCabangOptions(options);
+        }
+      })
+      .catch(() => {
+        // Keep default fallback options on error
+      })
+      .finally(() => setCabangLoading(false));
+  }, [deviceToken]);
 
   const handleRegisterDevice = handleSubmitReg(async (data: DeviceRegistrationForm) => {
     if (isRegistering) return;
@@ -572,7 +593,9 @@ export default function MasukPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <label htmlFor="cabang" className="text-sm font-medium">Cabang</label>
+                  <label htmlFor="cabang" className="text-sm font-medium">
+                    Cabang{cabangLoading && <span className="ml-1 text-[#5a6675] font-normal">— memuat…</span>}
+                  </label>
                   <div className="relative">
                     <select
                       id="cabang"

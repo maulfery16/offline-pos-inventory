@@ -34,6 +34,11 @@ export function clearDeviceToken(): void {
   localStorage.removeItem(DEVICE_TOKEN_KEY)
 }
 
+export function clearSessionToken(): void {
+  if (!isBrowser()) return
+  localStorage.removeItem(SESSION_TOKEN_KEY)
+}
+
 export function clearAllTokens(): void {
   if (!isBrowser()) return
   localStorage.removeItem(DEVICE_TOKEN_KEY)

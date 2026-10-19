@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { useRequireAuth } from '@/core/auth/useRequireAuth';
+import { decodeSessionToken, getSessionToken, getAuthHeaders } from '@/core/auth/client';
 import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
 import { useCartStore } from '@/features/pos/store';
 import useSyncManager from '@/core/sync/useSyncManager';
@@ -53,6 +54,7 @@ export default function KasirPage() {
   const [voidTargetSku, setVoidTargetSku] = useState<string | null>(null);
   const [voidPin, setVoidPin] = useState('');
   const [voidError, setVoidError] = useState(false);
+  const [isVoidVerifying, setIsVoidVerifying] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number; syncedOnline: boolean; ref: string } | null>(null);
   const [cartSnapshot, setCartSnapshot] = useState<CartSnapshot[]>([]);
@@ -191,13 +193,34 @@ export default function KasirPage() {
     setShowVoidDialog(true);
   };
 
-  const confirmVoid = () => {
-    // TODO: validate voidPin against actual admin PIN via /api/auth/verify-pin before proceeding
-    // Until backend auth is wired, this is a length-only check and does NOT provide real authorization
-    if (voidPin.length >= 4) {
-      removeFromCart(voidTargetSku!);
-    } else {
+  const confirmVoid = async () => {
+    const token = getSessionToken();
+    if (!token) {
       setVoidError(true);
+      return;
+    }
+    const session = decodeSessionToken<{ userId: string; role: string }>(token);
+    if (!session?.userId) {
+      setVoidError(true);
+      return;
+    }
+    setIsVoidVerifying(true);
+    try {
+      const res = await fetch('/api/auth/pin-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ userId: session.userId, pin: voidPin }),
+      });
+      if (res.ok) {
+        removeFromCart(voidTargetSku!);
+        setVoidPin('');
+      } else {
+        setVoidError(true);
+      }
+    } catch {
+      setVoidError(true);
+    } finally {
+      setIsVoidVerifying(false);
     }
   };
 
@@ -808,9 +831,10 @@ export default function KasirPage() {
               <button
                 type="button"
                 onClick={confirmVoid}
-                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer"
+                disabled={isVoidVerifying}
+                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
               >
-                Hapus item
+                {isVoidVerifying ? 'Memverifikasi…' : 'Hapus item'}
               </button>
             </div>
           </div>

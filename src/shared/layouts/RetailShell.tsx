@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Store,
   ScanBarcode,
@@ -14,7 +14,9 @@ import {
   Menu,
   X,
   WifiOff,
+  LogOut,
 } from 'lucide-react';
+import { clearSessionToken, clearAllTokens } from '@/core/auth/client';
 import { Badge } from '@/shared/components/Badge';
 import { cn } from '@/shared/utils';
 import { useLowStockBadge } from '@/features/inventory/hooks/useLowStockBadge';
@@ -59,7 +61,10 @@ export const RetailShell: React.FC<RetailShellProps> = ({
   headerActions,
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSignoutOpen, setIsSignoutOpen] = useState(false);
+  const signoutRef = useRef<HTMLDivElement>(null);
   const pathname  = usePathname();
+  const router    = useRouter();
   const { count: lowStockCount } = useLowStockBadge();
   const pageTitle = title ?? getPageTitle(pathname);
 
@@ -92,6 +97,19 @@ export const RetailShell: React.FC<RetailShellProps> = ({
     }
     return () => { document.body.style.overflow = ''; };
   }, [isDrawerOpen]);
+
+  // Close signout popover on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (signoutRef.current && !signoutRef.current.contains(e.target as Node)) {
+        setIsSignoutOpen(false);
+      }
+    };
+    if (isSignoutOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isSignoutOpen]);
 
   const renderNavItems = (onClick?: () => void) => {
     let currentGroup = '';
@@ -148,14 +166,52 @@ export const RetailShell: React.FC<RetailShellProps> = ({
       </nav>
       {/* User footer */}
       <div className="shrink-0 flex flex-col gap-2 px-4 pb-5 text-xs text-[#8593a6]">
-        <div className="flex items-center gap-3 p-2.5 rounded-[10px] bg-[#1b2534]">
-          <span className="grid place-items-center w-8 h-8 rounded-full bg-[#12507f] text-white text-xs font-semibold flex-none">
-            RA
-          </span>
-          <div className="min-w-0">
-            <p className="m-0 text-[13px] text-[#f2f6fb] font-semibold truncate">Rani Anggraeni</p>
-            <p className="m-0 text-[11px] text-[#8593a6]">Admin · 2 cabang</p>
+        <div ref={signoutRef} className="relative">
+          <div className="flex items-center gap-3 p-2.5 rounded-[10px] bg-[#1b2534]">
+            <span className="grid place-items-center w-8 h-8 rounded-full bg-[#12507f] text-white text-xs font-semibold flex-none">
+              RA
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="m-0 text-[13px] text-[#f2f6fb] font-semibold truncate">Rani Anggraeni</p>
+              <p className="m-0 text-[11px] text-[#8593a6]">Admin · 2 cabang</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSignoutOpen(prev => !prev)}
+              className="flex-none grid place-items-center w-8 h-8 rounded-[8px] text-[#8593a6] hover:bg-[#2a3648] hover:text-[#e7ecf3] transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9] focus-visible:outline-offset-2"
+              aria-label="Opsi keluar"
+              aria-expanded={isSignoutOpen}
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
+          {isSignoutOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 rounded-[10px] bg-[#1b2534] border border-[#2a3648] overflow-hidden shadow-lg z-10">
+              <button
+                type="button"
+                onClick={() => { clearSessionToken(); router.replace('/masuk'); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[#d3dbe6] hover:bg-[#2a3648] hover:text-white transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9]"
+              >
+                <LogOut className="w-4 h-4 flex-none text-[#8593a6]" />
+                <div className="min-w-0 text-left">
+                  <p className="m-0 font-medium">Keluar sesi</p>
+                  <p className="m-0 text-[11px] text-[#8593a6]">Perangkat tetap terdaftar</p>
+                </div>
+              </button>
+              <div className="h-px bg-[#2a3648]" />
+              <button
+                type="button"
+                onClick={() => { clearAllTokens(); router.replace('/masuk'); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[#f3b64a] hover:bg-[#2a3648] transition-colors focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9]"
+              >
+                <LogOut className="w-4 h-4 flex-none" />
+                <div className="min-w-0 text-left">
+                  <p className="m-0 font-medium">Keluarkan perangkat</p>
+                  <p className="m-0 text-[11px] text-[#f3b64a]/70">Hapus semua token, perlu registrasi ulang</p>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
         <p className="m-0 px-1">Mode offline siap · 1.240 SKU lokal</p>
       </div>
