@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff } from 'lucide-react';
-import { getDeviceToken, setSessionToken, getAuthHeaders } from '@/core/auth/client';
+import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff, Tablet } from 'lucide-react';
+import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders } from '@/core/auth/client';
 
 type Role = 'kasir' | 'admin' | 'owner';
 
@@ -37,14 +37,19 @@ export default function MasukPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [kasirList, setKasirList] = useState<{ value: string; label: string }[]>([]);
-  const [_deviceToken, setDeviceTokenState] = useState<string | null>(null);
+  const [deviceToken, setDeviceTokenState] = useState<string | null>(null);
 
-  useEffect(() => {
-    const token = getDeviceToken();
-    setDeviceTokenState(token);
-    if (!token) return;
-    // Load cashier list from API
-    fetch('/api/users?role=kasir', { headers: getAuthHeaders() })
+  // Device registration state
+  const [showRegister, setShowRegister] = useState(false);
+  const [regTenantCode, setRegTenantCode] = useState('');
+  const [regBranchCode, setRegBranchCode] = useState('');
+  const [regDeviceName, setRegDeviceName] = useState('');
+  const [regAdminPassword, setRegAdminPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [regError, setRegError] = useState('');
+
+  const loadKasirList = (token: string) => {
+    fetch('/api/users?role=kasir', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         const list = data?.data ?? data?.users ?? [];
@@ -55,10 +60,55 @@ export default function MasukPage() {
           })));
         }
       })
-      .catch(() => {
-        // offline or API error — leave list empty, user can still attempt login
-      });
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    const token = getDeviceToken();
+    setDeviceTokenState(token);
+    if (!token) {
+      setShowRegister(true);
+      return;
+    }
+    loadKasirList(token);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleRegisterDevice = async (e: React.FormEvent) => {    e.preventDefault();
+    if (isRegistering) return;
+    setRegError('');
+    if (!regTenantCode || !regBranchCode || !regDeviceName || !regAdminPassword) {
+      setRegError('Semua kolom wajib diisi.');
+      return;
+    }
+    setIsRegistering(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantCode: regTenantCode.toUpperCase().trim(),
+          branchCode: regBranchCode.toUpperCase().trim(),
+          deviceName: regDeviceName.trim(),
+          adminPassword: regAdminPassword,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setRegError(data.error || 'Registrasi gagal. Periksa kode dan kata sandi.');
+        return;
+      }
+      const data = await res.json();
+      setDeviceToken(data.token);
+      setDeviceTokenState(data.token);
+      setShowRegister(false);
+      loadKasirList(data.token);
+    } catch {
+      setRegError('Koneksi gagal. Periksa jaringan internet.');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
 
   const pinInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -200,6 +250,85 @@ export default function MasukPage() {
             </span>
             <span>Toko Lintas Cabang</span>
           </div>
+
+          {/* Device registration gate — shown when no device token is stored */}
+          {showRegister ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Tablet className="w-5 h-5 text-[#0f6d5f]" />
+                  <h1 className="m-0 text-xl font-bold tracking-tight leading-[1.3]">Daftarkan perangkat ini</h1>
+                </div>
+                <p className="m-0 text-sm text-[#5a6675]">Perangkat baru perlu didaftarkan sekali oleh admin toko sebelum bisa digunakan.</p>
+              </div>
+
+              <form onSubmit={handleRegisterDevice} className="grid gap-4">
+                <div className="grid gap-2">
+                  <label htmlFor="tenantCode" className="text-sm font-medium">Kode Toko</label>
+                  <input
+                    id="tenantCode"
+                    type="text"
+                    value={regTenantCode}
+                    onChange={(e) => setRegTenantCode(e.target.value)}
+                    placeholder="mis. TLC"
+                    autoCapitalize="characters"
+                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="branchCode" className="text-sm font-medium">Kode Cabang</label>
+                  <input
+                    id="branchCode"
+                    type="text"
+                    value={regBranchCode}
+                    onChange={(e) => setRegBranchCode(e.target.value)}
+                    placeholder="mis. PUSAT"
+                    autoCapitalize="characters"
+                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="deviceName" className="text-sm font-medium">Nama Perangkat</label>
+                  <input
+                    id="deviceName"
+                    type="text"
+                    value={regDeviceName}
+                    onChange={(e) => setRegDeviceName(e.target.value)}
+                    placeholder="mis. iPad Kasir 1"
+                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="adminPassword" className="text-sm font-medium">Kata Sandi Admin</label>
+                  <input
+                    id="adminPassword"
+                    type="password"
+                    value={regAdminPassword}
+                    onChange={(e) => setRegAdminPassword(e.target.value)}
+                    placeholder="Kata sandi admin toko"
+                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                  />
+                </div>
+
+                {regError && (
+                  <div role="alert" className="flex gap-2 p-3 rounded-[6px] bg-[#fbe8e5] text-[#a52b22] text-sm">
+                    <AlertCircle className="flex-none w-4 h-4 mt-0.5" aria-hidden="true" />
+                    <span>{regError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  className="min-h-[48px] w-full flex items-center justify-center gap-2 px-4 text-base font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] cursor-pointer transition-all hover:bg-[#0b564a] active:translate-y-0.5 focus:outline-none focus-visible:outline-2 focus-visible:outline-[#0f6d5f] focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isRegistering ? 'Mendaftarkan…' : 'Daftarkan Perangkat'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+          {/* Heading — eyebrow removed per craft-floor kicker ban; heading carries its own weight. */}
 
           {/* Heading — eyebrow removed per craft-floor kicker ban; heading carries its own weight. */}
           <div className="flex flex-col gap-2">
@@ -437,6 +566,8 @@ export default function MasukPage() {
               </span>
             </p>
           </form>
+            </> /* end login form fragment */
+          )} {/* end showRegister conditional */}
 
           {/* Meta */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-5 border-t border-[#e2e6ec] text-xs text-[#5a6675]">
