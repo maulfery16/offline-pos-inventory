@@ -5,6 +5,9 @@
       "dom.iterable",
       "esnext"
     ],
+    "types": [
+      "w3c-web-usb"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
