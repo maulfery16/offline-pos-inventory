@@ -184,7 +184,7 @@ export default function MasukPage() {
       try {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ email, password }),
         });
         if (!res.ok) {
