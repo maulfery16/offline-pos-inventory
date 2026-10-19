@@ -7,6 +7,9 @@ import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
 import { useCartStore } from '@/features/pos/store';
 import useSyncManager from '@/core/sync/useSyncManager';
 import { v4 as uuidv4 } from 'uuid';
+import { checkProductExpiry } from '@/features/inventory/expiryGuard';
+import { toast } from 'sonner';
+import { usePrinter } from '@/features/pos/hooks/usePrinter';
 
 type PaymentMethod = 'Tunai' | 'QRIS' | 'Kartu';
 
@@ -52,6 +55,7 @@ export default function KasirPage() {
   const [cartSnapshot, setCartSnapshot] = useState<CartSnapshot[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRestoreId, setPendingRestoreId] = useState<string | null>(null);
+  const [expiryBlockedMessage, setExpiryBlockedMessage] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const clearConfirmBtnRef = useRef<HTMLButtonElement>(null);
   const restoreConfirmBtnRef = useRef<HTMLButtonElement>(null);
@@ -61,6 +65,7 @@ export default function KasirPage() {
   const { products: rawProducts } = useProducts(scanInput.length >= 2 ? scanInput : undefined);
   const { batches: allBatches } = useInventoryBatches();
   const { isSyncing, triggerSync } = useSyncManager(db);
+  const { isConnected: printerConnected, isSupported: printerSupported, connect: connectPrinter, print: printReceipt } = usePrinter();
 
   // Map WatermelonDB products to the Product interface used by the UI
   const now = Date.now();
@@ -132,11 +137,23 @@ export default function KasirPage() {
       ).slice(0, 5)
     : [];
 
-  const handleScanKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleScanKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       const exactMatch = products.find((p) => p.sku === scanInput.trim());
       if (exactMatch) {
+        // Req 6.1–6.5: check expiry before adding to cart (WatermelonDB only, no network)
+        if (db) {
+          const result = await checkProductExpiry(exactMatch.sku, db);
+          if (result.status === 'blocked') {
+            setExpiryBlockedMessage(result.message);
+            setScanInput('');
+            return;
+          }
+          if (result.status === 'warning') {
+            toast.warning(result.message);
+          }
+        }
         addToCart(exactMatch);
         setScanInput('');
         setScanError('');
@@ -242,6 +259,40 @@ export default function KasirPage() {
       }
     }
 
+    // Build and print receipt — fire-and-forget; never blocks the WatermelonDB write
+    const storeName = (() => {
+      try {
+        const raw = localStorage.getItem('device_jwt_payload');
+        if (raw) return JSON.parse(raw).storeName || 'Kasir POS';
+      } catch { /* ignore */ }
+      return 'Kasir POS';
+    })();
+    const branchName = (() => {
+      try {
+        const raw = localStorage.getItem('device_jwt_payload');
+        if (raw) return JSON.parse(raw).branchName || 'Cabang';
+      } catch { /* ignore */ }
+      return 'Cabang';
+    })();
+    const receiptData = {
+      storeName,
+      branchName,
+      receiptRef: txRef,
+      transactionDate: new Date(),
+      items: cartItems.map(i => ({
+        name: i.name,
+        quantity: i.quantity,
+        sellingPrice: i.sellingPrice,
+      })),
+      subtotal: total,
+      paymentMethod: paymentMethod,
+      cashReceived: paymentMethod === 'Tunai' ? cashReceived : total,
+      change: paymentMethod === 'Tunai' ? change : 0,
+    };
+    printReceipt(receiptData).catch(() => {
+      // Print failure must NOT roll back the WatermelonDB write (critical constraint)
+    });
+
     // P1-D: snapshot cart before clearing
     setCartSnapshot([...cartItems.map(i => ({
       sku: i.sku, name: i.name, price: i.sellingPrice, batch: '—', days: 0, stock: 0, qty: i.quantity
@@ -309,7 +360,33 @@ export default function KasirPage() {
             <h2 className="m-0 text-[15px] font-semibold">Shift kasir · Sari Wulandari</h2>
             <p className="m-0 mt-1 text-xs text-[#5a6675]">Kasir 01 · Cabang Kebayoran · Buka 08:12 · 62 transaksi</p>
           </div>
-          <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Antrean normal · 3 pelanggan</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Antrean normal · 3 pelanggan</span>
+            {/* Printer connect button — hidden if WebUSB not supported */}
+            {printerSupported ? (
+              <button
+                type="button"
+                onClick={connectPrinter}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[8px] border transition-colors cursor-pointer',
+                  printerConnected
+                    ? 'bg-[#e3f4e9] border-[#7cc49b] text-[#136b3f]'
+                    : 'bg-white border-[#cbd2dc] text-[#5a6675] hover:border-[#0f6d5f] hover:text-[#0f6d5f]'
+                )}
+                aria-label={printerConnected ? 'Printer terhubung' : 'Hubungkan printer'}
+              >
+                <span className={cn('w-2 h-2 rounded-full', printerConnected ? 'bg-[#136b3f]' : 'bg-[#8a94a3]')} aria-hidden="true" />
+                <Printer className="w-3.5 h-3.5" />
+                {printerConnected ? 'Printer terhubung' : 'Hubungkan Printer'}
+              </button>
+            ) : (
+              /* Fallback icon when WebUSB not supported */
+              <span title="Cetak via dialog browser" className="flex items-center gap-1 px-2 py-1 text-xs text-[#5a6675]">
+                <Printer className="w-3.5 h-3.5" />
+                Cetak browser
+              </span>
+            )}
+          </div>
         </div>
         <div className={cn(
           'flex items-center gap-2 p-3 rounded-[10px] border text-sm',
@@ -831,6 +908,32 @@ export default function KasirPage() {
                 className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:opacity-90 cursor-pointer"
               >
                 Ganti keranjang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Req 6.3: Expiry blocked dialog — shown when all batches are expired/blocked */}
+      {expiryBlockedMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="expiry-blocked-title" className="w-[min(440px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
+            <div className="p-5 grid gap-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 flex-none text-[#a52b22] mt-0.5" />
+                <div>
+                  <h2 id="expiry-blocked-title" className="m-0 text-lg font-bold text-[#a52b22]">Produk tidak dapat dijual</h2>
+                  <p className="m-0 mt-1 text-sm text-[#5a6675]">{expiryBlockedMessage}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end p-4 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+              <button
+                type="button"
+                onClick={() => { setExpiryBlockedMessage(null); setTimeout(() => scanInputRef.current?.focus(), 50); }}
+                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer"
+              >
+                Mengerti
               </button>
             </div>
           </div>

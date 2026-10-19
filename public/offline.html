@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="5;url=/" />
+    <title>Kasir POS — Tidak Ada Koneksi</title>
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        background-color: #ffffff;
+        color: #1a1a1a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 1.5rem;
+      }
+
+      .container {
+        text-align: center;
+        max-width: 360px;
+        width: 100%;
+      }
+
+      .icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background-color: #e6f4f2;
+        margin-bottom: 1.5rem;
+      }
+
+      .icon svg {
+        width: 36px;
+        height: 36px;
+        stroke: #0f6d5f;
+        fill: none;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .app-name {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #0f6d5f;
+        margin-bottom: 0.75rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 0.75rem;
+        line-height: 1.3;
+      }
+
+      p {
+        font-size: 0.9375rem;
+        color: #6b7280;
+        line-height: 1.6;
+        margin-bottom: 0.5rem;
+      }
+
+      .redirect-note {
+        font-size: 0.8125rem;
+        color: #9ca3af;
+        margin-bottom: 2rem;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 0.625rem 1.75rem;
+        background-color: #0f6d5f;
+        color: #ffffff;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background-color 0.15s ease;
+      }
+
+      .btn:hover,
+      .btn:focus-visible {
+        background-color: #0d5e52;
+        outline: 2px solid #0f6d5f;
+        outline-offset: 3px;
+      }
+
+      .btn:active {
+        background-color: #0b4f45;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon" aria-hidden="true">
+        <!-- Wifi-off icon (hand-coded SVG, no external dependency) -->
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="1" y1="1" x2="23" y2="23" />
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+          <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+          <line x1="12" y1="20" x2="12.01" y2="20" />
+        </svg>
+      </div>
+
+      <p class="app-name">Kasir POS</p>
+      <h1>Tidak Ada Koneksi Internet</h1>
+      <p>Perangkat Anda sedang offline. Periksa koneksi jaringan atau Wi-Fi, lalu coba lagi.</p>
+      <p class="redirect-note">Halaman ini akan otomatis mencoba kembali dalam 5 detik.</p>
+
+      <button class="btn" onclick="window.location.href = '/'">
+        Coba Lagi
+      </button>
+    </div>
+  </body>
+</html>

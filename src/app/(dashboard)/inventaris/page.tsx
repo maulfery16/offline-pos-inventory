@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
 import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
+import { decodeSessionRole } from '@/core/auth/client';
+import AnomalySection from '@/features/inventory/AnomalySection';
 
 interface InventoryItem {
   sku: string;
@@ -19,6 +21,12 @@ interface InventoryItem {
 type Filter = 'all' | 'low' | 'expiry' | 'variance';
 
 export default function InventarisPage() {
+  const [role, setRole] = useState<string>('');
+
+  useEffect(() => {
+    setRole(decodeSessionRole() ?? '');
+  }, []);
+
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [physicalValues, setPhysicalValues] = useState<Record<string, number>>({});
@@ -359,6 +367,9 @@ export default function InventarisPage() {
           </section>
         </aside>
       </div>
+
+      {/* Anomaly Section — Req 7.1, 7.7 */}
+      <AnomalySection role={role} />
 
       {/* Adjust Dialog */}
       <Dialog open={!!adjustDialog} onOpenChange={(open) => { if (!open) setAdjustDialog(null); }}>

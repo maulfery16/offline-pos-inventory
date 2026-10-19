@@ -68,3 +68,41 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+// PATCH /api/products/[id] — partial update (alias of PUT logic)
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  try {
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Missing tenant context' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, sku, barcode, unit, reorderPoint, defaultPrice } = body;
+
+    const product = await prisma.product.updateMany({
+      where: { id: params.id, tenantId, deletedAt: null },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(sku !== undefined && { sku }),
+        ...(barcode !== undefined && { barcode }),
+        ...(unit !== undefined && { unit }),
+        ...(reorderPoint !== undefined && { reorderPoint }),
+        ...(defaultPrice !== undefined && { defaultPrice }),
+      },
+    });
+
+    if (product.count === 0) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const updated = await prisma.product.findFirst({
+      where: { id: params.id, tenantId },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('[PATCH /api/products/[id]]', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
