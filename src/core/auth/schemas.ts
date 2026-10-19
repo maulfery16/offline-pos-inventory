@@ -19,6 +19,12 @@ export const adminLoginSchema = z.object({
   rememberDevice: z.boolean(),
 });
 
+export const cashierAddSchema = z.object({
+  name: z.string().min(1, 'Nama kasir tidak boleh kosong'),
+  pin: z.string().regex(/^\d{4,6}$/, 'PIN harus berupa angka 4–6 digit'),
+});
+
 export type DeviceRegistrationForm = z.infer<typeof deviceRegistrationSchema>;
 export type KasirLoginForm = z.infer<typeof kasirLoginSchema>;
 export type AdminLoginForm = z.infer<typeof adminLoginSchema>;
+export type CashierAddForm = z.infer<typeof cashierAddSchema>;

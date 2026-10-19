@@ -320,7 +320,7 @@ export default function ProductTab({ tenantId }: TabProps) {
                 {...register('name')}
                 placeholder="Nama produk"
                 className={cn(
-                  'rounded-lg px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
+                  'rounded-lg border px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
                   fieldBorder(!!errors.name, 'border-[#e2e6ec]'),
                 )}
               />
@@ -338,7 +338,7 @@ export default function ProductTab({ tenantId }: TabProps) {
                 {...register('sku')}
                 placeholder="Kode SKU unik"
                 className={cn(
-                  'rounded-lg px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
+                  'rounded-lg border px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
                   fieldBorder(!!errors.sku, 'border-[#e2e6ec]'),
                 )}
               />
@@ -372,7 +372,7 @@ export default function ProductTab({ tenantId }: TabProps) {
                 {...register('defaultPrice')}
                 placeholder="0"
                 className={cn(
-                  'rounded-lg px-3 py-2 text-[13px] tabular-nums text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
+                  'rounded-lg border px-3 py-2 text-[13px] tabular-nums text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
                   fieldBorder(!!errors.defaultPrice, 'border-[#e2e6ec]'),
                 )}
               />

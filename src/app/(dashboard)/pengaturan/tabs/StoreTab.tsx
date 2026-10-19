@@ -159,6 +159,7 @@ export default function StoreTab({ tenantId }: TabProps) {
             className="text-xs font-medium text-[#5a6675]"
           >
             Nama Toko
+            <span className="text-red-500">*</span>
           </label>
           <input
             id="store-name"
@@ -229,6 +230,7 @@ export default function StoreTab({ tenantId }: TabProps) {
               className="text-xs font-medium text-[#5a6675]"
             >
               Email
+              <span className="text-red-500">*</span>
             </label>
             <input
               id="store-email"
