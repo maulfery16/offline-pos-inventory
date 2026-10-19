@@ -6,9 +6,9 @@ description: Rencana implementasi bertahap (Phase 1-4, 24 tasks) untuk project o
 
 # Implementation Plan: Offline POS Inventory System
 
-> **Status keseluruhan**: ~55% complete  
-> **Yang sudah ada**: UI shell lengkap, 5 halaman dashboard dengan data mock, Prisma schema, design system, semua dependencies terpasang, **semua backend API routes Phase 1 selesai** (auth, sync, products, inbound, reports, middleware)  
-> **Yang belum ada**: WatermelonDB offline engine (Phase 2), koneksi UI ke data nyata (Phase 3), hardware & polish (Phase 4)
+> **Status keseluruhan**: ~90% complete  
+> **Yang sudah ada**: UI shell lengkap, Prisma schema, design system, semua dependencies terpasang, **Phase 1 selesai semua** (auth, sync, products, inbound, reports, middleware), **Phase 2 selesai semua** (WatermelonDB instance, schema, models, sync engine, provider & hooks), **Phase 3 selesai semua** (Zustand store, auth frontend, route guards, semua 5 halaman dashboard terhubung ke data nyata)  
+> **Yang belum ada**: Hardware & polish (Phase 4)
 
 Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat mengerjakan fitur baru. Setiap task di bawah adalah atomic dan dapat dikerjakan secara independen dalam satu sesi agent.
 
@@ -201,7 +201,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 > Goal: App bisa bekerja offline penuh — data tersimpan lokal di browser, sync otomatis saat online.
 
 ### TASK-2.1 · WatermelonDB: Database Instance & Adapter
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/watermelon.ts`  
 **Apa yang dikerjakan**:
 - Setup `LokiJSAdapter` untuk development / `IndexedDBAdapter` untuk production (cek platform)
@@ -215,7 +215,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.2 · WatermelonDB: Schema Definition
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/schema.ts`  
 **Apa yang dikerjakan**:
 - Define `appSchema` dengan tabel:
@@ -228,7 +228,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.3 · WatermelonDB: Model Classes
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/models/Product.ts`, `InventoryBatch.ts`, `Transaction.ts`, `TransactionItem.ts`  
 **Apa yang dikerjakan**:
 - Extend `Model` dari WatermelonDB
@@ -240,7 +240,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.4 · WatermelonDB: Sync Engine
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/sync/index.ts`  
 **Apa yang dikerjakan**:
 - Implementasikan `syncDatabase()` function menggunakan `synchronize()` dari WatermelonDB
@@ -253,7 +253,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.5 · WatermelonDB: React Provider & Hooks
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/DatabaseProvider.tsx`, `src/core/db/hooks.ts`  
 **Apa yang dikerjakan**:
 - `<DatabaseProvider>` — wrap app, provide database instance via context
@@ -270,7 +270,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 > Goal: Semua 5 halaman dashboard terhubung ke WatermelonDB + API, bukan data hardcoded.
 
 ### TASK-3.1 · Zustand: POS Cart Store
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/features/pos/store.ts`  
 **Apa yang dikerjakan**:
 - Define `CartItem`: `{ productId, name, sku, quantity, sellingPrice, expiryStatus }`
@@ -286,7 +286,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.2 · Kasir Page: Koneksi ke WatermelonDB
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/kasir/page.tsx`  
 **Apa yang dikerjakan**:
 - Ganti product catalog hardcoded → query `useProducts()` dari WatermelonDB
@@ -300,7 +300,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.3 · Barang Masuk Page: Koneksi ke API
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/barang-masuk/page.tsx`  
 **Apa yang dikerjakan**:
 - Scan barcode → lookup product dari WatermelonDB by SKU
@@ -312,7 +312,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.4 · Inventaris Page: Koneksi ke WatermelonDB
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/inventaris/page.tsx`  
 **Apa yang dikerjakan**:
 - Ganti product list hardcoded → query `useProducts()` dengan real-time observe
@@ -325,7 +325,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.5 · Kedaluwarsa Page: Koneksi ke WatermelonDB
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/kedaluwarsa/page.tsx`  
 **Apa yang dikerjakan**:
 - Ganti batch list hardcoded → query `useInventoryBatches()` observe
@@ -337,7 +337,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.6 · Laporan Page: Koneksi ke API
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/laporan/page.tsx`  
 **Apa yang dikerjakan**:
 - KPI cards + line chart → fetch dari `GET /api/reports/profit?from=&to=`
@@ -349,7 +349,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.7 · Authentication Frontend
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/masuk/page.tsx` (update), `src/core/auth/client.ts`  
 **Apa yang dikerjakan**:
 - `src/core/auth/client.ts`:
@@ -366,7 +366,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.8 · Root Route & Navigation Guards
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/page.tsx`, `src/middleware.ts` (update)  
 **Apa yang dikerjakan**:
 - `src/app/page.tsx` → ganti placeholder dengan redirect ke `/masuk`
