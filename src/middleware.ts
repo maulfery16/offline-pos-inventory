@@ -1,13 +1,11 @@
-export const runtime = 'nodejs';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJWT } from '@/core/auth';
-import { prisma } from '@/core/db/prisma';
 
-// Page-level auth (dashboard routes: /kasir, /inventaris, /laporan, /barang-masuk, /kedaluwarsa)
-// is handled client-side. The device token is stored in localStorage (not cookies), so middleware
-// cannot access it. Client-side guards live in each page and in src/app/page.tsx (root redirect).
-// This middleware only enforces JWT on /api/* routes.
+// NOTE: Middleware runs on the Edge runtime (default) so it can mutate
+// request headers via NextResponse.next({ request: { headers } }).
+// Device revocation (isRevoked) is enforced inside each API route handler
+// via the injected x-device-id header, not here, because Prisma cannot
+// run in the Edge runtime.
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,16 +26,7 @@ export async function middleware(request: NextRequest) {
   try {
     const payload = await verifyJWT(token);
 
-    // Check if device has been revoked
-    const device = await prisma.device.findUnique({
-      where: { id: payload.deviceId },
-      select: { isRevoked: true },
-    });
-    if (!device || device.isRevoked) {
-      return NextResponse.json({ error: 'Device revoked' }, { status: 401 });
-    }
-
-    // Inject tenant/branch/device context into request headers
+    // Inject tenant/branch/device context into request headers for route handlers
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-tenant-id', payload.tenantId);
     requestHeaders.set('x-branch-id', payload.branchId);

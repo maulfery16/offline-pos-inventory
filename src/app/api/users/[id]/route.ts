@@ -2,24 +2,20 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/core/db/prisma';
-import { verifyJWT } from '@/core/auth';
 
 // PATCH /api/users/[id]
 // Allows updating isActive (and optionally name/role).
-// tenantId is always from the JWT — never trusted from the body.
+// tenantId is always from middleware-injected header — never trusted from body.
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
   try {
-    const authHeader = request.headers.get('authorization') ?? '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) {
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const payload = await verifyJWT(token);
-    const { tenantId } = payload;
     const { id } = params;
 
     // Confirm user belongs to this tenant before updating
