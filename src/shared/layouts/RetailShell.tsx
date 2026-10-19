@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { cn } from '@/shared/utils';
+import { useLowStockBadge } from '@/features/inventory/hooks/useLowStockBadge';
 
 interface NavigationItem {
   label: string;
@@ -55,6 +56,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const pathname = usePathname();
+  const { count: lowStockCount } = useLowStockBadge();
   const drawerRef = useRef<HTMLDialogElement>(null);
   const pageTitle = title ?? getPageTitle(pathname);
 
@@ -114,6 +116,11 @@ export const RetailShell: React.FC<RetailShellProps> = ({
               {item.icon}
             </span>
             <span>{item.label}</span>
+            {item.href === '/inventaris' && lowStockCount > 0 && (
+              <span className="ml-auto min-w-[20px] px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[#fdf0da] text-[#8a5300]">
+                {lowStockCount}
+              </span>
+            )}
           </Link>
         </React.Fragment>
       );

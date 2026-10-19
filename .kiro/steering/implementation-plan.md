@@ -6,9 +6,9 @@ description: Rencana implementasi bertahap (Phase 1-4, 24 tasks) untuk project o
 
 # Implementation Plan: Offline POS Inventory System
 
-> **Status keseluruhan**: ~30% complete  
-> **Yang sudah ada**: UI shell lengkap, 5 halaman dashboard dengan data mock, Prisma schema, design system, semua dependencies terpasang  
-> **Yang belum ada**: Semua backend (API routes), WatermelonDB setup, sync engine, auth real, koneksi UI ke data nyata
+> **Status keseluruhan**: ~90% complete  
+> **Yang sudah ada**: UI shell lengkap, Prisma schema, design system, semua dependencies terpasang, **Phase 1 selesai semua** (auth, sync, products, inbound, reports, middleware), **Phase 2 selesai semua** (WatermelonDB instance, schema, models, sync engine, provider & hooks), **Phase 3 selesai semua** (Zustand store, auth frontend, route guards, semua 5 halaman dashboard terhubung ke data nyata)  
+> **Yang belum ada**: Hardware & polish (Phase 4)
 
 Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat mengerjakan fitur baru. Setiap task di bawah adalah atomic dan dapat dikerjakan secara independen dalam satu sesi agent.
 
@@ -30,7 +30,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 > Goal: Backend "nyala" — database terhubung, API dapat menerima request, auth berfungsi.
 
 ### TASK-1.1 · Environment & Database Bootstrap
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `.env.local`, `prisma/migrations/`  
 **Apa yang dikerjakan**:
 - Buat `.env.local` dari `.env.example` dengan nilai placeholder yang jelas
@@ -48,7 +48,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.2 · Auth Core: JWT Utilities
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/auth/index.ts`, `src/core/auth/types.ts`  
 **Apa yang dikerjakan**:
 - Implementasikan `signJWT(payload, expiresIn)` menggunakan library `jose` (sudah terpasang)
@@ -63,7 +63,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.3 · API Route: Device Registration
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/auth/register/route.ts`  
 **Apa yang dikerjakan**:
 - `POST /api/auth/register`
@@ -79,7 +79,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.4 · API Route: PIN Verification (Kasir Login)
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/auth/pin-verify/route.ts`  
 **Apa yang dikerjakan**:
 - `POST /api/auth/pin-verify`
@@ -93,7 +93,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.5 · Next.js Middleware: API Route Guard
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/middleware.ts`  
 **Apa yang dikerjakan**:
 - Guard semua `/api/*` routes kecuali `/api/auth/*`
@@ -105,7 +105,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.6 · API Route: Sync Pull (GET /api/sync)
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/sync/route.ts` (GET handler)  
 **Apa yang dikerjakan**:
 - `GET /api/sync?lastPulledAt={timestamp}`
@@ -127,7 +127,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.7 · API Route: Sync Push (POST /api/sync)
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/sync/route.ts` (POST handler)  
 **Apa yang dikerjakan**:
 - `POST /api/sync`
@@ -150,7 +150,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.8 · API Route: Products Listing
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/products/route.ts`  
 **Apa yang dikerjakan**:
 - `GET /api/products?search=&page=&limit=`
@@ -163,7 +163,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.9 · API Route: Inbound / Barang Masuk
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/inbound/route.ts`  
 **Apa yang dikerjakan**:
 - `POST /api/inbound`
@@ -175,7 +175,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.10 · API Route: Reports
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/api/reports/profit/route.ts`, `src/app/api/reports/shift/route.ts`  
 **Apa yang dikerjakan**:
 - `GET /api/reports/profit?from=&to=&branchId=`
@@ -187,7 +187,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-1.11 · Fix: tailwindcss-animate Plugin
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `tailwind.config.ts`  
 **Apa yang dikerjakan**:
 - Tambahkan `require('tailwindcss-animate')` ke array `plugins` di `tailwind.config.ts`
@@ -201,7 +201,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 > Goal: App bisa bekerja offline penuh — data tersimpan lokal di browser, sync otomatis saat online.
 
 ### TASK-2.1 · WatermelonDB: Database Instance & Adapter
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/watermelon.ts`  
 **Apa yang dikerjakan**:
 - Setup `LokiJSAdapter` untuk development / `IndexedDBAdapter` untuk production (cek platform)
@@ -215,7 +215,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.2 · WatermelonDB: Schema Definition
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/schema.ts`  
 **Apa yang dikerjakan**:
 - Define `appSchema` dengan tabel:
@@ -228,7 +228,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.3 · WatermelonDB: Model Classes
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/models/Product.ts`, `InventoryBatch.ts`, `Transaction.ts`, `TransactionItem.ts`  
 **Apa yang dikerjakan**:
 - Extend `Model` dari WatermelonDB
@@ -240,7 +240,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.4 · WatermelonDB: Sync Engine
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/sync/index.ts`  
 **Apa yang dikerjakan**:
 - Implementasikan `syncDatabase()` function menggunakan `synchronize()` dari WatermelonDB
@@ -253,7 +253,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-2.5 · WatermelonDB: React Provider & Hooks
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/core/db/DatabaseProvider.tsx`, `src/core/db/hooks.ts`  
 **Apa yang dikerjakan**:
 - `<DatabaseProvider>` — wrap app, provide database instance via context
@@ -270,7 +270,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 > Goal: Semua 5 halaman dashboard terhubung ke WatermelonDB + API, bukan data hardcoded.
 
 ### TASK-3.1 · Zustand: POS Cart Store
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/features/pos/store.ts`  
 **Apa yang dikerjakan**:
 - Define `CartItem`: `{ productId, name, sku, quantity, sellingPrice, expiryStatus }`
@@ -286,7 +286,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.2 · Kasir Page: Koneksi ke WatermelonDB
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/kasir/page.tsx`  
 **Apa yang dikerjakan**:
 - Ganti product catalog hardcoded → query `useProducts()` dari WatermelonDB
@@ -300,7 +300,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.3 · Barang Masuk Page: Koneksi ke API
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/barang-masuk/page.tsx`  
 **Apa yang dikerjakan**:
 - Scan barcode → lookup product dari WatermelonDB by SKU
@@ -312,7 +312,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.4 · Inventaris Page: Koneksi ke WatermelonDB
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/inventaris/page.tsx`  
 **Apa yang dikerjakan**:
 - Ganti product list hardcoded → query `useProducts()` dengan real-time observe
@@ -325,7 +325,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.5 · Kedaluwarsa Page: Koneksi ke WatermelonDB
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/kedaluwarsa/page.tsx`  
 **Apa yang dikerjakan**:
 - Ganti batch list hardcoded → query `useInventoryBatches()` observe
@@ -337,7 +337,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.6 · Laporan Page: Koneksi ke API
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/(dashboard)/laporan/page.tsx`  
 **Apa yang dikerjakan**:
 - KPI cards + line chart → fetch dari `GET /api/reports/profit?from=&to=`
@@ -349,7 +349,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.7 · Authentication Frontend
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/masuk/page.tsx` (update), `src/core/auth/client.ts`  
 **Apa yang dikerjakan**:
 - `src/core/auth/client.ts`:
@@ -366,7 +366,7 @@ Dokumen ini adalah **panduan implementasi bertahap** yang harus diikuti saat men
 ---
 
 ### TASK-3.8 · Root Route & Navigation Guards
-**Status**: ❌ Not started  
+**Status**: ✅ Done  
 **File target**: `src/app/page.tsx`, `src/middleware.ts` (update)  
 **Apa yang dikerjakan**:
 - `src/app/page.tsx` → ganti placeholder dengan redirect ke `/masuk`

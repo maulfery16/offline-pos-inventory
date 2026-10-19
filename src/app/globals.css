@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -46,6 +48,7 @@
     --radius: 0.625rem;
   }
 
+  /* NOTE: Dark mode tokens are defined but not yet wired. To enable, add a theme toggle that sets document.documentElement.classList.toggle('dark'). No page uses dark: variants yet. */
   .dark {
     /* Dark mode colors */
     --primary: 168 78% 24%;
@@ -90,5 +93,39 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Scan input shake animation — triggered on barcode-not-found error */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+.scan-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+/* A11y: screen-reader-only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* A11y: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .scan-shake { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Impeccable UI Check on Edit",
+      "trigger": "PostToolUse",
+      "description": "Calls impeccable hook script after any file write/edit to check UI quality changes",
+      "matcher": "str_replace|fs_write|fs_append",
+      "action": {
+        "type": "command",
+        "command": "[ ! -f \".agents/skills/impeccable/scripts/impeccable\" ] || \".agents/skills/impeccable/scripts/impeccable\" hook",
+        "timeout": 30
+      }
+    }
+  ]
+}

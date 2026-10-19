@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ScanBarcode, Plus, Info, CircleAlert, TriangleAlert, CircleCheck, Trash2, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
+import { useDatabase } from '@/core/db/hooks';
+import { getAuthHeaders } from '@/core/auth/client';
+import { toast } from 'sonner';
 
 interface ReceivingLine {
   id: string;
@@ -17,6 +21,7 @@ interface ReceivingLine {
   expiry: string;
 }
 
+// TODO: replace with WatermelonDB query — this is prototype mock data
 const catalog: Record<string, { name: string; unit: string; perishable: boolean; cost: number; margin: number }> = {
   '8991002101147': { name: 'Indomie Goreng 85g', unit: 'pcs', perishable: true, cost: 2900, margin: 20 },
   '8991234567890': { name: 'Susu Ultra 250ml', unit: 'pcs', perishable: true, cost: 5900, margin: 25 },
@@ -28,9 +33,22 @@ const catalog: Record<string, { name: string; unit: string; perishable: boolean;
 
 const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID');
 
-const TODAY = new Date('2026-04-18');
+const TODAY = new Date(); // TODO: replace with WatermelonDB server-synced timestamp for testability
 
 export default function BarangMasukPage() {
+  const db = useDatabase();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
+  }, []);
+
   const [lines, setLines] = useState<ReceivingLine[]>([
     { id: '1', sku: '8991002101147', name: 'Indomie Goreng 85g', unit: 'pcs', perishable: true, qty: 24, cost: 2900, margin: 20, batch: 'B2321', expiry: '2026-06-19' },
     { id: '2', sku: '8991234567890', name: 'Susu Ultra 250ml', unit: 'pcs', perishable: true, qty: 12, cost: 5900, margin: 25, batch: 'B2322', expiry: '2026-05-02' },
@@ -57,10 +75,33 @@ export default function BarangMasukPage() {
     setLines((prev) => prev.filter((line) => line.id !== id));
   }, []);
 
-  const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleScan = useCallback(async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const sku = scanInput.trim();
+
+    // Try WatermelonDB lookup first
+    if (db) {
+      try {
+        const Q = await import('@nozbe/watermelondb').then(m => m.Q);
+        const products = await db.collections.get('products')
+          .query(Q.where('sku', sku))
+          .fetch();
+        if (products.length > 0) {
+          const p = products[0] as any;
+          const existing = lines.find((line) => line.sku === sku);
+          if (existing) { updateLine(existing.id, 'qty', existing.qty + 1); }
+          else {
+            const newLine = { id: String(rowSeq), sku, name: p.name, unit: p.unit || 'pcs', perishable: true, qty: 1, cost: 0, margin: 20, batch: `B${2320 + rowSeq}`, expiry: '' };
+            setLines((prev) => [...prev, newLine]);
+            setRowSeq((prev) => prev + 1);
+          }
+          setScanInput('');
+          return;
+        }
+      } catch { /* fall through to mock catalog */ }
+    }
+
     const item = catalog[sku];
     if (!item) return;
 
@@ -84,7 +125,7 @@ export default function BarangMasukPage() {
       setRowSeq((prev) => prev + 1);
     }
     setScanInput('');
-  };
+  }, [scanInput, lines, rowSeq, updateLine, db]);
 
   const totalUnits = lines.reduce((sum, line) => sum + line.qty, 0);
   const totalCost = lines.reduce((sum, line) => sum + line.qty * line.cost, 0);
@@ -130,6 +171,36 @@ export default function BarangMasukPage() {
     if (incompleteLines.length > 0) return;
     if (lines.length === 0) return;
     setShowSaveDialog(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!isOnline) { toast.error('Penerimaan barang membutuhkan koneksi internet.'); return; }
+    setIsSaving(true);
+    try {
+      const payload = {
+        items: lines.map(line => ({
+          productId: line.sku,
+          qty: line.qty,
+          unitCost: line.cost,
+          batchNumber: line.batch,
+          expiryDate: line.expiry || null,
+          sellingPrice: Math.round(line.cost * (1 + line.margin / 100)),
+        })),
+      };
+      const res = await fetch('/api/inbound', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Gagal menyimpan');
+      toast.success('Penerimaan barang berhasil disimpan.');
+      setLines([]);
+      setShowSaveDialog(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Terjadi kesalahan. Coba lagi.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -292,8 +363,9 @@ export default function BarangMasukPage() {
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
                       <div className="grid gap-1">
-                        <span className="text-xs text-[#5a6675]">Qty</span>
+                        <label className="text-xs text-[#5a6675]" htmlFor={`qty-${line.id}`}>Qty</label>
                         <input
+                          id={`qty-${line.id}`}
                           type="number"
                           min={1}
                           value={line.qty}
@@ -302,8 +374,9 @@ export default function BarangMasukPage() {
                         />
                       </div>
                       <div className="grid gap-1">
-                        <span className="text-xs text-[#5a6675]">HPP / unit</span>
+                        <label className="text-xs text-[#5a6675]" htmlFor={`cost-${line.id}`}>HPP / unit</label>
                         <input
+                          id={`cost-${line.id}`}
                           type="number"
                           min={0}
                           step={100}
@@ -313,8 +386,9 @@ export default function BarangMasukPage() {
                         />
                       </div>
                       <div className="grid gap-1">
-                        <span className="text-xs text-[#5a6675]">Margin %</span>
+                        <label className="text-xs text-[#5a6675]" htmlFor={`margin-${line.id}`}>Margin %</label>
                         <input
+                          id={`margin-${line.id}`}
                           type="number"
                           min={0}
                           value={line.margin}
@@ -323,8 +397,9 @@ export default function BarangMasukPage() {
                         />
                       </div>
                       <div className="grid gap-1">
-                        <span className="text-xs text-[#5a6675]">No. batch</span>
+                        <label className="text-xs text-[#5a6675]" htmlFor={`batch-${line.id}`}>No. batch</label>
                         <input
+                          id={`batch-${line.id}`}
                           type="text"
                           value={line.batch}
                           onChange={(e) => updateLine(line.id, 'batch', e.target.value)}
@@ -332,8 +407,9 @@ export default function BarangMasukPage() {
                         />
                       </div>
                       <div className="grid gap-1">
-                        <span className="text-xs text-[#5a6675]">Kedaluwarsa{line.perishable ? ' (wajib)' : ''}</span>
+                        <label className="text-xs text-[#5a6675]" htmlFor={`expiry-${line.id}`}>Kedaluwarsa{line.perishable ? ' (wajib)' : ''}</label>
                         <input
+                          id={`expiry-${line.id}`}
                           type="date"
                           value={line.expiry}
                           onChange={(e) => updateLine(line.id, 'expiry', e.target.value)}
@@ -445,41 +521,47 @@ export default function BarangMasukPage() {
       </aside>
 
       {/* Save Confirmation Dialog */}
-      {showSaveDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(520px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
-            <div className="p-5 grid gap-3">
-              <h2 className="m-0 text-lg font-bold">Penerimaan tersimpan ke antrean stok</h2>
-              <p className="m-0 text-[13px] text-[#5a6675]">
-                Dokumen <strong>GR-2026-0418</strong> disimpan lokal dan dikirim ke cloud saat koneksi tersedia.
-              </p>
-              <ul className="grid gap-2 list-none m-0 p-0 text-[13px]">
-                <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                  <span className="text-[#5a6675]">Baris barang</span>
-                  <strong className="text-[#182230] tabular-nums">{lines.length} SKU</strong>
-                </li>
-                <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                  <span className="text-[#5a6675]">Total unit</span>
-                  <strong className="text-[#182230] tabular-nums">{totalUnits} unit</strong>
-                </li>
-                <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                  <span className="text-[#5a6675]">Total HPP masuk</span>
-                  <strong className="text-[#182230] tabular-nums">{rupiah(totalCost)}</strong>
-                </li>
-              </ul>
-            </div>
-            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button
-                type="button"
-                onClick={() => setShowSaveDialog(false)}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="w-[min(520px,92vw)] max-w-none gap-0 p-0 bg-white border-[#e2e6ec] rounded-[14px] shadow-none">
+          <div className="p-5 grid gap-3">
+            <DialogTitle className="m-0 text-lg font-bold">Penerimaan tersimpan ke antrean stok</DialogTitle>
+            <DialogDescription className="m-0 text-[13px] text-[#5a6675]">
+              Dokumen <strong>GR-2026-0418</strong> disimpan lokal dan dikirim ke cloud saat koneksi tersedia.
+            </DialogDescription>
+            <ul className="grid gap-2 list-none m-0 p-0 text-[13px]">
+              <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                <span className="text-[#5a6675]">Baris barang</span>
+                <strong className="text-[#182230] tabular-nums">{lines.length} SKU</strong>
+              </li>
+              <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                <span className="text-[#5a6675]">Total unit</span>
+                <strong className="text-[#182230] tabular-nums">{totalUnits} unit</strong>
+              </li>
+              <li className="flex items-baseline justify-between p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                <span className="text-[#5a6675]">Total HPP masuk</span>
+                <strong className="text-[#182230] tabular-nums">{rupiah(totalCost)}</strong>
+              </li>
+            </ul>
           </div>
-        </div>
-      )}
+          <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+            <button
+              type="button"
+              onClick={() => setShowSaveDialog(false)}
+              className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#a52b22] cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmSave}
+              disabled={isSaving}
+              className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
+            >
+              {isSaving ? 'Menyimpan…' : 'Konfirmasi simpan'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

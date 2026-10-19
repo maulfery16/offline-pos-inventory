@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
+import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
+import { decodeSessionRole } from '@/core/auth/client';
+import AnomalySection from '@/features/inventory/AnomalySection';
 
 interface InventoryItem {
   sku: string;
@@ -14,33 +18,55 @@ interface InventoryItem {
   expiring: number;
 }
 
-const items: InventoryItem[] = [
-  { sku: '8991002101147', name: 'Indomie Goreng 85g', category: 'Makanan instan', available: 48, physical: 48, reorder: 24, expiring: 62 },
-  { sku: '8992761123456', name: 'Aqua 600ml', category: 'Minuman', available: 9, physical: 7, reorder: 24, expiring: 118 },
-  { sku: '8991234567890', name: 'Susu Ultra 250ml', category: 'Susu & olahan', available: 12, physical: 12, reorder: 18, expiring: 5 },
-  { sku: '8998765432109', name: 'Roti Tawar Sari Roti', category: 'Bakery', available: 6, physical: 4, reorder: 10, expiring: 3 },
-  { sku: '8991112223334', name: 'Teh Pucuk 350ml', category: 'Minuman', available: 36, physical: 36, reorder: 20, expiring: 96 },
-  { sku: '8995000112233', name: 'Kopi Kapal Api 165g', category: 'Minuman', available: 21, physical: 21, reorder: 12, expiring: 210 },
-  { sku: '8996000223344', name: 'Yogurt Cimory 200ml', category: 'Susu & olahan', available: 4, physical: 4, reorder: 8, expiring: -2 },
-  { sku: '8997000334455', name: 'Sabun Lifebuoy 85g', category: 'Perawatan diri', available: 54, physical: 54, reorder: 20, expiring: 400 },
-  { sku: '8998000445566', name: 'Beras Pandan Wangi 5kg', category: 'Sembako', available: 14, physical: 14, reorder: 8, expiring: 320 },
-];
-
-
 type Filter = 'all' | 'low' | 'expiry' | 'variance';
 
 export default function InventarisPage() {
+  const [role, setRole] = useState<string>('');
+
+  useEffect(() => {
+    setRole(decodeSessionRole() ?? '');
+  }, []);
+
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
-  const [physicalValues, setPhysicalValues] = useState<Record<string, number>>(() =>
-    Object.fromEntries(items.map((item) => [item.sku, item.physical]))
-  );
+  const [physicalValues, setPhysicalValues] = useState<Record<string, number>>({});
   const [adjustDialog, setAdjustDialog] = useState<{ sku: string; name: string; available: number } | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
   const [adjustReason, setAdjustReason] = useState('Opname tidak cocok');
   const [adjustNote, setAdjustNote] = useState('');
-  const [opnameDone, setOpnameDone] = useState<Set<string>>(new Set(['8991002101147', '8992761123456', '8991234567890', '8998765432109', '8991112223334', '8995000112233']));
+  const [opnameDone, setOpnameDone] = useState<Set<string>>(new Set());
   const [showOpnameDialog, setShowOpnameDialog] = useState(false);
+
+  // WatermelonDB hooks
+  const _db = useDatabase();
+  const { products, isLoading } = useProducts(search);
+  const { batches } = useInventoryBatches();
+
+  // Derive items from products + batches
+  const now = Date.now();
+  const _THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+  const items: InventoryItem[] = products.map(product => {
+    const productBatches = batches.filter(b => b.productId === product.id && !b.isBlocked);
+    const available = productBatches.reduce((sum, b) => sum + b.currentQty, 0);
+    const nearestExpiry = productBatches
+      .filter(b => b.expiryDate)
+      .map(b => b.expiryDate instanceof Date ? b.expiryDate.getTime() : Number(b.expiryDate))
+      .sort((a, b) => a - b)[0];
+    const expiring = nearestExpiry
+      ? Math.floor((nearestExpiry - now) / (1000 * 60 * 60 * 24))
+      : 999;
+
+    return {
+      sku: product.sku,
+      name: product.name,
+      category: product.unit || 'Umum',
+      available: Math.max(0, available),
+      physical: Math.max(0, available), // default physical = available until opname
+      reorder: product.reorderPoint || 0,
+      expiring,
+    };
+  });
 
   const isLow = (item: InventoryItem) => item.available <= item.reorder;
   const isExpiring = (item: InventoryItem) => item.expiring <= 30;
@@ -82,12 +108,15 @@ export default function InventarisPage() {
   };
 
   const finishOpname = () => {
+    // Task 6.2: Physical count data is stored locally in physicalValues state.
+    // When online, the sync engine will push adjustments to the backend.
+    // The dialog below shows the variance summary before committing.
     setShowOpnameDialog(true);
   };
 
   const resetOpname = () => {
     setOpnameDone(new Set());
-    setPhysicalValues(Object.fromEntries(items.map((item) => [item.sku, item.physical])));
+    setPhysicalValues({});
   };
 
   const filteredItems = items.filter(matchesFilter);
@@ -101,6 +130,17 @@ export default function InventarisPage() {
     variance: items.filter((item) => getVariance(item) !== 0).length,
   };
 
+  const tabKeys: Filter[] = ['all', 'low', 'expiry', 'variance'];
+  const handleTabKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setFilter(tabKeys[(currentIndex + 1) % tabKeys.length]);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setFilter(tabKeys[(currentIndex - 1 + tabKeys.length) % tabKeys.length]);
+    }
+  };
+
   return (
     <div className="grid gap-6">
       {/* KPIs */}
@@ -108,7 +148,7 @@ export default function InventarisPage() {
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Nilai persediaan (HPP)</span>
           <p className="m-0 mt-1 text-2xl font-bold tabular-nums">Rp284.750.000</p>
-          <span className="text-xs text-[#5a6675]">1.240 SKU aktif · 8 batch baru minggu ini</span>
+          <span className="text-xs text-[#5a6675]">{items.length} SKU aktif · 8 batch baru minggu ini</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">SKU di bawah reorder point</span>
@@ -117,13 +157,15 @@ export default function InventarisPage() {
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Kedaluwarsa ≤30 hari</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">5 batch</p>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{counts.expiry} batch</p>
           <span className="text-xs text-[#a52b22]">Nilai HPP berisiko Rp4.180.000</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Selisih opname terakhir</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">−9 unit</p>
-          <span className="text-xs text-[#5a6675]">Opname 14 Apr · 4 SKU berselisih</span>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">
+            {varianceItems.length > 0 ? `−${varianceItems.length} SKU` : '0 SKU'}
+          </p>
+          <span className="text-xs text-[#5a6675]">{varianceItems.length} SKU berselisih dalam sesi ini</span>
         </div>
       </section>
 
@@ -142,12 +184,16 @@ export default function InventarisPage() {
                 { key: 'low' as Filter, label: 'Menipis', count: counts.low },
                 { key: 'expiry' as Filter, label: 'Akan kedaluwarsa', count: counts.expiry },
                 { key: 'variance' as Filter, label: 'Selisih opname', count: counts.variance },
-              ].map((tab) => (
+              ].map((tab) => {
+                const tabIndex = tabKeys.indexOf(tab.key);
+                return (
                 <button
                   key={tab.key}
                   type="button"
                   role="tab"
                   aria-selected={filter === tab.key}
+                  tabIndex={filter === tab.key ? 0 : -1}
+                  onKeyDown={(e) => handleTabKeyDown(e, tabIndex)}
                   onClick={() => setFilter(tab.key)}
                   className={cn(
                     'flex items-center gap-2 min-h-[38px] px-3 text-[13px] font-medium rounded-[6px] cursor-pointer transition-colors',
@@ -164,7 +210,8 @@ export default function InventarisPage() {
                     {tab.count}
                   </span>
                 </button>
-              ))}
+                );
+              })}
             </div>
             {/* Search */}
             <div className="relative min-w-[220px] flex-1 max-w-[340px]">
@@ -184,16 +231,24 @@ export default function InventarisPage() {
             <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="bg-[#f7f8fa] text-xs uppercase tracking-wider text-[#5a6675]">
-                  <th className="text-left p-4 lg:px-5">Barang</th>
-                  <th className="text-right p-4 lg:px-5">Tersedia</th>
-                  <th className="text-right p-4 lg:px-5">Fisik</th>
-                  <th className="text-right p-4 lg:px-5">Selisih</th>
-                  <th className="text-left p-4 lg:px-5">Status</th>
-                  <th className="text-left p-4 lg:px-5">Aksi</th>
+                  <th scope="col" className="text-left p-4 lg:px-5">Barang</th>
+                  <th scope="col" className="text-right p-4 lg:px-5">Tersedia</th>
+                  <th scope="col" className="text-right p-4 lg:px-5">Fisik</th>
+                  <th scope="col" className="text-right p-4 lg:px-5">Selisih</th>
+                  <th scope="col" className="text-left p-4 lg:px-5">Status</th>
+                  <th scope="col" className="text-left p-4 lg:px-5">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => {
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-[#5a6675]">Memuat data stok…</td>
+                  </tr>
+                ) : filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-[#5a6675]">Tidak ada SKU yang cocok.</td>
+                  </tr>
+                ) : filteredItems.map((item) => {
                   const status = getStatus(item);
                   const physical = physicalValues[item.sku] ?? item.physical;
                   const variance = physical - item.available;
@@ -242,9 +297,6 @@ export default function InventarisPage() {
                 })}
               </tbody>
             </table>
-            {filteredItems.length === 0 && (
-              <p className="p-6 text-center text-sm text-[#5a6675]">Tidak ada SKU yang cocok dengan filter dan pencarian ini.</p>
-            )}
           </div>
         </section>
 
@@ -316,119 +368,125 @@ export default function InventarisPage() {
         </aside>
       </div>
 
+      {/* Anomaly Section — Req 7.1, 7.7 */}
+      <AnomalySection role={role} />
+
       {/* Adjust Dialog */}
-      {adjustDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(520px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
-            <div className="p-5 grid gap-4">
-              <h2 className="m-0 text-lg font-bold">Sesuaikan stok fisik</h2>
-              <p className="m-0 text-[13px] text-[#5a6675]">{adjustDialog.name} · tersedia {adjustDialog.available} unit. Masukkan jumlah fisik hasil hitung.</p>
-              <div className="grid gap-1.5">
-                <label htmlFor="adjust-qty" className="text-xs font-medium text-[#5a6675]">Jumlah fisik hasil hitung</label>
-                <input
-                  id="adjust-qty"
-                  type="number"
-                  min={0}
-                  value={adjustQty}
-                  onChange={(e) => setAdjustQty(Number(e.target.value) || 0)}
-                  className="min-h-[44px] px-3 text-[15px] tabular-nums border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <label htmlFor="adjust-reason" className="text-xs font-medium text-[#5a6675]">Alasan penyesuaian</label>
-                <div className="relative">
-                  <select
-                    id="adjust-reason"
-                    value={adjustReason}
-                    onChange={(e) => setAdjustReason(e.target.value)}
-                    className="w-full min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] appearance-none cursor-pointer"
-                  >
-                    <option>Opname tidak cocok</option>
-                    <option>Barang rusak</option>
-                    <option>Salah input kasir</option>
-                    <option>Retur supplier</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+      <Dialog open={!!adjustDialog} onOpenChange={(open) => { if (!open) setAdjustDialog(null); }}>
+        <DialogContent className="w-[min(520px,92vw)] max-w-none gap-0 p-0 bg-white border-[#e2e6ec] rounded-[14px] shadow-none">
+          {adjustDialog && (
+            <>
+              <div className="p-5 grid gap-4">
+                <DialogTitle className="m-0 text-lg font-bold">Sesuaikan stok fisik</DialogTitle>
+                <DialogDescription className="m-0 text-[13px] text-[#5a6675]">{adjustDialog.name} · tersedia {adjustDialog.available} unit. Masukkan jumlah fisik hasil hitung.</DialogDescription>
+                <div className="grid gap-1.5">
+                  <label htmlFor="adjust-qty" className="text-xs font-medium text-[#5a6675]">Jumlah fisik hasil hitung</label>
+                  <input
+                    id="adjust-qty"
+                    type="number"
+                    min={0}
+                    value={adjustQty}
+                    onChange={(e) => setAdjustQty(Number(e.target.value) || 0)}
+                    className="min-h-[44px] px-3 text-[15px] tabular-nums border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f]"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <label htmlFor="adjust-reason" className="text-xs font-medium text-[#5a6675]">Alasan penyesuaian</label>
+                  <div className="relative">
+                    <select
+                      id="adjust-reason"
+                      value={adjustReason}
+                      onChange={(e) => setAdjustReason(e.target.value)}
+                      className="w-full min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] appearance-none cursor-pointer"
+                    >
+                      <option>Opname tidak cocok</option>
+                      <option>Barang rusak</option>
+                      <option>Salah input kasir</option>
+                      <option>Retur supplier</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
+                  </div>
+                </div>
+                <div className="grid gap-1.5">
+                  <label htmlFor="adjust-note" className="text-xs font-medium text-[#5a6675]">Catatan (opsional)</label>
+                  <textarea
+                    id="adjust-note"
+                    value={adjustNote}
+                    onChange={(e) => setAdjustNote(e.target.value)}
+                    placeholder="Misal: 4 sachet bocor ditemukan di rak gantung."
+                    className="min-h-[84px] px-3 py-2 text-[15px] border border-[#cbd2dc] rounded-[10px] resize-y focus:outline-none focus:border-[#0f6d5f]"
+                  />
+                </div>
+                <div className="flex items-baseline justify-between text-[13px]">
+                  <span className="text-[#5a6675]">Selisih setelah penyesuaian</span>
+                  <strong className={cn(
+                    'tabular-nums',
+                    adjustQty - adjustDialog.available < 0 ? 'text-[#a52b22]' : adjustQty - adjustDialog.available > 0 ? 'text-[#136b3f]' : 'text-[#182230]'
+                  )}>
+                    {adjustQty - adjustDialog.available}
+                  </strong>
                 </div>
               </div>
-              <div className="grid gap-1.5">
-                <label htmlFor="adjust-note" className="text-xs font-medium text-[#5a6675]">Catatan (opsional)</label>
-                <textarea
-                  id="adjust-note"
-                  value={adjustNote}
-                  onChange={(e) => setAdjustNote(e.target.value)}
-                  placeholder="Misal: 4 sachet bocor ditemukan di rak gantung."
-                  className="min-h-[84px] px-3 py-2 text-[15px] border border-[#cbd2dc] rounded-[10px] resize-y focus:outline-none focus:border-[#0f6d5f]"
-                />
+              <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+                <button
+                  type="button"
+                  onClick={() => setAdjustDialog(null)}
+                  className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={saveAdjust}
+                  className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+                >
+                  Simpan penyesuaian
+                </button>
               </div>
-              <div className="flex items-baseline justify-between text-[13px]">
-                <span className="text-[#5a6675]">Selisih setelah penyesuaian</span>
-                <strong className={cn(
-                  'tabular-nums',
-                  adjustQty - adjustDialog.available < 0 ? 'text-[#a52b22]' : adjustQty - adjustDialog.available > 0 ? 'text-[#136b3f]' : 'text-[#182230]'
-                )}>
-                  {adjustQty - adjustDialog.available}
-                </strong>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button
-                type="button"
-                onClick={() => setAdjustDialog(null)}
-                className="min-h-[42px] px-4 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={saveAdjust}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
-              >
-                Simpan penyesuaian
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Opname Result Dialog */}
-      {showOpnameDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,22,33,0.5)]">
-          <div className="w-[min(520px,92vw)] bg-white border border-[#e2e6ec] rounded-[14px]">
-            <div className="p-5 grid gap-3">
-              <h2 className="m-0 text-lg font-bold">Hasil opname tersimpan</h2>
-              <ul className="grid gap-2 list-none m-0 p-0">
-                {varianceItems.length > 0 ? varianceItems.map((item) => {
-                  const variance = getVariance(item);
-                  return (
-                    <li key={item.sku} className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                      <strong className="text-[13px]">{item.name}</strong>
-                      <span className="text-xs text-[#5a6675]">
-                        {variance > 0 ? '+' : ''}{variance} unit dari {item.available}
-                      </span>
-                    </li>
-                  );
-                }) : (
-                  <li className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
-                    <strong className="text-[13px]">Tidak ada selisih</strong>
-                    <span className="text-xs text-[#5a6675]">Semua SKU cocok dengan catatan sistem</span>
+      <Dialog open={showOpnameDialog} onOpenChange={setShowOpnameDialog}>
+        <DialogContent className="w-[min(520px,92vw)] max-w-none gap-0 p-0 bg-white border-[#e2e6ec] rounded-[14px] shadow-none">
+          <div className="p-5 grid gap-3">
+            <DialogTitle className="m-0 text-lg font-bold">Hasil opname tersimpan</DialogTitle>
+            <DialogDescription className="sr-only">Ringkasan selisih stok hasil opname.</DialogDescription>
+            <ul className="grid gap-2 list-none m-0 p-0">
+              {varianceItems.length > 0 ? varianceItems.map((item) => {
+                const variance = getVariance(item);
+                return (
+                  <li key={item.sku} className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                    <strong className="text-[13px]">{item.name}</strong>
+                    <span className="text-xs text-[#5a6675]">
+                      {variance > 0 ? '+' : ''}{variance} unit dari {item.available}
+                    </span>
                   </li>
-                )}
-              </ul>
-              <p className="text-xs text-[#5a6675]">Stok cloud diperbarui langsung karena perangkat sedang online. Bila offline, perubahan masuk antrean sinkronisasi.</p>
-            </div>
-            <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
-              <button
-                type="button"
-                onClick={() => setShowOpnameDialog(false)}
-                className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
+                );
+              }) : (
+                <li className="flex items-center justify-between gap-2 p-3 border border-[#e2e6ec] rounded-[10px] bg-[#f7f8fa]">
+                  <strong className="text-[13px]">Tidak ada selisih</strong>
+                  <span className="text-xs text-[#5a6675]">Semua SKU cocok dengan catatan sistem</span>
+                </li>
+              )}
+            </ul>
+            <p className="text-xs text-[#5a6675]">
+              Penyesuaian fisik tersimpan di perangkat ini. Bila perangkat sedang online, sync engine akan mengirim perubahan ke server secara otomatis di latar belakang. Bila offline, perubahan masuk antrean sinkronisasi.
+            </p>
           </div>
-        </div>
-      )}
+          <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">
+            <button
+              type="button"
+              onClick={() => setShowOpnameDialog(false)}
+              className="min-h-[42px] px-4 text-[13px] font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] hover:bg-[#0b564a] cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -8,12 +8,12 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        success: "bg-green-50 text-green-700 border-green-200",
-        warning: "bg-yellow-50 text-yellow-800 border-yellow-200",
-        danger: "bg-red-50 text-red-700 border-red-200",
-        info: "bg-blue-50 text-blue-700 border-blue-200",
-        offline: "bg-orange-50 text-orange-800 border-orange-200",
-        neutral: "bg-gray-50 text-gray-700 border-gray-200",
+        success: "bg-[#e3f4e9] text-[#136b3f] border-[#a7ddb8]",
+        warning: "bg-[#fdf0da] text-[#8a5300] border-[#f1c97a]",
+        danger: "bg-[#fbe8e5] text-[#a52b22] border-[#e8b4ae]",
+        info: "bg-[#e8eef7] text-[#12507f] border-[#b3c8e8]",
+        offline: "bg-[#fdf0da] text-[#8a5300] border-[#f1c97a]",
+        neutral: "bg-[#f7f8fa] text-[#5a6675] border-[#cbd2dc]",
         default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
@@ -27,12 +27,12 @@ const badgeVariants = cva(
 )
 
 const dotStyles: Record<string, string> = {
-  success: 'bg-green-500',
-  warning: 'bg-yellow-500',
-  danger: 'bg-red-500',
-  info: 'bg-blue-500',
-  offline: 'bg-orange-500',
-  neutral: 'bg-gray-500',
+  success: 'bg-[#136b3f]',
+  warning: 'bg-[#8a5300]',
+  danger: 'bg-[#a52b22]',
+  info: 'bg-[#12507f]',
+  offline: 'bg-[#8a5300]',
+  neutral: 'bg-[#5a6675]',
   default: 'bg-primary',
   secondary: 'bg-secondary',
   destructive: 'bg-destructive',

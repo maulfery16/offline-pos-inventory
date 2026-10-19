@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ShieldAlert, ArrowDownNarrowWide, Lock, Bell, Calculator, History } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { useDatabase, useInventoryBatches } from '@/core/db/hooks';
+import type InventoryBatch from '@/core/db/models/InventoryBatch';
 
 interface Batch {
   id: string;
@@ -17,20 +19,7 @@ interface Batch {
   action: string | null;
 }
 
-const TODAY = new Date('2026-04-18');
-
-const batches: Batch[] = [
-  { id: 'b1', sku: '8991234567890', name: 'Susu Ultra 250ml', batch: 'B1174', expiry: '2026-04-23', branch: 'Kebayoran', qty: 12, cost: 5900, blocked: false, action: null },
-  { id: 'b2', sku: '8998765432109', name: 'Roti Tawar Sari Roti', batch: 'B1180', expiry: '2026-04-21', branch: 'Kebayoran', qty: 6, cost: 14000, blocked: false, action: null },
-  { id: 'b3', sku: '8996000223344', name: 'Yogurt Cimory 200ml', batch: 'B1160', expiry: '2026-04-16', branch: 'Kebayoran', qty: 4, cost: 7400, blocked: true, action: 'blocked' },
-  { id: 'b4', sku: '8991234567890', name: 'Susu Ultra 250ml', batch: 'B1179', expiry: '2026-04-29', branch: 'Bintaro', qty: 24, cost: 5900, blocked: false, action: null },
-  { id: 'b5', sku: '8991002101147', name: 'Indomie Goreng 85g', batch: 'B2321', expiry: '2026-05-12', branch: 'Kebayoran', qty: 48, cost: 2900, blocked: false, action: null },
-  { id: 'b6', sku: '8997000334455', name: 'Yakult Original 65ml', batch: 'B1181', expiry: '2026-05-01', branch: 'Bintaro', qty: 30, cost: 2100, blocked: false, action: null },
-  { id: 'b7', sku: '8996000223344', name: 'Keju Cheddar 170g', batch: 'B1170', expiry: '2026-05-18', branch: 'Kebayoran', qty: 9, cost: 23500, blocked: false, action: 'return' },
-  { id: 'b8', sku: '8995000112233', name: 'Kopi Kapal Api 165g', batch: 'B2280', expiry: '2026-11-14', branch: 'Kebayoran', qty: 21, cost: 9800, blocked: false, action: null },
-  { id: 'b9', sku: '8991112223334', name: 'Teh Pucuk 350ml', batch: 'B2305', expiry: '2026-07-23', branch: 'Bintaro', qty: 36, cost: 3400, blocked: false, action: null },
-  { id: 'b10', sku: '8997000334455', name: 'Minyak Goreng 2L', batch: 'B2290', expiry: '2026-12-02', branch: 'Kebayoran', qty: 18, cost: 32000, blocked: false, action: null },
-];
+const TODAY = new Date(); // TODO: replace with WatermelonDB server-synced timestamp for testability
 
 const rupiah = (value: number) => 'Rp' + Math.round(value).toLocaleString('id-ID');
 
@@ -40,15 +29,37 @@ type Range = '7' | '14' | '30' | 'all';
 type Sort = 'fefo' | 'latest' | 'value';
 
 export default function KedaluwarsaPage() {
+  const { batches: rawBatches, isLoading } = useInventoryBatches();
+  const db = useDatabase();
+
+  const batches: Batch[] = rawBatches.map(b => ({
+    id: b.id,
+    sku: b.productId,
+    name: b.batchNumber, // we only have batchNumber, not product name — show batch number as name fallback
+    batch: b.batchNumber,
+    expiry: b.expiryDate instanceof Date
+      ? b.expiryDate.toISOString().split('T')[0]
+      : new Date(Number(b.expiryDate)).toISOString().split('T')[0],
+    branch: b.branchId,
+    qty: b.currentQty,
+    cost: b.unitCost,
+    blocked: b.isBlocked,
+    action: b.isBlocked ? 'blocked' : null,
+  }));
+
   const [range, setRange] = useState<Range>('30');
   const [sort, setSort] = useState<Sort>('fefo');
-  const [blockedBatches, setBlockedBatches] = useState<Set<string>>(new Set(['b3']));
+  const [blockedBatches, setBlockedBatches] = useState<Set<string>>(new Set());
   const [returnRequested, setReturnRequested] = useState<Set<string>>(new Set());
   const [log, setLog] = useState<string[]>([
     'Peringatan 7 hari dikirim ke Stok: 2 batch Yogurt dan Roti Tawar.',
     'Batch B2321 (Indomie Goreng) masuk dengan kedaluwarsa 12 Mei.',
     'Cimory 200ml diblokir otomatis setelah melewati tanggal kedaluwarsa.',
   ]);
+
+  useEffect(() => {
+    setBlockedBatches(new Set(rawBatches.filter(b => b.isBlocked).map(b => b.id)));
+  }, [rawBatches]);
 
   const bucketDefs = [
     { key: 'expired', label: 'Sudah kedaluwarsa', tone: 'danger', test: (d: number) => d <= 0 },
@@ -79,27 +90,43 @@ export default function KedaluwarsaPage() {
     return daysLeft(a.expiry) - daysLeft(b.expiry);
   });
 
-  const handleBlock = (id: string) => {
-    setBlockedBatches((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
+  const handleBlock = async (id: string) => {
+    // Optimistic UI update
+    setBlockedBatches((prev) => { const next = new Set(prev); next.add(id); return next; });
     const batch = batches.find((b) => b.id === id);
     if (batch) {
-      setLog((prev) => [`${batch.name} batch ${batch.batch} diblokir. Pemindaian di kasir ditolak.`, ...prev.slice(0, 3)]);
+      setLog((prev) => [`${batch.name} batch ${batch.batch} diblokir.`, ...prev.slice(0, 3)]);
+    }
+    // Persist to WatermelonDB
+    if (db) {
+      try {
+        const collection = db.collections.get<InventoryBatch>('inventory_batches');
+        const record = await collection.find(id);
+        await db.write(async () => {
+          await record.update(b => { (b as any).isBlocked = true; });
+        });
+      } catch (err) {
+        console.error('Failed to block batch in WatermelonDB:', err);
+      }
     }
   };
 
-  const handleUnblock = (id: string) => {
-    setBlockedBatches((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+  const handleUnblock = async (id: string) => {
+    setBlockedBatches((prev) => { const next = new Set(prev); next.delete(id); return next; });
     const batch = batches.find((b) => b.id === id);
     if (batch) {
-      setLog((prev) => [`${batch.name} batch ${batch.batch} dibuka kembali untuk kasir.`, ...prev.slice(0, 3)]);
+      setLog((prev) => [`${batch.name} batch ${batch.batch} dibuka kembali.`, ...prev.slice(0, 3)]);
+    }
+    if (db) {
+      try {
+        const collection = db.collections.get<InventoryBatch>('inventory_batches');
+        const record = await collection.find(id);
+        await db.write(async () => {
+          await record.update(b => { (b as any).isBlocked = false; });
+        });
+      } catch (err) {
+        console.error('Failed to unblock batch in WatermelonDB:', err);
+      }
     }
   };
 
@@ -183,7 +210,11 @@ export default function KedaluwarsaPage() {
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e3f4e9] text-[#136b3f]">{batches.length} batch terdaftar</span>
             </div>
             <div className="p-4 lg:p-5">
-              <div className="grid grid-cols-5 gap-3 items-end h-[200px] p-3 rounded-[10px] bg-[#f7f8fa]">
+              <div
+                className="grid grid-cols-5 gap-3 items-end h-[200px] p-3 rounded-[10px] bg-[#f7f8fa]"
+                role="img"
+                aria-label={`Diagram batang sebaran batch per rentang kedaluwarsa. ${chartData.map((d) => `${d.label} ${d.count} batch`).join(', ')}.`}
+              >
                 {chartData.map((d, i) => (
                   <div key={i} className="grid items-end justify-items-center gap-2 h-full">
                     <span className="text-xs font-semibold tabular-nums">{d.count}</span>
@@ -248,18 +279,21 @@ export default function KedaluwarsaPage() {
                 <table className="w-full min-w-[660px] text-[13px]">
                   <thead>
                     <tr className="text-xs uppercase tracking-wider text-[#5a6675] bg-[#f7f8fa]">
-                      <th className="text-left p-2.5 w-[21%]">Barang</th>
-                      <th className="text-left p-2.5 w-[9%]">No. batch</th>
-                      <th className="text-left p-2.5 w-[13%]">Kedaluwarsa</th>
-                      <th className="text-right p-2.5 w-[10%]">Sisa hari</th>
-                      <th className="text-left p-2.5 w-[11%]">Cabang</th>
-                      <th className="text-right p-2.5 w-[7%]">Stok batch</th>
-                      <th className="text-right p-2.5 w-[10%]">Nilai HPP</th>
-                      <th className="text-left p-2.5 w-[9%]">Status</th>
-                      <th className="text-left p-2.5 w-[10%]">Tindakan</th>
+                      <th scope="col" className="text-left p-2.5 w-[21%]">Barang</th>
+                      <th scope="col" className="text-left p-2.5 w-[9%]">No. batch</th>
+                      <th scope="col" className="text-left p-2.5 w-[13%]">Kedaluwarsa</th>
+                      <th scope="col" className="text-right p-2.5 w-[10%]">Sisa hari</th>
+                      <th scope="col" className="text-left p-2.5 w-[11%]">Cabang</th>
+                      <th scope="col" className="text-right p-2.5 w-[7%]">Stok batch</th>
+                      <th scope="col" className="text-right p-2.5 w-[10%]">Nilai HPP</th>
+                      <th scope="col" className="text-left p-2.5 w-[9%]">Status</th>
+                      <th scope="col" className="text-left p-2.5 w-[10%]">Tindakan</th>
                     </tr>
                   </thead>
                   <tbody>
+                    {isLoading && (
+                      <tr><td colSpan={9} className="p-8 text-center text-sm text-[#5a6675]">Memuat data batch…</td></tr>
+                    )}
                     {sortedBatches.map((batch) => {
                       const days = daysLeft(batch.expiry);
                       const status = getStatus(batch);
