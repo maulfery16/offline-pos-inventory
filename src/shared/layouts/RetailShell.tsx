@@ -10,6 +10,7 @@ import {
   Boxes,
   CalendarClock,
   ChartLine,
+  Settings,
   Menu,
   X,
   WifiOff,
@@ -17,20 +18,23 @@ import {
 import { Badge } from '@/shared/components/Badge';
 import { cn } from '@/shared/utils';
 import { useLowStockBadge } from '@/features/inventory/hooks/useLowStockBadge';
+import { decodeSessionRole } from '@/core/auth/client';
 
 interface NavigationItem {
   label: string;
   href: string;
   icon: React.ReactNode;
   group?: string;
+  roles?: string[]; // if set, only shown to these roles
 }
 
 const navigationItems: NavigationItem[] = [
-  { label: 'Kasir (POS)', href: '/kasir', icon: <ScanBarcode className="w-[18px] h-[18px]" />, group: 'Operasional' },
-  { label: 'Barang Masuk', href: '/barang-masuk', icon: <PackagePlus className="w-[18px] h-[18px]" />, group: 'Operasional' },
-  { label: 'Inventaris', href: '/inventaris', icon: <Boxes className="w-[18px] h-[18px]" />, group: 'Operasional' },
-  { label: 'Kedaluwarsa & FEFO', href: '/kedaluwarsa', icon: <CalendarClock className="w-[18px] h-[18px]" />, group: 'Operasional' },
-  { label: 'Laporan Laba', href: '/laporan', icon: <ChartLine className="w-[18px] h-[18px]" />, group: 'Analitik' },
+  { label: 'Kasir (POS)', href: '/kasir', icon: <ScanBarcode className="w-[18px] h-[18px]" />, group: 'Operasional', roles: ['kasir'] },
+  { label: 'Barang Masuk', href: '/barang-masuk', icon: <PackagePlus className="w-[18px] h-[18px]" />, group: 'Operasional', roles: ['admin'] },
+  { label: 'Inventaris', href: '/inventaris', icon: <Boxes className="w-[18px] h-[18px]" />, group: 'Operasional', roles: ['admin'] },
+  { label: 'Kedaluwarsa & FEFO', href: '/kedaluwarsa', icon: <CalendarClock className="w-[18px] h-[18px]" />, group: 'Operasional', roles: ['admin'] },
+  { label: 'Laporan Laba', href: '/laporan', icon: <ChartLine className="w-[18px] h-[18px]" />, group: 'Analitik', roles: ['admin', 'owner'] },
+  { label: 'Pengaturan', href: '/pengaturan', icon: <Settings className="w-[18px] h-[18px]" />, group: 'Sistem', roles: ['admin', 'owner'] },
 ];
 
 const getPageTitle = (pathname: string | null): string => {
@@ -60,6 +64,15 @@ export const RetailShell: React.FC<RetailShellProps> = ({
   const drawerRef = useRef<HTMLDialogElement>(null);
   const pageTitle = title ?? getPageTitle(pathname);
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+  useEffect(() => {
+    setUserRole(decodeSessionRole());
+  }, []);
+
+  const visibleNavItems = navigationItems.filter(
+    (item) => !item.roles || !userRole || item.roles.includes(userRole)
+  );
+
   const openDrawer = () => {
     setIsDrawerOpen(true);
     drawerRef.current?.showModal();
@@ -88,7 +101,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
 
   const renderNavItems = (onClick?: () => void) => {
     let currentGroup = '';
-    return navigationItems.map((item) => {
+    return visibleNavItems.map((item) => {
       const isActive = pathname?.startsWith(item.href);
       const showGroupLabel = item.group !== currentGroup;
       currentGroup = item.group || '';
