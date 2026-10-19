@@ -33,26 +33,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, address } = body as { name?: string; address?: string };
+    const { name, code, address } = body as { name?: string; code?: string; address?: string };
 
     if (!name?.trim()) {
       return NextResponse.json({ error: 'Field "name" wajib diisi' }, { status: 400 });
     }
-
-    // Auto-generate a unique code from the name (slugified + timestamp suffix)
-    const slug = name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 30);
-    const code = `${slug}-${Date.now().toString(36)}`;
+    if (!code?.trim()) {
+      return NextResponse.json({ error: 'Field "code" wajib diisi' }, { status: 400 });
+    }
 
     const branch = await prisma.branch.create({
       data: {
         tenantId,
         name: name.trim(),
-        code,
+        code: code.trim().toUpperCase(),
         address: address?.trim() ?? null,
       },
       select: { id: true, name: true, code: true, address: true, createdAt: true },

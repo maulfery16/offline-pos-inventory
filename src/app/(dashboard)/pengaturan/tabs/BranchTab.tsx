@@ -20,6 +20,7 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
+  const [code, setCode] = useState('');
   const [address, setAddress] = useState('');
 
   // Suppress unused-var lint — props are kept to match TabProps contract
@@ -57,7 +58,7 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
-        body: JSON.stringify({ name: name.trim(), address: address.trim() || undefined }),
+        body: JSON.stringify({ name: name.trim(), code: code.trim(), address: address.trim() || undefined }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -79,6 +80,7 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
   function handleCancel() {
     setShowForm(false);
     setName('');
+    setCode('');
     setAddress('');
   }
 
@@ -129,6 +131,21 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
             </div>
             <div>
               <label className="mb-1 block text-[12px] font-medium text-[#374151]">
+                Kode Cabang <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                autoCapitalize="characters"
+                placeholder="cth. PUSAT"
+                className="w-full rounded-[8px] border border-[#d1d5db] bg-white px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#9ca3af] focus:border-[#0f6d5f] focus:outline-none focus:ring-1 focus:ring-[#0f6d5f]"
+              />
+              <p className="mt-1 text-[11px] text-[#8a94a3]">Digunakan saat registrasi perangkat. Tidak bisa diubah.</p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-[12px] font-medium text-[#374151]">
                 Alamat <span className="text-[#9ca3af]">(opsional)</span>
               </label>
               <input
@@ -143,7 +160,7 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
           <div className="mt-3 flex items-center gap-2">
             <button
               type="submit"
-              disabled={submitting || !name.trim()}
+              disabled={submitting || !name.trim() || !code.trim()}
               className="rounded-[8px] bg-[#0f6d5f] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#0a5a4e] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? 'Menyimpan…' : 'Simpan'}
