@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Pencil, PlusCircle, Loader2 } from 'lucide-react';
 import type { TabProps } from '../page';
 import { getAuthHeaders } from '@/core/auth/client';
 import { cn } from '@/shared/utils/index';
+import { productFormSchema } from '@/features/inventory/schemas';
+import { FieldError } from '@/shared/components/forms/FieldError';
+import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import {
   Dialog,
   DialogContent,
@@ -56,8 +61,18 @@ export default function ProductTab({ tenantId }: TabProps) {
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Product | null>(null);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+
+  // RHF
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: { name: '', sku: '', unit: 'pcs', defaultPrice: '' },
+  });
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -87,13 +102,13 @@ export default function ProductTab({ tenantId }: TabProps) {
 
   const openAdd = () => {
     setEditTarget(null);
-    setForm(EMPTY_FORM);
+    reset({ name: '', sku: '', unit: 'pcs', defaultPrice: '' });
     setDialogOpen(true);
   };
 
   const openEdit = (product: Product) => {
     setEditTarget(product);
-    setForm({
+    reset({
       name: product.name,
       sku: product.sku,
       unit: product.unit,
@@ -105,35 +120,22 @@ export default function ProductTab({ tenantId }: TabProps) {
   const closeDialog = () => {
     setDialogOpen(false);
     setEditTarget(null);
-    setForm(EMPTY_FORM);
+    reset({ name: '', sku: '', unit: 'pcs', defaultPrice: '' });
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const price = parseFloat(form.defaultPrice);
-    if (!form.name.trim() || !form.sku.trim()) {
-      toast.error('Nama dan SKU wajib diisi');
-      return;
-    }
-    if (isNaN(price) || price < 0) {
-      toast.error('Harga jual tidak valid');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (data) => {
     setSubmitting(true);
     try {
       const payload = {
-        name: form.name.trim(),
-        sku: form.sku.trim(),
-        unit: form.unit.trim() || 'pcs',
-        defaultPrice: price,
+        name: data.name.trim(),
+        sku: data.sku.trim(),
+        unit: (data.unit || 'pcs').trim(),
+        defaultPrice: data.defaultPrice, // already a number from z.coerce.number()
       };
 
       if (editTarget) {
-        // PATCH /api/products/[id]
         const res = await fetch(`/api/products/${editTarget.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -147,7 +149,6 @@ export default function ProductTab({ tenantId }: TabProps) {
         setProducts(prev => prev.map(p => (p.id === updated.id ? updated : p)));
         toast.success('Produk berhasil diperbarui');
       } else {
-        // POST /api/products
         const res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -168,7 +169,7 @@ export default function ProductTab({ tenantId }: TabProps) {
     } finally {
       setSubmitting(false);
     }
-  };
+  });
 
   // ── Deactivate ─────────────────────────────────────────────────────────────
 
@@ -307,7 +308,7 @@ export default function ProductTab({ tenantId }: TabProps) {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={e => void handleSubmit(e)} className="grid gap-4 pt-1">
+          <form onSubmit={e => void onSubmit(e)} className="grid gap-4 pt-1">
             {/* Nama */}
             <div className="grid gap-1.5">
               <label htmlFor="prod-name" className="text-[12px] font-medium text-[#5a6675]">
@@ -316,12 +317,14 @@ export default function ProductTab({ tenantId }: TabProps) {
               <input
                 id="prod-name"
                 type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                {...register('name')}
                 placeholder="Nama produk"
-                required
-                className="rounded-lg border border-[#e2e6ec] px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none"
+                className={cn(
+                  'rounded-lg px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
+                  fieldBorder(!!errors.name, 'border-[#e2e6ec]'),
+                )}
               />
+              <FieldError>{errors.name?.message}</FieldError>
             </div>
 
             {/* SKU */}
@@ -332,12 +335,14 @@ export default function ProductTab({ tenantId }: TabProps) {
               <input
                 id="prod-sku"
                 type="text"
-                value={form.sku}
-                onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
+                {...register('sku')}
                 placeholder="Kode SKU unik"
-                required
-                className="rounded-lg border border-[#e2e6ec] px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none"
+                className={cn(
+                  'rounded-lg px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
+                  fieldBorder(!!errors.sku, 'border-[#e2e6ec]'),
+                )}
               />
+              <FieldError>{errors.sku?.message}</FieldError>
             </div>
 
             {/* Satuan */}
@@ -348,8 +353,7 @@ export default function ProductTab({ tenantId }: TabProps) {
               <input
                 id="prod-unit"
                 type="text"
-                value={form.unit}
-                onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                {...register('unit')}
                 placeholder="pcs, kg, ltr, …"
                 className="rounded-lg border border-[#e2e6ec] px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none"
               />
@@ -365,12 +369,14 @@ export default function ProductTab({ tenantId }: TabProps) {
                 type="number"
                 min={0}
                 step={1}
-                value={form.defaultPrice}
-                onChange={e => setForm(f => ({ ...f, defaultPrice: e.target.value }))}
+                {...register('defaultPrice')}
                 placeholder="0"
-                required
-                className="rounded-lg border border-[#e2e6ec] px-3 py-2 text-[13px] tabular-nums text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none"
+                className={cn(
+                  'rounded-lg px-3 py-2 text-[13px] tabular-nums text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
+                  fieldBorder(!!errors.defaultPrice, 'border-[#e2e6ec]'),
+                )}
               />
+              <FieldError>{errors.defaultPrice?.message}</FieldError>
             </div>
 
             <DialogFooter className="pt-2">

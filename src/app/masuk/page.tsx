@@ -2,8 +2,13 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff, Tablet } from 'lucide-react';
 import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders } from '@/core/auth/client';
+import { deviceRegistrationSchema, kasirLoginSchema, adminLoginSchema, type DeviceRegistrationForm, type AdminLoginForm } from '@/core/auth/schemas';
+import { FieldError } from '@/shared/components/forms/FieldError';
+import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 
 type Role = 'kasir' | 'admin' | 'owner';
 
@@ -41,12 +46,38 @@ export default function MasukPage() {
 
   // Device registration state
   const [showRegister, setShowRegister] = useState(false);
-  const [regTenantCode, setRegTenantCode] = useState('');
-  const [regBranchCode, setRegBranchCode] = useState('');
-  const [regDeviceName, setRegDeviceName] = useState('');
-  const [regAdminPassword, setRegAdminPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [regError, setRegError] = useState('');
+
+  const {
+    register: registerReg,
+    handleSubmit: handleSubmitReg,
+    setValue: setRegValue,
+    formState: { errors: regErrors },
+  } = useForm<DeviceRegistrationForm>({
+    resolver: zodResolver(deviceRegistrationSchema),
+  });
+
+  const {
+    register: registerKasir,
+    handleSubmit: handleSubmitKasir,
+    setError: setKasirError,
+    formState: { errors: kasirErrors },
+  } = useForm({ resolver: zodResolver(kasirLoginSchema) });
+
+  const {
+    register: registerAdmin,
+    handleSubmit: handleSubmitAdmin,
+    setValue: setAdminValue,
+    watch: watchAdmin,
+    formState: { errors: adminErrors },
+  } = useForm<AdminLoginForm>({
+    resolver: zodResolver(adminLoginSchema),
+    defaultValues: { rememberDevice: true, cabang: 'semua' },
+  });
+
+  const pinRef = useRef('');
+  useEffect(() => { pinRef.current = pin; }, [pin]);
 
   const loadKasirList = (token: string) => {
     fetch('/api/users?role=kasir', { headers: { Authorization: `Bearer ${token}` } })
@@ -74,44 +105,72 @@ export default function MasukPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRegisterDevice = async (e: React.FormEvent) => {    e.preventDefault();
+  const handleRegisterDevice = handleSubmitReg(async (data: DeviceRegistrationForm) => {
     if (isRegistering) return;
     setRegError('');
-    if (!regTenantCode || !regBranchCode || !regDeviceName || !regAdminPassword) {
-      setRegError('Semua kolom wajib diisi.');
-      return;
-    }
     setIsRegistering(true);
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenantCode: regTenantCode.trim(),
-          branchCode: regBranchCode.trim(),
-          deviceName: regDeviceName.trim(),
-          adminPassword: regAdminPassword,
+          tenantCode: data.tenantCode.trim(),
+          branchCode: data.branchCode.trim(),
+          deviceName: data.deviceName.trim(),
+          adminPassword: data.adminPassword,
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setRegError(data.error || 'Registrasi gagal. Periksa kode dan kata sandi.');
+        const resData = await res.json().catch(() => ({}));
+        setRegError(resData.error || 'Registrasi gagal. Periksa kode dan kata sandi.');
         return;
       }
-      const data = await res.json();
-      setDeviceToken(data.token);
-      setDeviceTokenState(data.token);
+      const resData = await res.json();
+      setDeviceToken(resData.token);
+      setDeviceTokenState(resData.token);
       setShowRegister(false);
-      loadKasirList(data.token);
+      loadKasirList(resData.token);
     } catch {
       setRegError('Koneksi gagal. Periksa jaringan internet.');
     } finally {
       setIsRegistering(false);
     }
-  };
+  });
 
   const pinInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const onKasirSubmit = handleSubmitKasir(async (data) => {
+    const currentPin = pinRef.current;
+    if (currentPin.length < 4) {
+      setKasirError('pin', { type: 'manual', message: 'PIN harus 4–6 digit angka.' });
+      return;
+    }
+    if (!data.kasirId) {
+      setKasirError('kasirId', { type: 'manual', message: 'Pilih kasir aktif terlebih dahulu.' });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/pin-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ userId: data.kasirId, pin: currentPin }),
+      });
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        setKasirError('pin', { type: 'manual', message: resData.error || 'PIN salah. Coba lagi.' });
+        return;
+      }
+      const resData = await res.json();
+      setSessionToken(resData.sessionToken);
+      router.push('/kasir');
+    } catch {
+      setKasirError('pin', { type: 'manual', message: 'Koneksi gagal. Periksa jaringan internet.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  });
 
   // On-screen keypad writes to the same `pin` state that the hidden PIN input
   // is bound to, so the input stays the single source of truth for the dots.
@@ -178,42 +237,46 @@ export default function MasukPage() {
       } finally {
         setIsSubmitting(false);
       }
-    } else {
-      if (!email || !password) { setError('Isi email dan kata sandi terlebih dahulu.'); return; }
-      setIsSubmitting(true);
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({ email, password }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || 'Email atau kata sandi salah.');
-          return;
-        }
-        const data = await res.json();
-        setSessionToken(data.sessionToken);
-        router.push(selectedRole === 'owner' ? '/laporan' : '/inventaris');
-      } catch {
-        setError('Koneksi gagal. Periksa jaringan internet.');
-      } finally {
-        setIsSubmitting(false);
-      }
     }
   };
+
+  const onAdminSubmit = handleSubmitAdmin(async (data: AdminLoginForm) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ email: data.email, password: data.password }),
+      });
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        setError(resData.error || 'Email atau kata sandi salah.');
+        return;
+      }
+      const resData = await res.json();
+      setSessionToken(resData.sessionToken);
+      router.push(selectedRole === 'owner' ? '/laporan' : '/inventaris');
+    } catch {
+      setError('Koneksi gagal. Periksa jaringan internet.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  });
 
   const toggleOffline = () => setIsOffline((prev) => !prev);
 
   const handleRoleChange = (role: Role) => {
     setSelectedRole(role);
     // Admin hanya melihat satu cabang — jangan biarkan 'semua' tetap terpilih.
-    if (role === 'admin' && selectedCabang === 'semua') {
-      setSelectedCabang('pusat');
+    if (role === 'admin') {
+      setAdminValue('cabang', 'pusat');
+    } else if (role === 'owner') {
+      setAdminValue('cabang', 'semua');
     }
   };
 
   // Filter cabang by role: admin never sees the konsolidasi option.
+  const adminCabang = watchAdmin('cabang');
   const visibleCabangOptions =
     selectedRole === 'admin' ? cabangOptions.filter((o) => o.value !== 'semua') : cabangOptions;
 
@@ -268,12 +331,13 @@ export default function MasukPage() {
                   <input
                     id="tenantCode"
                     type="text"
-                    value={regTenantCode}
-                    onChange={(e) => setRegTenantCode(e.target.value.toUpperCase())}
+                    {...registerReg('tenantCode')}
+                    onChange={(e) => setRegValue('tenantCode', e.target.value.toUpperCase(), { shouldValidate: true })}
                     placeholder="mis. TLC"
                     autoCapitalize="characters"
-                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.tenantCode, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                   />
+                  <FieldError>{regErrors.tenantCode?.message}</FieldError>
                   <p className="text-xs text-[#5a6675]">Tersedia di Pengaturan → Profil Toko.</p>
                 </div>
                 <div className="grid gap-2">
@@ -281,12 +345,13 @@ export default function MasukPage() {
                   <input
                     id="branchCode"
                     type="text"
-                    value={regBranchCode}
-                    onChange={(e) => setRegBranchCode(e.target.value.toUpperCase())}
+                    {...registerReg('branchCode')}
+                    onChange={(e) => setRegValue('branchCode', e.target.value.toUpperCase(), { shouldValidate: true })}
                     placeholder="mis. PUSAT"
                     autoCapitalize="characters"
-                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.branchCode, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                   />
+                  <FieldError>{regErrors.branchCode?.message}</FieldError>
                   <p className="text-xs text-[#5a6675]">Tersedia di Pengaturan → Cabang.</p>
                 </div>
                 <div className="grid gap-2">
@@ -294,22 +359,22 @@ export default function MasukPage() {
                   <input
                     id="deviceName"
                     type="text"
-                    value={regDeviceName}
-                    onChange={(e) => setRegDeviceName(e.target.value)}
+                    {...registerReg('deviceName')}
                     placeholder="mis. iPad Kasir 1"
-                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.deviceName, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                   />
+                  <FieldError>{regErrors.deviceName?.message}</FieldError>
                 </div>
                 <div className="grid gap-2">
                   <label htmlFor="adminPassword" className="text-sm font-medium">Kata Sandi Admin</label>
                   <input
                     id="adminPassword"
                     type="password"
-                    value={regAdminPassword}
-                    onChange={(e) => setRegAdminPassword(e.target.value)}
+                    {...registerReg('adminPassword')}
                     placeholder="Kata sandi admin toko"
-                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.adminPassword, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                   />
+                  <FieldError>{regErrors.adminPassword?.message}</FieldError>
                 </div>
 
                 {regError && (
@@ -373,7 +438,7 @@ export default function MasukPage() {
           </div>
 
           {/* Forms */}
-          <form ref={formRef} onSubmit={handleSubmit} className="grid gap-5">
+          <form ref={formRef} onSubmit={selectedRole === 'kasir' ? onKasirSubmit : onAdminSubmit} className="grid gap-5">
             {/* Kasir Form */}
             {selectedRole === 'kasir' && (
               <div className="grid gap-5" onKeyDown={handlePhysicalKey}>
@@ -382,9 +447,13 @@ export default function MasukPage() {
                   <div className="relative">
                     <select
                       id="kasir"
+                      {...registerKasir('kasirId')}
                       value={selectedKasir}
-                      onChange={(e) => setSelectedKasir(e.target.value)}
-                      className="w-full min-h-[46px] px-3 pr-10 text-base border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                      onChange={(e) => {
+                        setSelectedKasir(e.target.value);
+                        registerKasir('kasirId').onChange(e);
+                      }}
+                      className={`w-full min-h-[46px] px-3 pr-10 text-base border ${fieldBorder(!!kasirErrors.kasirId, 'border-[#cbd2dc]')} rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                     >
                       <option value="" disabled>— Pilih kasir —</option>
                       {kasirList.length > 0
@@ -396,6 +465,7 @@ export default function MasukPage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
                   </div>
+                  <FieldError>{kasirErrors.kasirId?.message as string | undefined}</FieldError>
                 </div>
 
                 <div className="grid gap-2">
@@ -432,6 +502,7 @@ export default function MasukPage() {
                   </div>
                   <p className="text-xs text-[#5a6675]">Tekan angka di keypad atau gunakan papan angka perangkat.</p>
                   <p className="text-xs text-[#5a6675]">Belum punya PIN? Admin toko dapat membuatkan.</p>
+                  <FieldError>{kasirErrors.pin?.message as string | undefined}</FieldError>
                 </div>
 
                 {/* Keypad */}
@@ -472,11 +543,11 @@ export default function MasukPage() {
                   <input
                     id="email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    {...registerAdmin('email')}
                     placeholder="nama@tokolintascabang.id"
-                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!adminErrors.email, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                   />
+                  <FieldError>{adminErrors.email?.message}</FieldError>
                 </div>
 
                 <div className="grid gap-2">
@@ -485,9 +556,8 @@ export default function MasukPage() {
                     <input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full min-h-[46px] px-3 pr-24 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                      {...registerAdmin('password')}
+                      className={`w-full min-h-[46px] px-3 pr-24 text-base border ${fieldBorder(!!adminErrors.password, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                     />
                     <button
                       type="button"
@@ -498,6 +568,7 @@ export default function MasukPage() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  <FieldError>{adminErrors.password?.message}</FieldError>
                 </div>
 
                 <div className="grid gap-2">
@@ -505,9 +576,8 @@ export default function MasukPage() {
                   <div className="relative">
                     <select
                       id="cabang"
-                      value={selectedCabang}
-                      onChange={(e) => setSelectedCabang(e.target.value)}
-                      className="w-full min-h-[46px] px-3 pr-10 text-base border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                      {...registerAdmin('cabang')}
+                      className={`w-full min-h-[46px] px-3 pr-10 text-base border ${fieldBorder(!!adminErrors.cabang, 'border-[#cbd2dc]')} rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                     >
                       {visibleCabangOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -515,6 +585,7 @@ export default function MasukPage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
                   </div>
+                  <FieldError>{adminErrors.cabang?.message}</FieldError>
                   <p className="text-xs text-[#5a6675]">Admin hanya melihat satu cabang; owner dapat melihat seluruh cabang sekaligus.</p>
                 </div>
 
@@ -522,13 +593,12 @@ export default function MasukPage() {
                   <label className="inline-flex items-center gap-2 text-sm text-[#5a6675] cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={rememberDevice}
-                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      {...registerAdmin('rememberDevice')}
                       className="w-[18px] h-[18px] accent-[#182230]"
                     />
                     <span>Ingat perangkat ini selama 30 hari</span>
                   </label>
-                  {rememberDevice && (
+                  {watchAdmin('rememberDevice') && (
                     <p className="m-0 text-xs text-[#5a6675]">Perangkat terakhir dikenali: iPad Kasir — Toko Pusat (12 Jun 2025).</p>
                   )}
                 </div>
