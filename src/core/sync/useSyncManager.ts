@@ -31,6 +31,7 @@ export default function useSyncManager(db: Database | null) {
     try {
       await syncDatabase(db);
       setLastSyncAt(new Date());
+      localStorage.setItem('lastSyncAt', new Date().toISOString());
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Sync failed';

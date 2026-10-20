@@ -88,6 +88,19 @@ export function useInventoryBatches(productId?: string): {
 }
 
 // ---------------------------------------------------------------------------
+// useProductCount
+// ---------------------------------------------------------------------------
+export function useProductCount(): number {
+  const db = useDatabase()
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    if (!db) return
+    db.get('products').query().fetchCount().then(setCount).catch(() => {})
+  }, [db])
+  return count
+}
+
+// ---------------------------------------------------------------------------
 // useActiveTransactions
 // ---------------------------------------------------------------------------
 export function useActiveTransactions(): {

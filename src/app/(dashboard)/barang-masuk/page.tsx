@@ -83,31 +83,43 @@ export default function BarangMasukPage() {
     useForm<InboundFormValues>({
       resolver: zodResolver(inboundFormSchema),
       defaultValues: {
-        supplier: 'PT Sumber Pangan Jaya',
-        invoice: 'INV/SPJ/0418',
-        date: '2026-04-18',
-        warehouse: 'Gudang Utama — Kebayoran',
-        lines: [
-          { qty: 24, cost: 2900, margin: 20, batch: 'B2321', expiry: '2026-06-19' },
-          { qty: 12, cost: 5900, margin: 25, batch: 'B2322', expiry: '2026-05-02' },
-          { qty: 36, cost: 3100, margin: 22, batch: 'B2323', expiry: '' },
-          { qty: 12, cost: 14000, margin: 28, batch: 'B2324', expiry: '' },
-        ],
+        supplier: '',
+        invoice: '',
+        date: new Date().toISOString().split('T')[0],
+        warehouse: '',
+        lines: [],
       },
     });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' });
 
-  const [linesMeta, setLinesMeta] = useState<LineMeta[]>([
-    { sku: '8991002101147', name: 'Indomie Goreng 85g',   unit: 'pcs', perishable: true },
-    { sku: '8991234567890', name: 'Susu Ultra 250ml',      unit: 'pcs', perishable: true },
-    { sku: '8992761123456', name: 'Aqua 600ml',            unit: 'pcs', perishable: false },
-    { sku: '8998765432109', name: 'Roti Tawar Sari Roti',  unit: 'pcs', perishable: true },
-  ]);
+  const [linesMeta, setLinesMeta] = useState<LineMeta[]>([]);
 
   const [scanInput, setScanInput] = useState('');
-  const [rowSeq, setRowSeq] = useState(5);
+  const [rowSeq, setRowSeq] = useState(1);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+
+  const [supplierOptions, setSupplierOptions] = useState<{ value: string; label: string }[]>([]);
+  const [warehouseOptions, setWarehouseOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/suppliers')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data: Array<{ id: string; name: string }>) => {
+        setSupplierOptions(data.map(s => ({ value: s.name, label: s.name })));
+      })
+      .catch(() => {
+        setSupplierOptions([{ value: 'Supplier Lainnya', label: 'Supplier Lainnya' }]);
+      });
+    fetch('/api/branches')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data: Array<{ id: string; name: string }>) => {
+        setWarehouseOptions(data.map(b => ({ value: b.name, label: b.name })));
+      })
+      .catch(() => {
+        setWarehouseOptions([{ value: 'Gudang Utama', label: 'Gudang Utama' }]);
+      });
+  }, []);
 
   // ─── Derived totals ─────────────────────────────────────────────────────────
   const watchedLines = watch('lines') ?? [];
@@ -326,7 +338,7 @@ export default function BarangMasukPage() {
           </div>
           <div className="hidden sm:block p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
             <span className="text-xs text-[#5a6675]">Supplier</span>
-            <p className="m-0 mt-1 text-[15px] font-bold truncate">PT Sumber Pangan Jaya</p>
+            <p className="m-0 mt-1 text-[15px] font-bold truncate">{watch('supplier') || '—'}</p>
             <span className="text-xs text-[#5a6675]">Kontrak s/d 30 Jun</span>
           </div>
         </section>
@@ -346,9 +358,7 @@ export default function BarangMasukPage() {
                 <label htmlFor="supplier" className="text-xs font-medium text-[#5a6675]">Supplier</label>
                 <div className="relative">
                   <select id="supplier" {...register('supplier')} className={inputCls(!!errors.supplier, 'appearance-none pr-10 cursor-pointer')}>
-                    <option>PT Sumber Pangan Jaya</option>
-                    <option>CV Anugerah Snack</option>
-                    <option>PT Dairy Prima Nusantara</option>
+                    {supplierOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675]" />
                 </div>
@@ -368,8 +378,7 @@ export default function BarangMasukPage() {
                 <label htmlFor="warehouse" className="text-xs font-medium text-[#5a6675]">Gudang tujuan</label>
                 <div className="relative">
                   <select id="warehouse" {...register('warehouse')} className={inputCls(!!errors.warehouse, 'appearance-none pr-10 cursor-pointer')}>
-                    <option>Gudang Utama — Kebayoran</option>
-                    <option>Gudang Cabang Bintaro</option>
+                    {warehouseOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675]" />
                 </div>

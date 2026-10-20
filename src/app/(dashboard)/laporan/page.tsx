@@ -5,7 +5,7 @@ import { Info, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/shared/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/shared/components/ui/dialog';
-import { getAuthHeaders } from '@/core/auth/client';
+import { getAuthHeaders, decodeSessionToken, getSessionToken, getTenantInfo } from '@/core/auth/client';
 
 type Period = 'today' | 'week' | 'month';
 
@@ -46,6 +46,7 @@ function periodLabel(period: Period) {
 }
 
 export default function LaporanPage() {
+  const sessionPayload = decodeSessionToken<{ userName?: string }>(getSessionToken() ?? '');
   const [period, setPeriod] = useState<Period>('week');
   const [shiftCash, setShiftCash] = useState<number | ''>('');
   const [shiftNote, setShiftNote] = useState('');
@@ -382,8 +383,9 @@ export default function LaporanPage() {
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Shift terbuka</span>
           </div>
           <div className="p-4 lg:p-5">
-            <p className="text-[13px] text-[#5a6675]">Kasir 01 · Sari Wulandari · 08:12–16:00 · {trxCount} transaksi</p>
+            <p className="text-[13px] text-[#5a6675]">{sessionPayload?.userName ?? 'Kasir'} · {getTenantInfo()?.branchName ?? 'Cabang'} · {trxCount} transaksi</p>
             <ul className="mt-3 grid gap-2 list-none m-0 p-0 text-[13px]">
+              {/* TODO: Replace with real payment breakdown from GET /api/reports/shift when Shift model is added */}
               <li className="flex items-baseline justify-between text-[#5a6675]">
                 <span>Kas seharusnya (sistem)</span>
                 <strong className="text-[#182230] tabular-nums">{rupiah(expectedCash)}</strong>
@@ -397,6 +399,7 @@ export default function LaporanPage() {
                 <strong className="text-[#182230] tabular-nums">{rupiah(cardAmount)}</strong>
               </li>
             </ul>
+            <p className="text-xs text-amber-600 mt-2">Estimasi berdasarkan rata-rata pembayaran</p>
             <div className="mt-3 grid gap-1.5">
               <label htmlFor="shift-cash" className="text-xs font-medium text-[#5a6675]">Kas fisik hasil hitung</label>
               <input

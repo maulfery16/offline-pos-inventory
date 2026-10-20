@@ -16,11 +16,11 @@ import {
   WifiOff,
   LogOut,
 } from 'lucide-react';
-import { clearSessionToken, clearAllTokens } from '@/core/auth/client';
+import { clearSessionToken, clearAllTokens, getSessionToken, decodeSessionToken, decodeSessionRole, getTenantInfo } from '@/core/auth/client';
 import { Badge } from '@/shared/components/Badge';
 import { cn } from '@/shared/utils';
 import { useLowStockBadge } from '@/features/inventory/hooks/useLowStockBadge';
-import { decodeSessionRole } from '@/core/auth/client';
+import { useProductCount } from '@/core/db/hooks';
 
 interface NavigationItem {
   label: string;
@@ -68,6 +68,23 @@ export const RetailShell: React.FC<RetailShellProps> = ({
 
   const [userRole, setUserRole] = useState<string | null>(null);
   useEffect(() => { setUserRole(decodeSessionRole()); }, []);
+
+  const [tenantInfo, setTenantInfoState] = useState(() => getTenantInfo());
+  const tenantName = tenantInfo?.tenantName ?? 'Toko';
+  const branchName = tenantInfo?.branchName ?? 'Cabang';
+
+  const [lastSyncDisplay, setLastSyncDisplay] = useState<string>('Tersinkron');
+  useEffect(() => {
+    const raw = localStorage.getItem('lastSyncAt');
+    if (!raw) return;
+    const syncDate = new Date(raw);
+    const diffMs = Date.now() - syncDate.getTime();
+    if (diffMs < 2 * 60 * 1000) {
+      setLastSyncDisplay('baru saja');
+    } else {
+      setLastSyncDisplay('Tersinkron · ' + syncDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    }
+  }, []);
 
   const visibleNavItems = navigationItems.filter(
     item => !item.roles || !userRole || item.roles.includes(userRole)
@@ -148,6 +165,19 @@ export const RetailShell: React.FC<RetailShellProps> = ({
     const [isSignoutOpen, setIsSignoutOpen] = useState(false);
     const signoutRef = useRef<HTMLDivElement>(null);
 
+    const sessionPayload = decodeSessionToken<{ userName?: string; role?: string }>(getSessionToken() ?? '');
+    const userName = sessionPayload?.userName ?? 'Pengguna';
+    const role = decodeSessionRole() ?? 'kasir';
+    const productCount = useProductCount();
+
+    const initials = (() => {
+      const words = userName.trim().split(/\s+/);
+      if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+      return userName.slice(0, 2).toUpperCase();
+    })();
+
+    const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+
     useEffect(() => {
       const handleOutsideClick = (e: MouseEvent) => {
         if (signoutRef.current && !signoutRef.current.contains(e.target as Node)) {
@@ -171,11 +201,11 @@ export const RetailShell: React.FC<RetailShellProps> = ({
         <div ref={signoutRef} className="relative">
           <div className="flex items-center gap-3 p-2.5 rounded-[10px] bg-[#1b2534]">
             <span className="grid place-items-center w-8 h-8 rounded-full bg-[#12507f] text-white text-xs font-semibold flex-none">
-              RA
+              {initials}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="m-0 text-[13px] text-[#f2f6fb] font-semibold truncate">Rani Anggraeni</p>
-              <p className="m-0 text-[11px] text-[#8593a6]">Admin · 2 cabang</p>
+              <p className="m-0 text-[13px] text-[#f2f6fb] font-semibold truncate">{userName}</p>
+              <p className="m-0 text-[11px] text-[#8593a6]">{roleLabel}</p>
             </div>
             <button
               type="button"
@@ -215,7 +245,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
             </div>
           )}
         </div>
-        <p className="m-0 px-1">Mode offline siap · 1.240 SKU lokal</p>
+        <p className="m-0 px-1">Mode offline siap · {productCount.toLocaleString('id-ID')} SKU lokal</p>
       </div>
     </>
     );
@@ -235,17 +265,17 @@ export const RetailShell: React.FC<RetailShellProps> = ({
             <Store className="w-5 h-5" />
           </span>
           <div className="min-w-0">
-            <div className="font-bold tracking-tight truncate">Warung Nusantara</div>
+            <div className="font-bold tracking-tight truncate">{tenantName}</div>
             <div className="text-xs text-[#97a3b4]">Retail Operations</div>
           </div>
         </div>
         {/* Store info */}
         <div className="mx-4 shrink-0 grid gap-1 p-3 rounded-[10px] bg-[#1b2534] border border-[#2a3648] text-xs text-[#b6c1d0]">
           <span>Cabang aktif</span>
-          <strong className="text-[13px] text-[#f2f6fb]">Cabang Kebayoran</strong>
+          <strong className="text-[13px] text-[#f2f6fb]">{branchName}</strong>
           <span className="flex items-center gap-2">
             <span className={cn('w-2 h-2 rounded-full flex-none', isOffline ? 'bg-[#f3b64a]' : 'bg-[#4ec38a]')} />
-            {isOffline ? 'Mode offline' : 'Tersinkron · 2 menit lalu'}
+            {isOffline ? 'Mode offline' : lastSyncDisplay}
           </span>
         </div>
         <NavContent />
@@ -279,7 +309,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
             <span className="grid place-items-center w-7 h-7 rounded-[8px] bg-[#0f6d5f] text-white flex-none">
               <Store className="w-4 h-4" />
             </span>
-            <span className="font-semibold text-[#f2f6fb] text-sm">Warung Nusantara</span>
+            <span className="font-semibold text-[#f2f6fb] text-sm">{tenantName}</span>
           </div>
           <button
             onClick={closeDrawer}

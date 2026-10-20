@@ -56,11 +56,7 @@ export default function KedaluwarsaPage() {
   const [sort, setSort] = useState<Sort>('fefo');
   const [blockedBatches, setBlockedBatches] = useState<Set<string>>(new Set());
   const [returnRequested, setReturnRequested] = useState<Set<string>>(new Set());
-  const [log, setLog] = useState<string[]>([
-    'Peringatan 7 hari dikirim ke Stok: 2 batch Yogurt dan Roti Tawar.',
-    'Batch B2321 (Indomie Goreng) masuk dengan kedaluwarsa 12 Mei.',
-    'Cimory 200ml diblokir otomatis setelah melewati tanggal kedaluwarsa.',
-  ]);
+  const [log, setLog] = useState<string[]>([]);
 
   useEffect(() => {
     setBlockedBatches(new Set(rawBatches.filter(b => b.isBlocked).map(b => b.id)));

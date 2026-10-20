@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff, Tablet } from 'lucide-react';
-import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders } from '@/core/auth/client';
+import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders, setTenantInfo } from '@/core/auth/client';
 import { usePendingSyncCount } from '@/core/sync/usePendingSyncCount';
 import { deviceRegistrationSchema, kasirLoginSchema, adminLoginSchema, type DeviceRegistrationForm, type AdminLoginForm } from '@/core/auth/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
@@ -40,6 +40,7 @@ export default function MasukPage() {
     { value: 'semua', label: 'Semua cabang (konsolidasi)' }, // default fallback
   ]);
   const [cabangLoading, setCabangLoading] = useState(false);
+  const [lastSyncDisplay, setLastSyncDisplay] = useState('Online — tersinkron');
 
   // Device registration state
   const [showRegister, setShowRegister] = useState(false);
@@ -75,6 +76,14 @@ export default function MasukPage() {
 
   const pinRef = useRef('');
   useEffect(() => { pinRef.current = pin; }, [pin]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem('lastSyncAt');
+    if (raw) {
+      const d = new Date(raw);
+      setLastSyncDisplay('Online — tersinkron ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    }
+  }, []);
 
   const loadKasirList = (token: string) => {
     fetch('/api/users?role=kasir', { headers: { Authorization: `Bearer ${token}` } })
@@ -149,6 +158,9 @@ export default function MasukPage() {
       const resData = await res.json();
       setDeviceToken(resData.token);
       setDeviceTokenState(resData.token);
+      if (resData.tenantName || resData.branchName) {
+        setTenantInfo({ tenantName: resData.tenantName ?? '', branchName: resData.branchName ?? '' });
+      }
       setShowRegister(false);
       loadKasirList(resData.token);
     } catch {
@@ -319,7 +331,7 @@ export default function MasukPage() {
               <span className="font-medium tabular-nums">
                 {isOffline
                   ? `Offline — ${pendingSyncCount} transaksi menunggu sinkron`
-                  : 'Online — tersinkron 12:04'}
+                  : lastSyncDisplay}
               </span>
               {isOffline && (
                 <span className="text-xs">Kamu tetap bisa masuk, transaksi akan tersinkron otomatis.</span>
