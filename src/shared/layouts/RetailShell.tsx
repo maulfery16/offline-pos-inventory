@@ -61,8 +61,6 @@ export const RetailShell: React.FC<RetailShellProps> = ({
   headerActions,
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isSignoutOpen, setIsSignoutOpen] = useState(false);
-  const signoutRef = useRef<HTMLDivElement>(null);
   const pathname  = usePathname();
   const router    = useRouter();
   const { count: lowStockCount } = useLowStockBadge();
@@ -98,18 +96,6 @@ export const RetailShell: React.FC<RetailShellProps> = ({
     return () => { document.body.style.overflow = ''; };
   }, [isDrawerOpen]);
 
-  // Close signout popover on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (signoutRef.current && !signoutRef.current.contains(e.target as Node)) {
-        setIsSignoutOpen(false);
-      }
-    };
-    if (isSignoutOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [isSignoutOpen]);
 
   const renderNavItems = (onClick?: () => void) => {
     let currentGroup = '';
@@ -158,7 +144,23 @@ export const RetailShell: React.FC<RetailShellProps> = ({
   };
 
   // ─── Shared sidebar/drawer nav content ─────────────────────────────────────
-  const NavContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
+  function NavContent({ onLinkClick }: { onLinkClick?: () => void }) {
+    const [isSignoutOpen, setIsSignoutOpen] = useState(false);
+    const signoutRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const handleOutsideClick = (e: MouseEvent) => {
+        if (signoutRef.current && !signoutRef.current.contains(e.target as Node)) {
+          setIsSignoutOpen(false);
+        }
+      };
+      if (isSignoutOpen) {
+        document.addEventListener('mousedown', handleOutsideClick);
+      }
+      return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [isSignoutOpen]);
+
+    return (
     <>
       {/* Navigation */}
       <nav className="flex flex-col gap-0.5 px-3 pt-3 pb-4 flex-1 min-h-0 overflow-y-auto" aria-label="Modul">
@@ -216,7 +218,8 @@ export const RetailShell: React.FC<RetailShellProps> = ({
         <p className="m-0 px-1">Mode offline siap · 1.240 SKU lokal</p>
       </div>
     </>
-  );
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f2f4f7] text-[#182230]">

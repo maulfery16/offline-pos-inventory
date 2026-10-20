@@ -1,7 +1,7 @@
 'use client';
 
 import { RetailShell } from '@/shared/layouts';
-import { isDeviceRegistered } from '@/core/auth/client';
+import { isDeviceRegistered, getSessionToken } from '@/core/auth/client';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -16,7 +16,7 @@ export default function DashboardLayout({
   const [authState, setAuthState] = useState<'loading' | 'authorized' | 'redirecting'>('loading');
 
   useEffect(() => {
-    if (isDeviceRegistered()) {
+    if (isDeviceRegistered() && getSessionToken()) {
       setAuthState('authorized');
     } else {
       setAuthState('redirecting');
