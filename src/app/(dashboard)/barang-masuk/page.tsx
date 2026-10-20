@@ -144,7 +144,7 @@ export default function BarangMasukPage() {
           if (idx !== -1) {
             toast.info(`SKU ${sku} sudah ada di baris ${idx + 1}. Ubah qty langsung di baris.`);
           } else {
-            append({ qty: 1, cost: 0, margin: 20, batch: `B${2320 + rowSeq}`, expiry: '' });
+            append({ qty: 1, cost: 0, margin: 20, batch: `B${new Date().getFullYear()}-${String(rowSeq).padStart(3, '0')}`, expiry: '' });
             setLinesMeta(prev => [...prev, { sku, name: p.name as string, unit: (p.unit as string) || 'pcs', perishable: true }]);
             setRowSeq(prev => prev + 1);
           }

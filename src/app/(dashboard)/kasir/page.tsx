@@ -392,7 +392,7 @@ export default function KasirPage() {
             <p className="m-0 mt-1 text-xs text-[#5a6675]">{userName} · {branchName} · Buka {shiftStart} · {todayTxCount} transaksi</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Antrean normal · 3 pelanggan</span>
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Antrean normal</span>
             {/* Printer connect button — hidden if WebUSB not supported */}
             {printerSupported ? (
               <button
