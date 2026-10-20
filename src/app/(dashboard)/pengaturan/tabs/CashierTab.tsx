@@ -9,8 +9,8 @@ import type { TabProps } from '../page';
 import { getAuthHeaders } from '@/core/auth/client';
 import { cashierAddSchema, type CashierAddForm } from '@/core/auth/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
-import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import { cn } from '@/shared/utils/cn';
+import { Input } from '@/shared/components/ui/input';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Cashier {
@@ -180,17 +180,14 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
               <label htmlFor="cashier-name" className="text-[12px] font-medium text-[#5a6675]">
                 Nama lengkap <span className="text-[#a52b22]" aria-hidden="true">*</span>
               </label>
-              <input
+              <Input
                 id="cashier-name"
                 type="text"
                 placeholder="Contoh: Budi Santoso"
                 {...register('name')}
-                className={cn(
-                  'h-10 w-full rounded-[10px] border bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/20',
-                  fieldBorder(!!errors.name, 'border-[#e2e6ec]'),
-                )}
                 disabled={submitting}
                 autoComplete="off"
+                fullWidth
               />
               <FieldError>{errors.name?.message}</FieldError>
             </div>
@@ -199,7 +196,7 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
               <label htmlFor="cashier-pin" className="text-[12px] font-medium text-[#5a6675]">
                 PIN (4–6 digit) <span className="text-[#a52b22]" aria-hidden="true">*</span>
               </label>
-              <input
+              <Input
                 id="cashier-pin"
                 type="password"
                 inputMode="numeric"
@@ -209,12 +206,9 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
                 onChange={(e) =>
                   setValue('pin', e.target.value.replace(/\D/g, ''), { shouldValidate: true })
                 }
-                className={cn(
-                  'h-10 w-full rounded-[10px] border bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/20',
-                  fieldBorder(!!errors.pin, 'border-[#e2e6ec]'),
-                )}
                 disabled={submitting}
                 autoComplete="new-password"
+                fullWidth
               />
               <FieldError>{errors.pin?.message}</FieldError>
             </div>

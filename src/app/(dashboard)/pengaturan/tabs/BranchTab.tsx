@@ -11,6 +11,7 @@ import { FieldError } from '@/shared/components/forms/FieldError';
 import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import type { TabProps } from '../page';
 import { ChevronUp, Pencil, PlusCircle } from 'lucide-react';
+import { Input } from '@/shared/components/ui/input';
 
 interface Branch {
   id: string;
@@ -173,14 +174,11 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
               <label className="mb-1 block text-[12px] font-medium text-[#374151]">
                 Nama Cabang <span className="text-red-500">*</span>
               </label>
-              <input
+              <Input
                 type="text"
                 {...register('name')}
                 placeholder="cth. Cabang Utama"
-                className={cn(
-                  'w-full rounded-[8px] border bg-white px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#9ca3af] focus:border-[#0f6d5f] focus:outline-none focus:ring-1 focus:ring-[#0f6d5f]',
-                  fieldBorder(!!errors.name, 'border-[#d1d5db]'),
-                )}
+                fullWidth
               />
               <FieldError>{errors.name?.message as string}</FieldError>
             </div>
@@ -188,16 +186,14 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
               <label className="mb-1 block text-[12px] font-medium text-[#374151]">
                 Kode Cabang <span className="text-red-500">*</span>
               </label>
-              <input
+              <Input
                 type="text"
                 {...register('code')}
                 onChange={(e) => setValue('code', e.target.value.toUpperCase(), { shouldValidate: true })}
                 autoCapitalize="characters"
                 placeholder="cth. PUSAT"
-                className={cn(
-                  'w-full rounded-[8px] border bg-white px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#9ca3af] focus:border-[#0f6d5f] focus:outline-none focus:ring-1 focus:ring-[#0f6d5f]',
-                  fieldBorder(!!errors.code, 'border-[#d1d5db]'),
-                )}
+                className="font-mono"
+                fullWidth
               />
               <FieldError>{errors.code?.message as string}</FieldError>
               <p className="mt-1 text-[11px] text-[#8a94a3]">Digunakan saat registrasi perangkat. Tidak bisa diubah.</p>
@@ -336,12 +332,12 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
                                   <label className="text-[12px] font-medium text-[#5a6675]">
                                     Nama <span className="text-[#a52b22]">*</span>
                                   </label>
-                                  <input
+                                  <Input
                                     type="text"
                                     {...editForm.register('name', { required: 'Nama wajib diisi' })}
-                                    className="h-10 w-full rounded-[10px] border border-[#e2e6ec] bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/20"
                                     disabled={editSubmitting}
                                     autoFocus
+                                    fullWidth
                                   />
                                   {editForm.formState.errors.name && (
                                     <span className="text-[11px] text-[#a52b22]">{editForm.formState.errors.name.message}</span>
@@ -350,12 +346,12 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
                                 {/* Address */}
                                 <div className="flex flex-col gap-1" style={{minWidth: 0, flex: '1 1 220px', maxWidth: 360}}>
                                   <label className="text-[12px] font-medium text-[#5a6675]">Alamat</label>
-                                  <input
+                                <Input
                                     type="text"
                                     {...editForm.register('address')}
                                     placeholder="Opsional"
-                                    className="h-10 w-full rounded-[10px] border border-[#e2e6ec] bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/20"
                                     disabled={editSubmitting}
+                                    fullWidth
                                   />
                                 </div>
                               </div>
@@ -438,11 +434,11 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
                         {/* Name input */}
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[12px] font-medium text-[#5a6675]">Nama <span className="text-[#a52b22]">*</span></label>
-                          <input
+                          <Input
                             type="text"
                             {...editForm.register('name', { required: 'Nama wajib diisi' })}
-                            className="h-10 w-full rounded-[10px] border border-[#e2e6ec] bg-white px-3 text-[13px] text-[#182230] focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/20"
                             disabled={editSubmitting}
+                            fullWidth
                           />
                           {editForm.formState.errors.name && (
                             <span className="text-[11px] text-[#a52b22]">{editForm.formState.errors.name.message}</span>
@@ -451,12 +447,12 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
                         {/* Address input */}
                         <div className="flex flex-col gap-1.5">
                           <label className="text-[12px] font-medium text-[#5a6675]">Alamat</label>
-                          <input
+                          <Input
                             type="text"
                             {...editForm.register('address')}
                             placeholder="Opsional"
-                            className="h-10 w-full rounded-[10px] border border-[#e2e6ec] bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/20"
                             disabled={editSubmitting}
+                            fullWidth
                           />
                         </div>
                         <div className="flex items-center gap-2">

@@ -10,7 +10,6 @@ import { getAuthHeaders } from '@/core/auth/client';
 import { cn } from '@/shared/utils/index';
 import { productFormSchema } from '@/features/inventory/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
-import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +25,7 @@ import {
   TableRow,
   TableCell,
 } from '@/shared/components/ui/table';
+import { Input } from '@/shared/components/ui/input';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -356,15 +356,12 @@ export default function ProductTab({ tenantId }: TabProps) {
               <label htmlFor="prod-name" className="text-[12px] font-medium text-[#5a6675]">
                 Nama <span className="text-red-500">*</span>
               </label>
-              <input
+              <Input
                 id="prod-name"
                 type="text"
                 {...register('name')}
                 placeholder="Nama produk"
-                className={cn(
-                  'rounded-lg border px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
-                  fieldBorder(!!errors.name, 'border-[#e2e6ec]'),
-                )}
+                fullWidth
               />
               <FieldError>{errors.name?.message}</FieldError>
             </div>
@@ -374,15 +371,13 @@ export default function ProductTab({ tenantId }: TabProps) {
               <label htmlFor="prod-sku" className="text-[12px] font-medium text-[#5a6675]">
                 SKU <span className="text-red-500">*</span>
               </label>
-              <input
+              <Input
                 id="prod-sku"
                 type="text"
                 {...register('sku')}
                 placeholder="Kode SKU unik"
-                className={cn(
-                  'rounded-lg border px-3 py-2 text-[13px] font-mono text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
-                  fieldBorder(!!errors.sku, 'border-[#e2e6ec]'),
-                )}
+                className="font-mono"
+                fullWidth
               />
               <FieldError>{errors.sku?.message}</FieldError>
             </div>
@@ -392,12 +387,12 @@ export default function ProductTab({ tenantId }: TabProps) {
               <label htmlFor="prod-unit" className="text-[12px] font-medium text-[#5a6675]">
                 Satuan
               </label>
-              <input
+              <Input
                 id="prod-unit"
                 type="text"
                 {...register('unit')}
                 placeholder="pcs, kg, ltr, …"
-                className="rounded-lg border border-[#e2e6ec] px-3 py-2 text-[13px] text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none"
+                fullWidth
               />
             </div>
 
@@ -406,17 +401,15 @@ export default function ProductTab({ tenantId }: TabProps) {
               <label htmlFor="prod-price" className="text-[12px] font-medium text-[#5a6675]">
                 Harga Jual (Rp) <span className="text-red-500">*</span>
               </label>
-              <input
+              <Input
                 id="prod-price"
                 type="number"
                 min={0}
                 step={1}
                 {...register('defaultPrice')}
                 placeholder="0"
-                className={cn(
-                  'rounded-lg border px-3 py-2 text-[13px] tabular-nums text-[#182230] placeholder:text-[#b0b8c5] focus:border-[#0f6d5f] focus:outline-none',
-                  fieldBorder(!!errors.defaultPrice, 'border-[#e2e6ec]'),
-                )}
+                className="tabular-nums"
+                fullWidth
               />
               <FieldError>{errors.defaultPrice?.message}</FieldError>
             </div>
