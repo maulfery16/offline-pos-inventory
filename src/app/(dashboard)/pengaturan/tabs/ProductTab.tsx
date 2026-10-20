@@ -317,39 +317,6 @@ export default function ProductTab({ tenantId }: TabProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Import CSV button */}
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={() => csvInputRef.current?.click()}
-              disabled={csvImporting}
-              className={cn(
-                'flex items-center gap-1.5 rounded-[10px] border border-[#e2e6ec] px-3 py-2 text-[13px] font-medium text-[#5a6675] transition-colors',
-                'hover:border-[#0f6d5f] hover:text-[#0f6d5f]',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
-                'bg-white',
-              )}
-            >
-              {csvImporting
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Upload className="h-4 w-4" />}
-              Import CSV
-            </button>
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="text-[11px] text-[#8a94a3] hover:text-[#0f6d5f] transition-colors underline underline-offset-2"
-            >
-              Download template
-            </button>
-          </div>
-          {/* Hidden file input */}
-          <input
-            type="file"
-            accept=".csv"
-            ref={csvInputRef}
-            onChange={(e) => void handleCsvImport(e)}
-            className="hidden"
-          />
           {/* Add product button */}
           <button
             onClick={openAdd}
@@ -363,6 +330,39 @@ export default function ProductTab({ tenantId }: TabProps) {
           </button>
         </div>
       </div>
+      {/* Import CSV button */}
+      <div className="flex gap-2 items-center mb-4">
+        <button
+          onClick={() => csvInputRef.current?.click()}
+          disabled={csvImporting}
+          className={cn(
+            'flex items-center gap-1.5 rounded-[10px] border border-[#e2e6ec] px-3 py-2 text-[13px] font-medium text-[#5a6675] transition-colors',
+            'hover:border-[#0f6d5f] hover:text-[#0f6d5f]',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'bg-white',
+          )}
+        >
+          {csvImporting
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <Upload className="h-4 w-4" />}
+          Import CSV
+        </button>
+        <button
+          type="button"
+          onClick={downloadTemplate}
+          className="text-[11px] text-[#8a94a3] hover:text-[#0f6d5f] transition-colors underline underline-offset-2"
+        >
+          Download template
+        </button>
+      </div>
+      {/* Hidden file input */}
+      <input
+        type="file"
+        accept=".csv"
+        ref={csvInputRef}
+        onChange={(e) => void handleCsvImport(e)}
+        className="hidden"
+      />
 
       {/* Search bar */}
       <div className="mb-4 relative">
