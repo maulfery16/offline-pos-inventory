@@ -168,7 +168,7 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">
             Kasir Baru
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(200px,280px)_160px_auto] gap-3 items-end">
             {/* Name */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="cashier-name" className="text-[12px] font-medium text-[#5a6675]">
