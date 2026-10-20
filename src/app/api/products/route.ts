@@ -1,22 +1,29 @@
 export const runtime = 'nodejs';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/core/db/prisma';
 
-
-// GET /api/products?search=&page=&limit=
+// GET /api/products?search=&page=&limit=&sort=&order=
 export async function GET(request: NextRequest) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'Missing tenant context' }, { status: 401 });
     }
-
     const { searchParams } = request.nextUrl;
     const search = searchParams.get('search') ?? '';
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, parseInt(searchParams.get('limit') ?? '20', 10));
     const skip = (page - 1) * limit;
+
+    // Sort support
+    const sortParam = searchParams.get('sort') ?? 'name';
+    const orderParam = searchParams.get('order') ?? 'asc';
+    const validSortFields = ['name', 'sku', 'defaultPrice', 'createdAt'] as const;
+    type SortField = (typeof validSortFields)[number];
+    const sortField: SortField = validSortFields.includes(sortParam as SortField)
+      ? (sortParam as SortField)
+      : 'name';
+    const sortOrder: 'asc' | 'desc' = orderParam === 'desc' ? 'desc' : 'asc';
 
     const where = {
       tenantId,
@@ -31,13 +38,12 @@ export async function GET(request: NextRequest) {
           }
         : {}),
     };
-
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { name: 'asc' },
+        orderBy: { [sortField]: sortOrder },
         include: {
           _count: {
             select: {
@@ -50,7 +56,6 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.count({ where }),
     ]);
-
     return NextResponse.json({
       data: products,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -68,17 +73,14 @@ export async function POST(request: NextRequest) {
     if (!tenantId) {
       return NextResponse.json({ error: 'Missing tenant context' }, { status: 401 });
     }
-
     const body = await request.json();
     const { sku, name, barcode, unit, reorderPoint, defaultPrice } = body;
-
     if (!sku || !name || defaultPrice === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields: sku, name, defaultPrice' },
-        { status: 400 }
+        { status: 400 },
       );
     }
-
     const product = await prisma.product.create({
       data: {
         tenantId,
@@ -90,7 +92,6 @@ export async function POST(request: NextRequest) {
         defaultPrice,
       },
     });
-
     return NextResponse.json(product, { status: 201 });
   } catch (error: unknown) {
     if (
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: 'Product with this SKU already exists for this tenant' },
-        { status: 409 }
+        { status: 409 },
       );
     }
     console.error('[POST /api/products]', error);
