@@ -20,7 +20,7 @@ import {
   Upload,
   ScanBarcode,
 } from 'lucide-react';
-import type { TabProps } from '../page';
+import type { TabProps } from '../types';
 import { getAuthHeaders } from '@/core/auth/client';
 import { cn } from '@/shared/utils/index';
 import { productFormSchema } from '@/features/inventory/schemas';

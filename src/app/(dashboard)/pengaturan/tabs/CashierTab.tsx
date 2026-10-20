@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { PlusCircle, UserX, Loader2, ChevronUp, KeyRound, Users } from 'lucide-react';
 import bcrypt from 'bcryptjs';
-import type { TabProps } from '../page';
+import type { TabProps } from '../types';
 import { getAuthHeaders } from '@/core/auth/client';
 import { cashierAddSchema, type CashierAddForm } from '@/core/auth/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';

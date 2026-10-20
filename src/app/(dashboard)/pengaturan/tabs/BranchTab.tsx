@@ -9,7 +9,7 @@ import { cn } from '@/shared/utils';
 import { branchFormSchema } from '@/features/tenants/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
 import { fieldBorder } from '@/shared/components/forms/fieldBorder';
-import type { TabProps } from '../page';
+import type { TabProps } from '../types';
 import { ChevronUp, Pencil, PlusCircle } from 'lucide-react';
 import { Input } from '@/shared/components/ui/input';
 

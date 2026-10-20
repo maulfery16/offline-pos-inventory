@@ -15,6 +15,7 @@ import {
   X,
   WifiOff,
   LogOut,
+  ChevronDown,
 } from 'lucide-react';
 import { clearSessionToken, clearAllTokens, getSessionToken, decodeSessionToken, decodeSessionRole, getTenantInfo } from '@/core/auth/client';
 import { Badge } from '@/shared/components/Badge';
@@ -22,12 +23,18 @@ import { cn } from '@/shared/utils';
 import { useLowStockBadge } from '@/features/inventory/hooks/useLowStockBadge';
 import { useProductCount } from '@/core/db/hooks';
 
+interface NavigationChild {
+  label: string;
+  href: string;
+}
+
 interface NavigationItem {
   label: string;
   href: string;
   icon: React.ReactNode;
   group?: string;
   roles?: string[];
+  children?: NavigationChild[];
 }
 
 const navigationItems: NavigationItem[] = [
@@ -36,11 +43,34 @@ const navigationItems: NavigationItem[] = [
   { label: 'Inventaris',         href: '/inventaris',   icon: <Boxes         className="w-[18px] h-[18px]" />, group: 'Operasional', roles: ['admin'] },
   { label: 'Kedaluwarsa & FEFO', href: '/kedaluwarsa',  icon: <CalendarClock className="w-[18px] h-[18px]" />, group: 'Operasional', roles: ['admin'] },
   { label: 'Laporan Laba',       href: '/laporan',      icon: <ChartLine     className="w-[18px] h-[18px]" />, group: 'Analitik',    roles: ['admin', 'owner'] },
-  { label: 'Pengaturan',         href: '/pengaturan',   icon: <Settings      className="w-[18px] h-[18px]" />, group: 'Sistem',      roles: ['admin', 'owner'] },
+  {
+    label: 'Pengaturan',
+    href: '/pengaturan',
+    icon: <Settings className="w-[18px] h-[18px]" />,
+    group: 'Sistem',
+    roles: ['admin', 'owner'],
+    children: [
+      { label: 'Cabang',    href: '/pengaturan/cabang' },
+      { label: 'Kasir',     href: '/pengaturan/kasir' },
+      { label: 'Perangkat', href: '/pengaturan/perangkat' },
+      { label: 'Produk',    href: '/pengaturan/produk' },
+      { label: 'Info Toko', href: '/pengaturan/info-toko' },
+    ],
+  },
 ];
+
+const subPageTitles: Record<string, string> = {
+  '/pengaturan/cabang':    'Cabang',
+  '/pengaturan/kasir':     'Kasir',
+  '/pengaturan/perangkat': 'Perangkat',
+  '/pengaturan/produk':    'Produk',
+  '/pengaturan/info-toko': 'Info Toko',
+};
 
 const getPageTitle = (pathname: string | null): string => {
   if (!pathname) return 'Dashboard';
+  // Check sub-page titles first (more specific)
+  if (subPageTitles[pathname]) return subPageTitles[pathname];
   for (const item of navigationItems) {
     if (pathname.startsWith(item.href)) return item.label;
   }
@@ -94,6 +124,19 @@ export const RetailShell: React.FC<RetailShellProps> = ({
   const openDrawer  = () => setIsDrawerOpen(true);
   const closeDrawer = () => setIsDrawerOpen(false);
 
+  // Collapsible nav items — keyed by item href, true = expanded
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Auto-expand the parent when navigating to a child route
+  useEffect(() => {
+    if (!pathname) return;
+    navigationItems.forEach(item => {
+      if (item.children && pathname.startsWith(item.href)) {
+        setExpanded(prev => ({ ...prev, [item.href]: true }));
+      }
+    });
+  }, [pathname]);
+
   // Close on route change
   useEffect(() => { closeDrawer(); }, [pathname]);
 
@@ -124,6 +167,13 @@ export const RetailShell: React.FC<RetailShellProps> = ({
       if (showGroupLabel) groupIndex++;
       currentGroup = item.group ?? '';
 
+      // Items with children use a toggle button instead of a Link
+      const isExpanded = item.children ? !!expanded[item.href] : false;
+
+      const toggleExpanded = () => {
+        setExpanded(prev => ({ ...prev, [item.href]: !prev[item.href] }));
+      };
+
       return (
         <React.Fragment key={item.href}>
           {showGroupLabel && (
@@ -134,28 +184,84 @@ export const RetailShell: React.FC<RetailShellProps> = ({
               {item.group}
             </span>
           )}
-          <Link
-            href={item.href}
-            onClick={onClick}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2.5 min-h-[40px] rounded-[10px] text-sm font-medium transition-colors',
-              'focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9] focus-visible:outline-offset-2',
-              isActive
-                ? 'bg-[#0f6d5f] text-white'
-                : 'text-[#d3dbe6] hover:bg-[#1b2534] hover:text-white',
-            )}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            <span className={cn('flex-none', isActive ? 'text-white' : 'text-[#8b98ab]')}>
-              {item.icon}
-            </span>
-            <span className="flex-1 min-w-0 truncate">{item.label}</span>
-            {item.href === '/inventaris' && lowStockCount > 0 && (
-              <span className="flex-none min-w-[20px] px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[#fdf0da] text-[#8a5300]">
-                {lowStockCount}
+
+          {item.children ? (
+            /* ── Collapsible parent button ── */
+            <button
+              type="button"
+              onClick={toggleExpanded}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2.5 min-h-[40px] rounded-[10px] text-sm font-medium transition-colors',
+                'focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9] focus-visible:outline-offset-2',
+                isActive
+                  ? 'bg-[#0f6d5f] text-white'
+                  : 'text-[#d3dbe6] hover:bg-[#1b2534] hover:text-white',
+              )}
+              aria-expanded={isExpanded}
+            >
+              <span className={cn('flex-none', isActive ? 'text-white' : 'text-[#8b98ab]')}>
+                {item.icon}
               </span>
-            )}
-          </Link>
+              <span className="flex-1 min-w-0 truncate text-left">{item.label}</span>
+              <ChevronDown
+                className={cn(
+                  'flex-none w-[14px] h-[14px] transition-transform duration-200',
+                  isActive ? 'text-white/70' : 'text-[#8b98ab]',
+                  isExpanded ? 'rotate-180' : 'rotate-0',
+                )}
+              />
+            </button>
+          ) : (
+            /* ── Regular nav link ── */
+            <Link
+              href={item.href}
+              onClick={onClick}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 min-h-[40px] rounded-[10px] text-sm font-medium transition-colors',
+                'focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9] focus-visible:outline-offset-2',
+                isActive
+                  ? 'bg-[#0f6d5f] text-white'
+                  : 'text-[#d3dbe6] hover:bg-[#1b2534] hover:text-white',
+              )}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <span className={cn('flex-none', isActive ? 'text-white' : 'text-[#8b98ab]')}>
+                {item.icon}
+              </span>
+              <span className="flex-1 min-w-0 truncate">{item.label}</span>
+              {item.href === '/inventaris' && lowStockCount > 0 && (
+                <span className="flex-none min-w-[20px] px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[#fdf0da] text-[#8a5300]">
+                  {lowStockCount}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {/* Child links — shown when expanded */}
+          {item.children && isExpanded && (
+            <div className="flex flex-col gap-0.5 ml-3 pl-3 border-l border-[#2a3648]">
+              {item.children.map(child => {
+                const isChildActive = pathname === child.href;
+                return (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    onClick={onClick}
+                    className={cn(
+                      'flex items-center px-2.5 py-2 rounded-[8px] text-[13px] font-medium transition-colors',
+                      'focus:outline-none focus-visible:outline-2 focus-visible:outline-[#7fe3c9] focus-visible:outline-offset-2',
+                      isChildActive
+                        ? 'bg-[#163f38] text-[#7fe3c9]'
+                        : 'text-[#8593a6] hover:bg-[#1b2534] hover:text-[#d3dbe6]',
+                    )}
+                    aria-current={isChildActive ? 'page' : undefined}
+                  >
+                    {child.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </React.Fragment>
       );
     });

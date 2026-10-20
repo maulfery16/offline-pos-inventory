@@ -9,7 +9,7 @@ import { computeDiff } from '@/shared/utils/diff';
 import { getAuthHeaders } from '@/core/auth/client';
 import { storeFormSchema } from '@/features/tenants/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
-import type { TabProps } from '../page';
+import type { TabProps } from '../types';
 import { Input } from '@/shared/components/ui/input';
 
 interface TenantInfo {
