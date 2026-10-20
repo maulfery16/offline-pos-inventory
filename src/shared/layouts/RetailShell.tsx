@@ -70,6 +70,7 @@ export const RetailShell: React.FC<RetailShellProps> = ({
   useEffect(() => { setUserRole(decodeSessionRole()); }, []);
 
   const [tenantInfo, setTenantInfoState] = useState(() => getTenantInfo());
+  useEffect(() => { setTenantInfoState(getTenantInfo()); }, []);
   const tenantName = tenantInfo?.tenantName ?? 'Toko';
   const branchName = tenantInfo?.branchName ?? 'Cabang';
 
