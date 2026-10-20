@@ -10,6 +10,7 @@ import { branchFormSchema } from '@/features/tenants/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
 import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import type { TabProps } from '../page';
+import { ChevronUp, PlusCircle } from 'lucide-react';
 
 interface Branch {
   id: string;
@@ -109,13 +110,17 @@ export default function BranchTab({ tenantId, branchId }: TabProps) {
           type="button"
           onClick={() => setShowForm((v) => !v)}
           className={cn(
-            'rounded-[8px] px-4 py-2 text-[13px] font-medium transition-colors',
+            'shrink-0 inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f6d5f] focus-visible:ring-offset-2',
             showForm
-              ? 'bg-[#f0f3f7] text-[#5a6675] hover:bg-[#e2e6ec]'
+              ? 'bg-[#e2f2ee] text-[#0f6d5f]'
               : 'bg-[#0f6d5f] text-white hover:bg-[#0a5a4e]',
           )}
         >
-          {showForm ? 'Batal' : '+ Tambah Cabang'}
+          {showForm ? (
+            <><ChevronUp className="h-3.5 w-3.5" /><span>Tutup</span></>
+          ) : (
+            <><PlusCircle className="h-3.5 w-3.5" /><span>Tambah Cabang</span></>
+          )}
         </button>
       </div>
 

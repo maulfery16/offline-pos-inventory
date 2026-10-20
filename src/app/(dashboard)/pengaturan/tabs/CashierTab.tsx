@@ -127,6 +127,12 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
     return name.slice(0, 2).toUpperCase();
   }
 
+  function handleCancel() {
+    setShowForm(false);
+    reset();
+    setConfirmId(null);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="rounded-[14px] border border-[#e2e6ec] bg-white overflow-hidden">
@@ -212,18 +218,22 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
               />
               <FieldError>{errors.pin?.message}</FieldError>
             </div>
-            {/* Submit */}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[#0f6d5f] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a5a4e] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f6d5f] focus-visible:ring-offset-2"
+              className="rounded-[8px] bg-[#0f6d5f] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-[#0a5a4e] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <PlusCircle className="h-3.5 w-3.5" />
-              )}
               {submitting ? 'Menyimpan…' : 'Simpan'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={submitting}
+              className="rounded-[8px] px-4 py-2 text-[13px] font-medium text-[#5a6675] transition-colors hover:bg-[#f0f3f7]"
+            >
+              Batal
             </button>
           </div>
         </form>
