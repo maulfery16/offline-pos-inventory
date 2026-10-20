@@ -7,8 +7,8 @@
  *   - 1 TenantAdmin (device registration password: admin123)
  *   - 3 Users:
  *       kasir   → Budi Santoso     PIN: 1234
- *       admin   → Siti Rahayu      email: siti@tlc.id   password: admin123
- *       owner   → Ahmad Wijaya     email: ahmad@tlc.id  password: owner123
+ *       admin   → Siti Rahayu      email: siti@rbbl.id   password: admin123
+ *       owner   → Ahmad Wijaya     email: ahmad@rbbl.id  password: owner123
  *   - 3 sample Products with InventoryBatches
  *
  * Run:
@@ -27,27 +27,27 @@ async function main() {
 
   // ── Tenant ────────────────────────────────────────────────────────────────
   const tenant = await prisma.tenant.upsert({
-    where: { code: 'TLC' },
+    where: { code: 'RBBL' },
     update: {},
     create: {
-      name: 'Toko Lintas Cabang',
-      code: 'TLC',
-      address: 'Jl. Sudirman No. 1, Jakarta Selatan',
-      phone: '021-12345678',
-      email: 'info@tlc.id',
+      name: 'Rumah Beku Bu Lilim',
+      code: 'RBBL',
+      address: 'Jalan Bagbagan, Palabuhanratu',
+      phone: '08156267498',
+      email: 'info_rbbl@gmail.com',
     },
   });
   console.log(`  ✔  Tenant: ${tenant.name} (${tenant.id})`);
 
   // ── Branch ────────────────────────────────────────────────────────────────
   const branch = await prisma.branch.upsert({
-    where: { tenantId_code: { tenantId: tenant.id, code: 'PUSAT' } },
+    where: { tenantId_code: { tenantId: tenant.id, code: 'BGBGN' } },
     update: {},
     create: {
       tenantId: tenant.id,
-      name: 'Toko Pusat — Jakarta Selatan',
-      code: 'PUSAT',
-      address: 'Jl. Sudirman No. 1, Jakarta Selatan',
+      name: 'Rumah Beku Bu Lilim',
+      code: 'BGBGN',
+      address: 'Jalan Bagbagan, Palabuhanratu',
     },
   });
   console.log(`  ✔  Branch: ${branch.name} (${branch.id})`);
@@ -70,12 +70,12 @@ async function main() {
   // Kasir: PIN = 1234
   const kasirPinHash = await bcrypt.hash('1234', 12);
   const kasir = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId: tenant.id, email: 'budi@tlc.id' } },
+    where: { tenantId_email: { tenantId: tenant.id, email: 'budi@rbbl.id' } },
     update: { pinHash: kasirPinHash },
     create: {
       tenantId: tenant.id,
       name: 'Budi Santoso',
-      email: 'budi@tlc.id',
+      email: 'budi@rbbl.id',
       pinHash: kasirPinHash,
       role: 'kasir',
       isActive: true,
@@ -86,36 +86,36 @@ async function main() {
   // Admin: email login
   const adminHash = await bcrypt.hash('admin123', 12);
   const admin = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId: tenant.id, email: 'siti@tlc.id' } },
+    where: { tenantId_email: { tenantId: tenant.id, email: 'siti@rbbl.id' } },
     update: { passwordHash: adminHash },
     create: {
       tenantId: tenant.id,
       name: 'Siti Rahayu',
-      email: 'siti@tlc.id',
+      email: 'siti@rbbl.id',
       pinHash: dummyHash,
       passwordHash: adminHash,
       role: 'admin',
       isActive: true,
     },
   });
-  console.log(`  ✔  Admin: ${admin.name} — email: siti@tlc.id  password: admin123`);
+  console.log(`  ✔  Admin: ${admin.name} — email: siti@rbbl.id  password: admin123`);
 
   // Owner: email login
   const ownerHash = await bcrypt.hash('owner123', 12);
   const owner = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId: tenant.id, email: 'ahmad@tlc.id' } },
+    where: { tenantId_email: { tenantId: tenant.id, email: 'ahmad@rbbl.id' } },
     update: { passwordHash: ownerHash },
     create: {
       tenantId: tenant.id,
       name: 'Ahmad Wijaya',
-      email: 'ahmad@tlc.id',
+      email: 'ahmad@rbbl.id',
       pinHash: dummyHash,
       passwordHash: ownerHash,
       role: 'owner',
       isActive: true,
     },
   });
-  console.log(`  ✔  Owner: ${owner.name} — email: ahmad@tlc.id  password: owner123`);
+  console.log(`  ✔  Owner: ${owner.name} — email: ahmad@rbbl.id  password: owner123`);
 
   // ── Products + Batches ────────────────────────────────────────────────────
   const products = [
@@ -198,18 +198,18 @@ async function main() {
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log('\n✅  Seed complete!\n');
   console.log('Device Registration (POST /api/auth/register):');
-  console.log(`   tenantCode:   TLC`);
-  console.log(`   branchCode:   PUSAT`);
+  console.log(`   tenantCode:   RBBL`);
+  console.log(`   branchCode:   BGBGN`);
   console.log(`   deviceName:   iPad Kasir`);
   console.log(`   adminPassword: admin123\n`);
   console.log('Kasir login (POST /api/auth/pin-verify):');
   console.log(`   userId: ${kasir.id}`);
   console.log(`   pin:    1234\n`);
   console.log('Admin login (POST /api/auth/login):');
-  console.log(`   email:    siti@tlc.id`);
+  console.log(`   email:    siti@rbbl.id`);
   console.log(`   password: admin123\n`);
   console.log('Owner login (POST /api/auth/login):');
-  console.log(`   email:    ahmad@tlc.id`);
+  console.log(`   email:    ahmad@rbbl.id`);
   console.log(`   password: owner123\n`);
 }
 
