@@ -95,7 +95,11 @@ export function useProductCount(): number {
   const [count, setCount] = useState(0)
   useEffect(() => {
     if (!db) return
-    db.get('products').query().fetchCount().then(setCount).catch(() => {})
+    db.get('products')
+      .query(Q.where('deleted_at', Q.eq(null)))
+      .fetchCount()
+      .then(setCount)
+      .catch(() => {})
   }, [db])
   return count
 }
