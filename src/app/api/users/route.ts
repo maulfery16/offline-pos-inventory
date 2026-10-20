@@ -2,20 +2,15 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/core/db/prisma';
-import { verifyJWT } from '@/core/auth';
 
-// GET /api/users?role=cashier
-// Returns users scoped to the caller's tenantId (from JWT).
+// GET /api/users?role=kasir
+// tenantId is injected by middleware from the verified JWT — never read from body.
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization') ?? '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) {
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const payload = await verifyJWT(token);
-    const { tenantId } = payload;
 
     const role = request.nextUrl.searchParams.get('role') ?? undefined;
 
@@ -31,8 +26,6 @@ export async function GET(request: NextRequest) {
         role: true,
         isActive: true,
         createdAt: true,
-        // Include branch via join through a device is not modelled on User
-        // branchId is not on User model; we return without it
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -45,20 +38,16 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/users
-// Creates a new user. tenantId is always from the JWT, never from the body.
+// Creates a new user. tenantId is always from the middleware-injected header.
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization') ?? '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) {
+    const tenantId = request.headers.get('x-tenant-id');
+    if (!tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const payload = await verifyJWT(token);
-    const { tenantId } = payload;
-
     const body = await request.json();
-    const { name, hashedPin, branchId, role = 'cashier' } = body as {
+    const { name, hashedPin, branchId, role = 'kasir' } = body as {
       name?: string;
       hashedPin?: string;
       branchId?: string;

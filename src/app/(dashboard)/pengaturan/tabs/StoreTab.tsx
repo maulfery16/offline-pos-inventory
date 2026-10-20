@@ -1,9 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { cn } from '@/shared/utils/cn';
+import { computeDiff } from '@/shared/utils/diff';
 import { getAuthHeaders } from '@/core/auth/client';
+import { storeFormSchema } from '@/features/tenants/schemas';
+import { FieldError } from '@/shared/components/forms/FieldError';
+import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import type { TabProps } from '../page';
 
 interface TenantInfo {
@@ -23,15 +29,21 @@ interface FormState {
 }
 
 export default function StoreTab({ tenantId }: TabProps) {
-  const [form, setForm] = useState<FormState>({
-    name: '',
-    address: '',
-    phone: '',
-    email: '',
-  });
-  const [original, setOriginal] = useState<FormState | null>(null);
+  const [tenantCode, setTenantCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const originalRef = useRef<FormState | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormState>({
+    resolver: zodResolver(storeFormSchema),
+    defaultValues: { name: '', address: '', phone: '', email: '' },
+  });
 
   useEffect(() => {
     async function loadTenant() {
@@ -41,14 +53,15 @@ export default function StoreTab({ tenantId }: TabProps) {
         });
         if (!res.ok) throw new Error('Gagal memuat data toko');
         const data: TenantInfo = await res.json();
+        setTenantCode(data.code ?? '');
         const state: FormState = {
           name: data.name ?? '',
           address: data.address ?? '',
           phone: data.phone ?? '',
           email: data.email ?? '',
         };
-        setForm(state);
-        setOriginal(state);
+        originalRef.current = state;
+        reset(state);
       } catch (err) {
         console.error(err);
         toast.error('Gagal memuat informasi toko');
@@ -57,29 +70,18 @@ export default function StoreTab({ tenantId }: TabProps) {
       }
     }
     loadTenant();
-  }, [tenantId]);
+  }, [tenantId, reset]);
 
-  function handleChange(field: keyof FormState, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!original) return;
-
-    // Only send changed fields
-    const changed: Partial<FormState> = {};
-    (Object.keys(form) as (keyof FormState)[]).forEach((key) => {
-      if (form[key] !== original[key]) {
-        changed[key] = form[key];
-      }
-    });
-
+  const onSave = handleSubmit(async (data) => {
+    if (!originalRef.current) return;
+    const changed = computeDiff(
+      originalRef.current as unknown as Record<string, unknown>,
+      (data as unknown) as Record<string, unknown>,
+    ) as Partial<FormState>;
     if (Object.keys(changed).length === 0) {
       toast.info('Tidak ada perubahan untuk disimpan');
       return;
     }
-
     setSaving(true);
     try {
       const res = await fetch(`/api/tenants/${tenantId}`, {
@@ -103,8 +105,8 @@ export default function StoreTab({ tenantId }: TabProps) {
         phone: updated.phone ?? '',
         email: updated.email ?? '',
       };
-      setForm(newState);
-      setOriginal(newState);
+      originalRef.current = newState;
+      reset(newState);
       toast.success('Informasi toko berhasil disimpan');
     } catch (err) {
       console.error(err);
@@ -112,7 +114,7 @@ export default function StoreTab({ tenantId }: TabProps) {
     } finally {
       setSaving(false);
     }
-  }
+  });
 
   if (loading) {
     return (
@@ -133,7 +135,23 @@ export default function StoreTab({ tenantId }: TabProps) {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSave} className="grid gap-5 px-6 py-5">
+      <form onSubmit={onSave} className="grid gap-5 px-6 py-5">
+        {/* Kode Toko — read-only, used for device registration */}
+        <div className="grid gap-1.5">
+          <label className="text-xs font-medium text-[#5a6675]">
+            Kode Toko
+          </label>
+          <div className={cn(
+            'flex items-center justify-between h-10 w-full rounded-[10px] border border-[#e2e6ec] bg-[#f8fafc] px-3',
+            'text-[13px]',
+          )}>
+            <span className="font-mono font-semibold tracking-widest text-[#182230]">
+              {tenantCode || '—'}
+            </span>
+            <span className="text-[11px] text-[#8a94a3]">Digunakan untuk registrasi perangkat</span>
+          </div>
+        </div>
+
         {/* Nama Toko */}
         <div className="grid gap-1.5">
           <label
@@ -141,21 +159,22 @@ export default function StoreTab({ tenantId }: TabProps) {
             className="text-xs font-medium text-[#5a6675]"
           >
             Nama Toko
+            <span className="text-red-500">*</span>
           </label>
           <input
             id="store-name"
             type="text"
-            value={form.name}
-            onChange={(e) => handleChange('name', e.target.value)}
+            {...register('name')}
             placeholder="Masukkan nama toko"
-            required
             className={cn(
-              'h-10 w-full rounded-[10px] border border-[#cbd2dc] bg-white px-3',
+              'h-10 w-full rounded-[10px] border bg-white px-3',
               'text-[13px] text-[#182230] placeholder:text-[#adb5c0]',
               'outline-none transition-colors',
-              'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
+              fieldBorder(!!errors.name, 'border-[#cbd2dc]'),
+              !errors.name && 'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
             )}
           />
+          <FieldError>{errors.name?.message}</FieldError>
         </div>
 
         {/* Alamat */}
@@ -168,8 +187,7 @@ export default function StoreTab({ tenantId }: TabProps) {
           </label>
           <textarea
             id="store-address"
-            value={form.address}
-            onChange={(e) => handleChange('address', e.target.value)}
+            {...register('address')}
             placeholder="Masukkan alamat lengkap"
             rows={3}
             className={cn(
@@ -194,8 +212,7 @@ export default function StoreTab({ tenantId }: TabProps) {
             <input
               id="store-phone"
               type="tel"
-              value={form.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
+              {...register('phone')}
               placeholder="contoh: 021-1234567"
               className={cn(
                 'h-10 w-full rounded-[10px] border border-[#cbd2dc] bg-white px-3',
@@ -213,20 +230,22 @@ export default function StoreTab({ tenantId }: TabProps) {
               className="text-xs font-medium text-[#5a6675]"
             >
               Email
+              <span className="text-red-500">*</span>
             </label>
             <input
               id="store-email"
               type="email"
-              value={form.email}
-              onChange={(e) => handleChange('email', e.target.value)}
+              {...register('email')}
               placeholder="contoh: toko@email.com"
               className={cn(
-                'h-10 w-full rounded-[10px] border border-[#cbd2dc] bg-white px-3',
+                'h-10 w-full rounded-[10px] border bg-white px-3',
                 'text-[13px] text-[#182230] placeholder:text-[#adb5c0]',
                 'outline-none transition-colors',
-                'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
+                fieldBorder(!!errors.email, 'border-[#cbd2dc]'),
+                !errors.email && 'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
               )}
             />
+            <FieldError>{errors.email?.message}</FieldError>
           </div>
         </div>
 
@@ -234,7 +253,7 @@ export default function StoreTab({ tenantId }: TabProps) {
         <div className="flex items-center justify-end gap-3 border-t border-[#e2e6ec] pt-4">
           <button
             type="button"
-            onClick={() => original && setForm(original)}
+            onClick={() => originalRef.current && reset(originalRef.current)}
             disabled={saving}
             className={cn(
               'h-9 rounded-[10px] border border-[#cbd2dc] px-4',

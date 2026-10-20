@@ -2,28 +2,26 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff } from 'lucide-react';
-import { getDeviceToken, setSessionToken, getAuthHeaders } from '@/core/auth/client';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff, Tablet } from 'lucide-react';
+import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders, setTenantInfo } from '@/core/auth/client';
+import { usePendingSyncCount } from '@/core/sync/usePendingSyncCount';
+import { deviceRegistrationSchema, kasirLoginSchema, adminLoginSchema, type DeviceRegistrationForm, type AdminLoginForm } from '@/core/auth/schemas';
+import { FieldError } from '@/shared/components/forms/FieldError';
+import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 
 type Role = 'kasir' | 'admin' | 'owner';
 
 // kasirOptions loaded from API in useEffect
 
-// TODO: replace with WatermelonDB query — this is prototype mock data
-const cabangOptions = [
-  { value: 'semua', label: 'Semua cabang (konsolidasi)' },
-  { value: 'pusat', label: 'Toko Pusat — Jakarta Selatan' },
-  { value: 'bandung', label: 'Cabang Bandung — Dago' },
-  { value: 'surabaya', label: 'Cabang Surabaya — Diponegoro' },
-];
-
-const pendingSyncCount = 0; // TODO: wire to useSyncManager in TASK-3.5
 
 // Debug-only: the offline simulator toggle is only rendered in dev builds.
 const isDev = process.env.NODE_ENV === 'development';
 
 export default function MasukPage() {
   const router = useRouter();
+  const pendingSyncCount = usePendingSyncCount();
   const [selectedRole, setSelectedRole] = useState<Role>('kasir');
   const [pin, setPin] = useState('');
   const [selectedKasir, setSelectedKasir] = useState('');
@@ -37,14 +35,58 @@ export default function MasukPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [kasirList, setKasirList] = useState<{ value: string; label: string }[]>([]);
-  const [_deviceToken, setDeviceTokenState] = useState<string | null>(null);
+  const [deviceToken, setDeviceTokenState] = useState<string | null>(null);
+  const [cabangOptions, setCabangOptions] = useState<{ value: string; label: string }[]>([
+    { value: 'semua', label: 'Semua cabang (konsolidasi)' }, // default fallback
+  ]);
+  const [cabangLoading, setCabangLoading] = useState(false);
+  const [lastSyncDisplay, setLastSyncDisplay] = useState('Online — tersinkron');
+
+  // Device registration state
+  const [showRegister, setShowRegister] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [regError, setRegError] = useState('');
+
+  const {
+    register: registerReg,
+    handleSubmit: handleSubmitReg,
+    setValue: setRegValue,
+    formState: { errors: regErrors },
+  } = useForm<DeviceRegistrationForm>({
+    resolver: zodResolver(deviceRegistrationSchema),
+  });
+
+  const {
+    register: registerKasir,
+    handleSubmit: handleSubmitKasir,
+    setError: setKasirError,
+    formState: { errors: kasirErrors },
+  } = useForm({ resolver: zodResolver(kasirLoginSchema) });
+
+  const {
+    register: registerAdmin,
+    handleSubmit: handleSubmitAdmin,
+    setValue: setAdminValue,
+    watch: watchAdmin,
+    formState: { errors: adminErrors },
+  } = useForm<AdminLoginForm>({
+    resolver: zodResolver(adminLoginSchema),
+    defaultValues: { rememberDevice: true, cabang: 'semua' },
+  });
+
+  const pinRef = useRef('');
+  useEffect(() => { pinRef.current = pin; }, [pin]);
 
   useEffect(() => {
-    const token = getDeviceToken();
-    setDeviceTokenState(token);
-    if (!token) return;
-    // Load cashier list from API
-    fetch('/api/users?role=kasir', { headers: getAuthHeaders() })
+    const raw = localStorage.getItem('lastSyncAt');
+    if (raw) {
+      const d = new Date(raw);
+      setLastSyncDisplay('Online — tersinkron ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    }
+  }, []);
+
+  const loadKasirList = (token: string) => {
+    fetch('/api/users?role=kasir', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         const list = data?.data ?? data?.users ?? [];
@@ -55,13 +97,113 @@ export default function MasukPage() {
           })));
         }
       })
-      .catch(() => {
-        // offline or API error — leave list empty, user can still attempt login
-      });
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    const token = getDeviceToken();
+    setDeviceTokenState(token);
+    if (!token) {
+      setShowRegister(true);
+      return;
+    }
+    loadKasirList(token);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!deviceToken) return;
+    setCabangLoading(true);
+    fetch('/api/branches', { headers: getAuthHeaders() })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        const branches = data?.data ?? data?.branches ?? [];
+        if (branches.length > 0) {
+          const options = [
+            { value: 'semua', label: 'Semua cabang (konsolidasi)' },
+            ...branches.map((b: { id: string; name: string; code?: string }) => ({
+              value: b.id,
+              label: b.name,
+            })),
+          ];
+          setCabangOptions(options);
+        }
+      })
+      .catch(() => {
+        // Keep default fallback options on error
+      })
+      .finally(() => setCabangLoading(false));
+  }, [deviceToken]);
+
+  const handleRegisterDevice = handleSubmitReg(async (data: DeviceRegistrationForm) => {
+    if (isRegistering) return;
+    setRegError('');
+    setIsRegistering(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantCode: data.tenantCode.trim(),
+          branchCode: data.branchCode.trim(),
+          deviceName: data.deviceName.trim(),
+          adminPassword: data.adminPassword,
+        }),
+      });
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        setRegError(resData.error || 'Registrasi gagal. Periksa kode dan kata sandi.');
+        return;
+      }
+      const resData = await res.json();
+      setDeviceToken(resData.token);
+      setDeviceTokenState(resData.token);
+      if (resData.tenantName || resData.branchName) {
+        setTenantInfo({ tenantName: resData.tenantName ?? '', branchName: resData.branchName ?? '' });
+      }
+      setShowRegister(false);
+      loadKasirList(resData.token);
+    } catch {
+      setRegError('Koneksi gagal. Periksa jaringan internet.');
+    } finally {
+      setIsRegistering(false);
+    }
+  });
 
   const pinInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const onKasirSubmit = handleSubmitKasir(async (data) => {
+    const currentPin = pinRef.current;
+    if (currentPin.length < 4) {
+      setKasirError('pin', { type: 'manual', message: 'PIN harus 4–6 digit angka.' });
+      return;
+    }
+    if (!data.kasirId) {
+      setKasirError('kasirId', { type: 'manual', message: 'Pilih kasir aktif terlebih dahulu.' });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/pin-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ userId: data.kasirId, pin: currentPin }),
+      });
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        setKasirError('pin', { type: 'manual', message: resData.error || 'PIN salah. Coba lagi.' });
+        return;
+      }
+      const resData = await res.json();
+      setSessionToken(resData.sessionToken);
+      router.push('/kasir');
+    } catch {
+      setKasirError('pin', { type: 'manual', message: 'Koneksi gagal. Periksa jaringan internet.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  });
 
   // On-screen keypad writes to the same `pin` state that the hidden PIN input
   // is bound to, so the input stays the single source of truth for the dots.
@@ -128,42 +270,46 @@ export default function MasukPage() {
       } finally {
         setIsSubmitting(false);
       }
-    } else {
-      if (!email || !password) { setError('Isi email dan kata sandi terlebih dahulu.'); return; }
-      setIsSubmitting(true);
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || 'Email atau kata sandi salah.');
-          return;
-        }
-        const data = await res.json();
-        setSessionToken(data.sessionToken);
-        router.push(selectedRole === 'owner' ? '/laporan' : '/inventaris');
-      } catch {
-        setError('Koneksi gagal. Periksa jaringan internet.');
-      } finally {
-        setIsSubmitting(false);
-      }
     }
   };
+
+  const onAdminSubmit = handleSubmitAdmin(async (data: AdminLoginForm) => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ email: data.email, password: data.password }),
+      });
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}));
+        setError(resData.error || 'Email atau kata sandi salah.');
+        return;
+      }
+      const resData = await res.json();
+      setSessionToken(resData.sessionToken);
+      router.push(selectedRole === 'owner' ? '/laporan' : '/inventaris');
+    } catch {
+      setError('Koneksi gagal. Periksa jaringan internet.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  });
 
   const toggleOffline = () => setIsOffline((prev) => !prev);
 
   const handleRoleChange = (role: Role) => {
     setSelectedRole(role);
     // Admin hanya melihat satu cabang — jangan biarkan 'semua' tetap terpilih.
-    if (role === 'admin' && selectedCabang === 'semua') {
-      setSelectedCabang('pusat');
+    if (role === 'admin') {
+      setAdminValue('cabang', 'pusat');
+    } else if (role === 'owner') {
+      setAdminValue('cabang', 'semua');
     }
   };
 
   // Filter cabang by role: admin never sees the konsolidasi option.
+  const adminCabang = watchAdmin('cabang');
   const visibleCabangOptions =
     selectedRole === 'admin' ? cabangOptions.filter((o) => o.value !== 'semua') : cabangOptions;
 
@@ -185,7 +331,7 @@ export default function MasukPage() {
               <span className="font-medium tabular-nums">
                 {isOffline
                   ? `Offline — ${pendingSyncCount} transaksi menunggu sinkron`
-                  : 'Online — tersinkron 12:04'}
+                  : lastSyncDisplay}
               </span>
               {isOffline && (
                 <span className="text-xs">Kamu tetap bisa masuk, transaksi akan tersinkron otomatis.</span>
@@ -200,6 +346,89 @@ export default function MasukPage() {
             </span>
             <span>Toko Lintas Cabang</span>
           </div>
+
+          {/* Device registration gate — shown when no device token is stored */}
+          {showRegister ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Tablet className="w-5 h-5 text-[#0f6d5f]" />
+                  <h1 className="m-0 text-xl font-bold tracking-tight leading-[1.3]">Daftarkan perangkat ini</h1>
+                </div>
+                <p className="m-0 text-sm text-[#5a6675]">Perangkat baru perlu didaftarkan sekali oleh admin toko sebelum bisa digunakan.</p>
+              </div>
+
+              <form onSubmit={handleRegisterDevice} className="grid gap-4">
+                <div className="grid gap-2">
+                  <label htmlFor="tenantCode" className="text-sm font-medium">Kode Toko</label>
+                  <input
+                    id="tenantCode"
+                    type="text"
+                    {...registerReg('tenantCode')}
+                    onChange={(e) => setRegValue('tenantCode', e.target.value.toUpperCase(), { shouldValidate: true })}
+                    placeholder="mis. TLC"
+                    autoCapitalize="characters"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.tenantCode, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
+                  />
+                  <FieldError>{regErrors.tenantCode?.message}</FieldError>
+                  <p className="text-xs text-[#5a6675]">Tersedia di Pengaturan → Profil Toko.</p>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="branchCode" className="text-sm font-medium">Kode Cabang</label>
+                  <input
+                    id="branchCode"
+                    type="text"
+                    {...registerReg('branchCode')}
+                    onChange={(e) => setRegValue('branchCode', e.target.value.toUpperCase(), { shouldValidate: true })}
+                    placeholder="mis. PUSAT"
+                    autoCapitalize="characters"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.branchCode, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
+                  />
+                  <FieldError>{regErrors.branchCode?.message}</FieldError>
+                  <p className="text-xs text-[#5a6675]">Tersedia di Pengaturan → Cabang.</p>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="deviceName" className="text-sm font-medium">Nama Perangkat</label>
+                  <input
+                    id="deviceName"
+                    type="text"
+                    {...registerReg('deviceName')}
+                    placeholder="mis. iPad Kasir 1"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.deviceName, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
+                  />
+                  <FieldError>{regErrors.deviceName?.message}</FieldError>
+                </div>
+                <div className="grid gap-2">
+                  <label htmlFor="adminPassword" className="text-sm font-medium">Kata Sandi Admin</label>
+                  <input
+                    id="adminPassword"
+                    type="password"
+                    {...registerReg('adminPassword')}
+                    placeholder="Kata sandi admin toko"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!regErrors.adminPassword, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
+                  />
+                  <FieldError>{regErrors.adminPassword?.message}</FieldError>
+                </div>
+
+                {regError && (
+                  <div role="alert" className="flex gap-2 p-3 rounded-[6px] bg-[#fbe8e5] text-[#a52b22] text-sm">
+                    <AlertCircle className="flex-none w-4 h-4 mt-0.5" aria-hidden="true" />
+                    <span>{regError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  className="min-h-[48px] w-full flex items-center justify-center gap-2 px-4 text-base font-semibold text-white bg-[#0f6d5f] border border-[#0f6d5f] rounded-[10px] cursor-pointer transition-all hover:bg-[#0b564a] active:translate-y-0.5 focus:outline-none focus-visible:outline-2 focus-visible:outline-[#0f6d5f] focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isRegistering ? 'Mendaftarkan…' : 'Daftarkan Perangkat'}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+          {/* Heading — eyebrow removed per craft-floor kicker ban; heading carries its own weight. */}
 
           {/* Heading — eyebrow removed per craft-floor kicker ban; heading carries its own weight. */}
           <div className="flex flex-col gap-2">
@@ -242,7 +471,7 @@ export default function MasukPage() {
           </div>
 
           {/* Forms */}
-          <form ref={formRef} onSubmit={handleSubmit} className="grid gap-5">
+          <form ref={formRef} onSubmit={selectedRole === 'kasir' ? onKasirSubmit : onAdminSubmit} className="grid gap-5">
             {/* Kasir Form */}
             {selectedRole === 'kasir' && (
               <div className="grid gap-5" onKeyDown={handlePhysicalKey}>
@@ -251,9 +480,13 @@ export default function MasukPage() {
                   <div className="relative">
                     <select
                       id="kasir"
+                      {...registerKasir('kasirId')}
                       value={selectedKasir}
-                      onChange={(e) => setSelectedKasir(e.target.value)}
-                      className="w-full min-h-[46px] px-3 pr-10 text-base border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                      onChange={(e) => {
+                        setSelectedKasir(e.target.value);
+                        registerKasir('kasirId').onChange(e);
+                      }}
+                      className={`w-full min-h-[46px] px-3 pr-10 text-base border ${fieldBorder(!!kasirErrors.kasirId, 'border-[#cbd2dc]')} rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                     >
                       <option value="" disabled>— Pilih kasir —</option>
                       {kasirList.length > 0
@@ -265,6 +498,7 @@ export default function MasukPage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
                   </div>
+                  <FieldError>{kasirErrors.kasirId?.message as string | undefined}</FieldError>
                 </div>
 
                 <div className="grid gap-2">
@@ -301,6 +535,7 @@ export default function MasukPage() {
                   </div>
                   <p className="text-xs text-[#5a6675]">Tekan angka di keypad atau gunakan papan angka perangkat.</p>
                   <p className="text-xs text-[#5a6675]">Belum punya PIN? Admin toko dapat membuatkan.</p>
+                  <FieldError>{kasirErrors.pin?.message as string | undefined}</FieldError>
                 </div>
 
                 {/* Keypad */}
@@ -341,11 +576,11 @@ export default function MasukPage() {
                   <input
                     id="email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    {...registerAdmin('email')}
                     placeholder="nama@tokolintascabang.id"
-                    className="w-full min-h-[46px] px-3 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                    className={`w-full min-h-[46px] px-3 text-base border ${fieldBorder(!!adminErrors.email, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                   />
+                  <FieldError>{adminErrors.email?.message}</FieldError>
                 </div>
 
                 <div className="grid gap-2">
@@ -354,9 +589,8 @@ export default function MasukPage() {
                     <input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full min-h-[46px] px-3 pr-24 text-base border border-[#cbd2dc] rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                      {...registerAdmin('password')}
+                      className={`w-full min-h-[46px] px-3 pr-24 text-base border ${fieldBorder(!!adminErrors.password, 'border-[#cbd2dc]')} rounded-[10px] focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                     />
                     <button
                       type="button"
@@ -367,16 +601,18 @@ export default function MasukPage() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  <FieldError>{adminErrors.password?.message}</FieldError>
                 </div>
 
                 <div className="grid gap-2">
-                  <label htmlFor="cabang" className="text-sm font-medium">Cabang</label>
+                  <label htmlFor="cabang" className="text-sm font-medium">
+                    Cabang{cabangLoading && <span className="ml-1 text-[#5a6675] font-normal">— memuat…</span>}
+                  </label>
                   <div className="relative">
                     <select
                       id="cabang"
-                      value={selectedCabang}
-                      onChange={(e) => setSelectedCabang(e.target.value)}
-                      className="w-full min-h-[46px] px-3 pr-10 text-base border border-[#cbd2dc] rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]"
+                      {...registerAdmin('cabang')}
+                      className={`w-full min-h-[46px] px-3 pr-10 text-base border ${fieldBorder(!!adminErrors.cabang, 'border-[#cbd2dc]')} rounded-[10px] bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#0f6d5f] focus:ring-[3px] focus:ring-[#e2f2ee]`}
                     >
                       {visibleCabangOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -384,6 +620,7 @@ export default function MasukPage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675] pointer-events-none" />
                   </div>
+                  <FieldError>{adminErrors.cabang?.message}</FieldError>
                   <p className="text-xs text-[#5a6675]">Admin hanya melihat satu cabang; owner dapat melihat seluruh cabang sekaligus.</p>
                 </div>
 
@@ -391,13 +628,12 @@ export default function MasukPage() {
                   <label className="inline-flex items-center gap-2 text-sm text-[#5a6675] cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={rememberDevice}
-                      onChange={(e) => setRememberDevice(e.target.checked)}
+                      {...registerAdmin('rememberDevice')}
                       className="w-[18px] h-[18px] accent-[#182230]"
                     />
                     <span>Ingat perangkat ini selama 30 hari</span>
                   </label>
-                  {rememberDevice && (
+                  {watchAdmin('rememberDevice') && (
                     <p className="m-0 text-xs text-[#5a6675]">Perangkat terakhir dikenali: iPad Kasir — Toko Pusat (12 Jun 2025).</p>
                   )}
                 </div>
@@ -437,6 +673,8 @@ export default function MasukPage() {
               </span>
             </p>
           </form>
+            </> /* end login form fragment */
+          )} {/* end showRegister conditional */}
 
           {/* Meta */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-5 border-t border-[#e2e6ec] text-xs text-[#5a6675]">

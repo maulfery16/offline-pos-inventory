@@ -1,8 +1,21 @@
 'use client';
 
-import { Database } from '@nozbe/watermelondb';
+import { Database, Q } from '@nozbe/watermelondb';
 import { useEffect, useState, useCallback } from 'react';
 import { syncDatabase } from './index';
+import Transaction from '@/core/db/models/Transaction';
+
+async function writePendingCount(db: Database) {
+  try {
+    const count = await db
+      .get<Transaction>('transactions')
+      .query(Q.where('synced_at', null))
+      .fetchCount();
+    localStorage.setItem('pendingSyncCount', String(count));
+  } catch {
+    // non-fatal — ignore
+  }
+}
 
 export default function useSyncManager(db: Database | null) {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -18,14 +31,23 @@ export default function useSyncManager(db: Database | null) {
     try {
       await syncDatabase(db);
       setLastSyncAt(new Date());
+      localStorage.setItem('lastSyncAt', new Date().toISOString());
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Sync failed';
       setSyncError(message);
     } finally {
       setIsSyncing(false);
+      // Write pending count after every attempt (success or failure)
+      await writePendingCount(db);
     }
   }, [db, isSyncing]);
+
+  // Write initial pending count on mount so the login page sees a value immediately
+  useEffect(() => {
+    if (!db) return;
+    writePendingCount(db);
+  }, [db]);
 
   // Sync on mount and whenever the browser comes back online
   useEffect(() => {

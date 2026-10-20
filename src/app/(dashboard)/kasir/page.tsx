@@ -4,10 +4,12 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ScanBarcode, Sparkles, Wifi, WifiOff, Pause, Trash2, Check, Banknote, QrCode, CreditCard, Printer, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { useRequireAuth } from '@/core/auth/useRequireAuth';
+import { decodeSessionToken, getSessionToken, getAuthHeaders, getTenantInfo } from '@/core/auth/client';
 import { useDatabase, useProducts, useInventoryBatches } from '@/core/db/hooks';
 import { useCartStore } from '@/features/pos/store';
 import useSyncManager from '@/core/sync/useSyncManager';
 import { v4 as uuidv4 } from 'uuid';
+import { Q } from '@nozbe/watermelondb';
 import { checkProductExpiry } from '@/features/inventory/expiryGuard';
 import { toast } from 'sonner';
 import { usePrinter } from '@/features/pos/hooks/usePrinter';
@@ -42,6 +44,14 @@ const discount = 0;
 export default function KasirPage() {
   useRequireAuth(['kasir']);
 
+  const sessionPayload = decodeSessionToken<{ userName?: string; userId?: string }>(getSessionToken() ?? '');
+  const userName = sessionPayload?.userName ?? 'Kasir';
+  const storeName = getTenantInfo()?.tenantName ?? 'Kasir POS';
+  const branchName = getTenantInfo()?.branchName ?? 'Cabang';
+
+  const [shiftStart] = useState(() => new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+  const [todayTxCount, setTodayTxCount] = useState(0);
+
   const [scanInput, setScanInput] = useState('');
   const [scanError, setScanError] = useState('');
   const [shaking, setShaking] = useState(false);
@@ -53,6 +63,7 @@ export default function KasirPage() {
   const [voidTargetSku, setVoidTargetSku] = useState<string | null>(null);
   const [voidPin, setVoidPin] = useState('');
   const [voidError, setVoidError] = useState(false);
+  const [isVoidVerifying, setIsVoidVerifying] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<{ total: number; method: PaymentMethod; cash: number; change: number; syncedOnline: boolean; ref: string } | null>(null);
   const [cartSnapshot, setCartSnapshot] = useState<CartSnapshot[]>([]);
@@ -69,6 +80,14 @@ export default function KasirPage() {
   const { batches: allBatches } = useInventoryBatches();
   const { isSyncing, triggerSync } = useSyncManager(db);
   const { isConnected: printerConnected, isSupported: printerSupported, connect: connectPrinter, print: printReceipt } = usePrinter();
+
+  // Count today's transactions from WatermelonDB
+  useEffect(() => {
+    if (!db) return;
+    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    db.get('transactions').query(Q.where('created_at', Q.gte(startOfDay.getTime()))).fetchCount()
+      .then(setTodayTxCount).catch(() => {});
+  }, [db]);
 
   // Map WatermelonDB products to the Product interface used by the UI
   const now = Date.now();
@@ -191,13 +210,34 @@ export default function KasirPage() {
     setShowVoidDialog(true);
   };
 
-  const confirmVoid = () => {
-    // TODO: validate voidPin against actual admin PIN via /api/auth/verify-pin before proceeding
-    // Until backend auth is wired, this is a length-only check and does NOT provide real authorization
-    if (voidPin.length >= 4) {
-      removeFromCart(voidTargetSku!);
-    } else {
+  const confirmVoid = async () => {
+    const token = getSessionToken();
+    if (!token) {
       setVoidError(true);
+      return;
+    }
+    const session = decodeSessionToken<{ userId: string; role: string }>(token);
+    if (!session?.userId) {
+      setVoidError(true);
+      return;
+    }
+    setIsVoidVerifying(true);
+    try {
+      const res = await fetch('/api/auth/pin-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ userId: session.userId, pin: voidPin }),
+      });
+      if (res.ok) {
+        removeFromCart(voidTargetSku!);
+        setVoidPin('');
+      } else {
+        setVoidError(true);
+      }
+    } catch {
+      setVoidError(true);
+    } finally {
+      setIsVoidVerifying(false);
     }
   };
 
@@ -237,7 +277,7 @@ export default function KasirPage() {
           await txCollection.create((tx: any) => {
             tx._raw.id = txRef;
             tx.branchId = 'local'; // will be overwritten by sync with real branchId from JWT
-            tx.cashierId = 'local';
+            tx.cashierId = sessionPayload?.userId ?? 'local';
             tx.paymentMethod = paymentMethod.toLowerCase();
             tx.totalAmount = total;
             tx.cashReceived = actualCash;
@@ -263,23 +303,11 @@ export default function KasirPage() {
     }
 
     // Build and print receipt — fire-and-forget; never blocks the WatermelonDB write
-    const storeName = (() => {
-      try {
-        const raw = localStorage.getItem('device_jwt_payload');
-        if (raw) return JSON.parse(raw).storeName || 'Kasir POS';
-      } catch { /* ignore */ }
-      return 'Kasir POS';
-    })();
-    const branchName = (() => {
-      try {
-        const raw = localStorage.getItem('device_jwt_payload');
-        if (raw) return JSON.parse(raw).branchName || 'Cabang';
-      } catch { /* ignore */ }
-      return 'Cabang';
-    })();
+    const receiptStoreName = storeName;
+    const receiptBranchName = branchName;
     const receiptData = {
-      storeName,
-      branchName,
+      storeName: receiptStoreName,
+      branchName: receiptBranchName,
       receiptRef: txRef,
       transactionDate: new Date(),
       items: cartItems.map(i => ({
@@ -360,11 +388,11 @@ export default function KasirPage() {
       <div role="region" aria-label="Status shift kasir" className="col-span-full bg-white border border-[#e2e6ec] rounded-[14px] p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h2 className="m-0 text-[15px] font-semibold">Shift kasir · Sari Wulandari</h2>
-            <p className="m-0 mt-1 text-xs text-[#5a6675]">Kasir 01 · Cabang Kebayoran · Buka 08:12 · 62 transaksi</p>
+            <h2 className="m-0 text-[15px] font-semibold">Shift kasir · {userName}</h2>
+            <p className="m-0 mt-1 text-xs text-[#5a6675]">{userName} · {branchName} · Buka {shiftStart} · {todayTxCount} transaksi</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Antrean normal · 3 pelanggan</span>
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-[#e8eef7] text-[#12507f]">Antrean normal</span>
             {/* Printer connect button — hidden if WebUSB not supported */}
             {printerSupported ? (
               <button
@@ -808,9 +836,10 @@ export default function KasirPage() {
               <button
                 type="button"
                 onClick={confirmVoid}
-                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer"
+                disabled={isVoidVerifying}
+                className="min-h-[42px] px-4 text-sm font-semibold text-white bg-[#a52b22] border border-[#a52b22] rounded-[10px] hover:opacity-90 cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed"
               >
-                Hapus item
+                {isVoidVerifying ? 'Memverifikasi…' : 'Hapus item'}
               </button>
             </div>
           </div>
@@ -826,7 +855,7 @@ export default function KasirPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 id="receipt-dialog-title" className="m-0 text-lg font-bold">Transaksi selesai</h2>
-                  <p className="m-0 mt-1 text-xs text-[#5a6675]">Struk #{lastTransaction.ref} · Kasir 01</p>
+                  <p className="m-0 mt-1 text-xs text-[#5a6675]">Struk #{lastTransaction.ref} · {userName}</p>
                 </div>
                 {/* P2-A: conditional sync badge */}
                 {lastTransaction.syncedOnline
@@ -856,7 +885,7 @@ export default function KasirPage() {
               )}
               <div className="flex gap-2 p-3 rounded-[10px] bg-[#e8eef7] text-[#12507f] text-xs">
                 <Printer className="w-4 h-4 flex-none" />
-                <span>Struk tercetak di printer kasir 01. Antrean berikutnya siap dilayani.</span>
+                <span>Struk tercetak di printer kasir. Antrean berikutnya siap dilayani.</span>
               </div>
             </div>
             <div className="flex justify-end gap-2 p-4 lg:p-5 border-t border-[#e2e6ec] bg-[#f7f8fa]">

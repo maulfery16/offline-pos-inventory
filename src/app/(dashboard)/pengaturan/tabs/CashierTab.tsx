@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { PlusCircle, UserX, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 import type { TabProps } from '../page';
 import { getAuthHeaders } from '@/core/auth/client';
+import { cashierAddSchema, type CashierAddForm } from '@/core/auth/schemas';
+import { FieldError } from '@/shared/components/forms/FieldError';
+import { fieldBorder } from '@/shared/components/forms/fieldBorder';
 import { cn } from '@/shared/utils/cn';
 import {
   Table,
@@ -26,29 +31,32 @@ interface Cashier {
   createdAt: string;
 }
 
-interface AddForm {
-  name: string;
-  pin: string;
-}
-
-const EMPTY_FORM: AddForm = { name: '', pin: '' };
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function CashierTab({ tenantId, branchId }: TabProps) {
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<AddForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [deactivating, setDeactivating] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CashierAddForm>({
+    resolver: zodResolver(cashierAddSchema),
+    defaultValues: { name: '', pin: '' },
+  });
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
   const fetchCashiers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/users?role=cashier', {
+      const res = await fetch('/api/users?role=kasir', {
         headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Gagal memuat daftar kasir');
@@ -70,29 +78,15 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
 
   // ── Add cashier ───────────────────────────────────────────────────────────
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-
-    const trimmedName = form.name.trim();
-    const trimmedPin = form.pin.trim();
-
-    if (!trimmedName) {
-      toast.error('Nama kasir tidak boleh kosong');
-      return;
-    }
-    if (!/^\d{4,6}$/.test(trimmedPin)) {
-      toast.error('PIN harus berupa angka 4–6 digit');
-      return;
-    }
-
+  const handleAdd = handleSubmit(async (data: CashierAddForm) => {
     setSubmitting(true);
     try {
-      const hashedPin = await bcrypt.hash(trimmedPin, 10);
+      const hashedPin = await bcrypt.hash(data.pin, 10);
 
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ name: trimmedName, hashedPin, branchId }),
+        body: JSON.stringify({ name: data.name.trim(), hashedPin, branchId }),
       });
 
       if (!res.ok) {
@@ -100,8 +94,8 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
         throw new Error((err as { error?: string }).error ?? 'Gagal menambah kasir');
       }
 
-      toast.success(`Kasir "${trimmedName}" berhasil ditambahkan`);
-      setForm(EMPTY_FORM);
+      toast.success(`Kasir "${data.name.trim()}" berhasil ditambahkan`);
+      reset();
       setShowForm(false);
       void fetchCashiers();
     } catch (err) {
@@ -109,7 +103,7 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
     } finally {
       setSubmitting(false);
     }
-  }
+  });
 
   // ── Deactivate ────────────────────────────────────────────────────────────
 
@@ -157,7 +151,7 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
           type="button"
           onClick={() => {
             setShowForm((v) => !v);
-            setForm(EMPTY_FORM);
+            reset();
           }}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-[8px] px-3.5 py-2 text-[13px] font-medium transition-colors',
@@ -183,31 +177,35 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
       {/* Inline Add Form */}
       {showForm && (
         <form
-          onSubmit={(e) => void handleAdd(e)}
+          onSubmit={handleAdd}
           className="border-b border-[#e2e6ec] bg-[#f8fafb] px-5 py-4"
         >
           <p className="mb-3 text-[12px] font-medium uppercase tracking-wide text-[#8a94a3]">
             Kasir Baru
           </p>
-          <div className="flex flex-wrap items-end gap-3">
+          {/* Stacked on mobile, inline on sm+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-end">
             {/* Name */}
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="cashier-name"
                 className="text-[12px] font-medium text-[#5a6675]"
               >
-                Nama
+                Nama <span className="text-red-500">*</span>
               </label>
               <input
                 id="cashier-name"
                 type="text"
                 placeholder="Contoh: Budi Santoso"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="h-9 w-52 rounded-[8px] border border-[#e2e6ec] bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:ring-2 focus:ring-[#0f6d5f]/30"
+                {...register('name')}
+                className={cn(
+                  'h-10 w-full rounded-[8px] border bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:ring-2 focus:ring-[#0f6d5f]/30',
+                  fieldBorder(!!errors.name, 'border-[#e2e6ec]'),
+                )}
                 disabled={submitting}
                 autoComplete="off"
               />
+              <FieldError>{errors.name?.message}</FieldError>
             </div>
 
             {/* PIN */}
@@ -216,7 +214,7 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
                 htmlFor="cashier-pin"
                 className="text-[12px] font-medium text-[#5a6675]"
               >
-                PIN (4–6 digit)
+                PIN (4–6 digit) <span className="text-red-500">*</span>
               </label>
               <input
                 id="cashier-pin"
@@ -224,21 +222,23 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
                 inputMode="numeric"
                 placeholder="••••"
                 maxLength={6}
-                value={form.pin}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))
-                }
-                className="h-9 w-32 rounded-[8px] border border-[#e2e6ec] bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:ring-2 focus:ring-[#0f6d5f]/30"
+                {...register('pin')}
+                onChange={(e) => setValue('pin', e.target.value.replace(/\D/g, ''), { shouldValidate: true })}
+                className={cn(
+                  'h-10 w-full sm:w-32 rounded-[8px] border bg-white px-3 text-[13px] text-[#182230] placeholder:text-[#b0b8c4] focus:outline-none focus:ring-2 focus:ring-[#0f6d5f]/30',
+                  fieldBorder(!!errors.pin, 'border-[#e2e6ec]'),
+                )}
                 disabled={submitting}
                 autoComplete="new-password"
               />
+              <FieldError>{errors.pin?.message}</FieldError>
             </div>
 
             {/* Submit */}
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-[#0f6d5f] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a5a4e] disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[8px] bg-[#0f6d5f] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#0a5a4e] disabled:opacity-60"
             >
               {submitting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -262,69 +262,78 @@ export default function CashierTab({ tenantId, branchId }: TabProps) {
           Belum ada kasir terdaftar untuk cabang ini.
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b border-[#e2e6ec] bg-[#f8fafb]">
-              <TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">
-                Nama
-              </TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">
-                Cabang
-              </TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">
-                Status
-              </TableHead>
-              <TableHead className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-[#e2e6ec] bg-[#f8fafb]">
+                  <TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">Nama</TableHead>
+                  <TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">Cabang</TableHead>
+                  <TableHead className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">Status</TableHead>
+                  <TableHead className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#8a94a3]">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cashiers.map((cashier) => (
+                  <TableRow key={cashier.id} className="border-b border-[#e2e6ec] last:border-0 hover:bg-[#f8fafb]">
+                    <TableCell className="px-5 py-3 text-[13px] font-medium text-[#182230]">{cashier.name}</TableCell>
+                    <TableCell className="px-5 py-3 text-[13px] text-[#5a6675]">Cabang ini</TableCell>
+                    <TableCell className="px-5 py-3">
+                      <span className={cn(
+                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium',
+                        cashier.isActive ? 'bg-[#e8f4f2] text-[#0f6d5f]' : 'bg-[#f5f6f8] text-[#8a94a3]',
+                      )}>
+                        {cashier.isActive ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-right">
+                      {cashier.isActive && (
+                        <button
+                          type="button"
+                          disabled={deactivating === cashier.id}
+                          onClick={() => void handleDeactivate(cashier)}
+                          className="inline-flex items-center gap-1.5 rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] text-[#e53e3e] transition-colors hover:bg-[#fff5f5] disabled:opacity-50"
+                        >
+                          {deactivating === cashier.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserX className="h-3 w-3" />}
+                          Nonaktifkan
+                        </button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile card list */}
+          <ul className="sm:hidden divide-y divide-[#e2e6ec] list-none m-0 p-0">
             {cashiers.map((cashier) => (
-              <TableRow
-                key={cashier.id}
-                className="border-b border-[#e2e6ec] last:border-0 hover:bg-[#f8fafb]"
-              >
-                <TableCell className="px-5 py-3 text-[13px] font-medium text-[#182230]">
-                  {cashier.name}
-                </TableCell>
-                <TableCell className="px-5 py-3 text-[13px] text-[#5a6675]">
-                  {/* User model has no branchId; shown from context */}
-                  Cabang ini
-                </TableCell>
-                <TableCell className="px-5 py-3">
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium',
-                      cashier.isActive
-                        ? 'bg-[#e8f4f2] text-[#0f6d5f]'
-                        : 'bg-[#f5f6f8] text-[#8a94a3]',
-                    )}
-                  >
+              <li key={cashier.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                <div className="min-w-0">
+                  <p className="m-0 text-[14px] font-medium text-[#182230] truncate">{cashier.name}</p>
+                  <span className={cn(
+                    'inline-flex items-center rounded-full mt-1 px-2 py-0.5 text-[11px] font-medium',
+                    cashier.isActive ? 'bg-[#e8f4f2] text-[#0f6d5f]' : 'bg-[#f5f6f8] text-[#8a94a3]',
+                  )}>
                     {cashier.isActive ? 'Aktif' : 'Nonaktif'}
                   </span>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-right">
-                  {cashier.isActive && (
-                    <button
-                      type="button"
-                      disabled={deactivating === cashier.id}
-                      onClick={() => void handleDeactivate(cashier)}
-                      className="inline-flex items-center gap-1.5 rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] text-[#e53e3e] transition-colors hover:bg-[#fff5f5] disabled:opacity-50"
-                    >
-                      {deactivating === cashier.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <UserX className="h-3 w-3" />
-                      )}
-                      Nonaktifkan
-                    </button>
-                  )}
-                </TableCell>
-              </TableRow>
+                </div>
+                {cashier.isActive && (
+                  <button
+                    type="button"
+                    disabled={deactivating === cashier.id}
+                    onClick={() => void handleDeactivate(cashier)}
+                    className="flex-none inline-flex items-center gap-1.5 rounded-[7px] border border-[#e2e6ec] px-3 py-1.5 text-[12px] text-[#e53e3e] transition-colors hover:bg-[#fff5f5] disabled:opacity-50"
+                  >
+                    {deactivating === cashier.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserX className="h-3 w-3" />}
+                    Nonaktifkan
+                  </button>
+                )}
+              </li>
             ))}
-          </TableBody>
-        </Table>
+          </ul>
+        </>
       )}
     </div>
   );

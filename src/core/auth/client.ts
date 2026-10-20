@@ -34,10 +34,36 @@ export function clearDeviceToken(): void {
   localStorage.removeItem(DEVICE_TOKEN_KEY)
 }
 
+export function clearSessionToken(): void {
+  if (!isBrowser()) return
+  localStorage.removeItem(SESSION_TOKEN_KEY)
+}
+
 export function clearAllTokens(): void {
   if (!isBrowser()) return
   localStorage.removeItem(DEVICE_TOKEN_KEY)
   localStorage.removeItem(SESSION_TOKEN_KEY)
+  clearTenantInfo()
+}
+
+export interface TenantInfo { tenantName: string; branchName: string }
+
+export function getTenantInfo(): TenantInfo | null {
+  if (!isBrowser()) return null
+  try {
+    const raw = localStorage.getItem('tenantInfo')
+    return raw ? JSON.parse(raw) as TenantInfo : null
+  } catch { return null }
+}
+
+export function setTenantInfo(info: TenantInfo): void {
+  if (!isBrowser()) return
+  localStorage.setItem('tenantInfo', JSON.stringify(info))
+}
+
+export function clearTenantInfo(): void {
+  if (!isBrowser()) return
+  localStorage.removeItem('tenantInfo')
 }
 
 export function isDeviceRegistered(): boolean {
