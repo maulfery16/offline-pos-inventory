@@ -2,7 +2,7 @@
   "name": "Kasir POS",
   "short_name": "Kasir",
   "description": "Sistem POS offline-first multi-cabang",
-  "start_url": "/kasir",
+  "start_url": "/masuk",
   "display": "standalone",
   "theme_color": "#0f6d5f",
   "background_color": "#ffffff",

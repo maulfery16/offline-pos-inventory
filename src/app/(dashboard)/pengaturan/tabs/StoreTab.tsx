@@ -9,8 +9,8 @@ import { computeDiff } from '@/shared/utils/diff';
 import { getAuthHeaders } from '@/core/auth/client';
 import { storeFormSchema } from '@/features/tenants/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
-import { fieldBorder } from '@/shared/components/forms/fieldBorder';
-import type { TabProps } from '../page';
+import type { TabProps } from '../types';
+import { Input } from '@/shared/components/ui/input';
 
 interface TenantInfo {
   id: string;
@@ -161,18 +161,12 @@ export default function StoreTab({ tenantId }: TabProps) {
             Nama Toko
             <span className="text-red-500">*</span>
           </label>
-          <input
+          <Input
             id="store-name"
             type="text"
             {...register('name')}
             placeholder="Masukkan nama toko"
-            className={cn(
-              'h-10 w-full rounded-[10px] border bg-white px-3',
-              'text-[13px] text-[#182230] placeholder:text-[#adb5c0]',
-              'outline-none transition-colors',
-              fieldBorder(!!errors.name, 'border-[#cbd2dc]'),
-              !errors.name && 'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
-            )}
+            fullWidth
           />
           <FieldError>{errors.name?.message}</FieldError>
         </div>
@@ -209,17 +203,12 @@ export default function StoreTab({ tenantId }: TabProps) {
             >
               Nomor Telepon
             </label>
-            <input
+            <Input
               id="store-phone"
               type="tel"
               {...register('phone')}
               placeholder="contoh: 021-1234567"
-              className={cn(
-                'h-10 w-full rounded-[10px] border border-[#cbd2dc] bg-white px-3',
-                'text-[13px] text-[#182230] placeholder:text-[#adb5c0]',
-                'outline-none transition-colors',
-                'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
-              )}
+              fullWidth
             />
           </div>
 
@@ -232,18 +221,12 @@ export default function StoreTab({ tenantId }: TabProps) {
               Email
               <span className="text-red-500">*</span>
             </label>
-            <input
+            <Input
               id="store-email"
               type="email"
               {...register('email')}
               placeholder="contoh: toko@email.com"
-              className={cn(
-                'h-10 w-full rounded-[10px] border bg-white px-3',
-                'text-[13px] text-[#182230] placeholder:text-[#adb5c0]',
-                'outline-none transition-colors',
-                fieldBorder(!!errors.email, 'border-[#cbd2dc]'),
-                !errors.email && 'focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10',
-              )}
+              fullWidth
             />
             <FieldError>{errors.email?.message}</FieldError>
           </div>

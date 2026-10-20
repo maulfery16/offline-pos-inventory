@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Store, Wifi, WifiOff, Eye, EyeOff, Check, ChevronDown, AlertCircle, CloudOff, Tablet } from 'lucide-react';
-import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders, setTenantInfo } from '@/core/auth/client';
+import { getDeviceToken, setSessionToken, setDeviceToken, getAuthHeaders, setTenantInfo, getTenantInfo } from '@/core/auth/client';
 import { usePendingSyncCount } from '@/core/sync/usePendingSyncCount';
 import { deviceRegistrationSchema, kasirLoginSchema, adminLoginSchema, type DeviceRegistrationForm, type AdminLoginForm } from '@/core/auth/schemas';
 import { FieldError } from '@/shared/components/forms/FieldError';
@@ -36,6 +36,9 @@ export default function MasukPage() {
 
   const [kasirList, setKasirList] = useState<{ value: string; label: string }[]>([]);
   const [deviceToken, setDeviceTokenState] = useState<string | null>(null);
+  const [storedTenantInfo, setStoredTenantInfo] = useState(() => getTenantInfo());
+  // Re-read tenant info after hydration (localStorage unavailable during SSR)
+  useEffect(() => { setStoredTenantInfo(getTenantInfo()); }, []);
   const [cabangOptions, setCabangOptions] = useState<{ value: string; label: string }[]>([
     { value: 'semua', label: 'Semua cabang (konsolidasi)' }, // default fallback
   ]);
@@ -344,7 +347,7 @@ export default function MasukPage() {
             <span className="grid place-items-center w-[38px] h-[38px] rounded-[10px] bg-[#0f6d5f] text-white">
               <Store className="w-[22px] h-[22px]" />
             </span>
-            <span>Toko Lintas Cabang</span>
+            <span>{storedTenantInfo?.tenantName ?? 'Kasir POS'}</span>
           </div>
 
           {/* Device registration gate — shown when no device token is stored */}
@@ -633,8 +636,8 @@ export default function MasukPage() {
                     />
                     <span>Ingat perangkat ini selama 30 hari</span>
                   </label>
-                  {watchAdmin('rememberDevice') && (
-                    <p className="m-0 text-xs text-[#5a6675]">Perangkat terakhir dikenali: iPad Kasir — Toko Pusat (12 Jun 2025).</p>
+                  {watchAdmin('rememberDevice') && storedTenantInfo && (
+                    <p className="m-0 text-xs text-[#5a6675]">Perangkat terdaftar di cabang {storedTenantInfo.branchName}.</p>
                   )}
                 </div>
               </div>
@@ -694,9 +697,11 @@ export default function MasukPage() {
           </div>
 
           {/* Branch + version — ambient info relocated from the removed brand panel. */}
-          <p className="m-0 text-center text-xs text-[#5a6675]">
-            Cabang aktif: Toko Pusat — Jakarta Selatan · Versi 2.4.1
-          </p>
+          {storedTenantInfo && (
+            <p className="m-0 text-center text-xs text-[#5a6675]">
+              {storedTenantInfo.branchName}
+            </p>
+          )}
         </div>
     </div>
   );

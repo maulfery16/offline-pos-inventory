@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/shared/utils';
-import type { TabProps } from '../page';
+import type { TabProps } from '../types';
 import { getAuthHeaders } from '@/core/auth/client';
 
 // ---------------------------------------------------------------------------
