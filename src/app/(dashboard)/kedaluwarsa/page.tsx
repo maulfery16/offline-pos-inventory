@@ -63,7 +63,7 @@ export default function KedaluwarsaPage() {
   }, [rawBatches]);
 
   const bucketDefs = [
-    { key: 'expired', label: 'Sudah kedaluwarsa', tone: 'danger', test: (d: number) => d <= 0 },
+    { key: 'expired', label: 'Kedaluwarsa', tone: 'danger', test: (d: number) => d <= 0 },
     { key: '7', label: '≤7 hari', tone: 'danger', test: (d: number) => d > 0 && d <= 7 },
     { key: '14', label: '8–14 hari', tone: 'warn', test: (d: number) => d > 7 && d <= 14 },
     { key: '30', label: '15–30 hari', tone: 'warn', test: (d: number) => d > 14 && d <= 30 },

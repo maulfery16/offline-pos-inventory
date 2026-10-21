@@ -5,7 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  ScanBarcode, Plus, Info, CircleAlert, TriangleAlert, CircleCheck,
+  ScanBarcode, Info, CircleAlert, TriangleAlert, CircleCheck,
   Trash2, ChevronDown, ChevronUp, ReceiptText,
   AlertTriangle, Clock,
 } from 'lucide-react';
@@ -99,25 +99,16 @@ export default function BarangMasukPage() {
   const [rowSeq, setRowSeq] = useState(1);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
 
-  const [supplierOptions, setSupplierOptions] = useState<{ value: string; label: string }[]>([]);
   const [warehouseOptions, setWarehouseOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    fetch('/api/suppliers')
+    fetch('/api/branches', { headers: getAuthHeaders() })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((data: Array<{ id: string; name: string }>) => {
-        setSupplierOptions(data.map(s => ({ value: s.name, label: s.name })));
+      .then((json: { data: Array<{ id: string; name: string }> }) => {
+        setWarehouseOptions((json.data ?? []).map(b => ({ value: b.name, label: b.name })));
       })
       .catch(() => {
-        setSupplierOptions([{ value: 'Supplier Lainnya', label: 'Supplier Lainnya' }]);
-      });
-    fetch('/api/branches')
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((data: Array<{ id: string; name: string }>) => {
-        setWarehouseOptions(data.map(b => ({ value: b.name, label: b.name })));
-      })
-      .catch(() => {
-        setWarehouseOptions([{ value: 'Gudang Utama', label: 'Gudang Utama' }]);
+        setWarehouseOptions([]);
       });
   }, []);
 
@@ -134,26 +125,62 @@ export default function BarangMasukPage() {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const sku = scanInput.trim();
+    if (!sku) return;
+
+    // Helper: add line from a product record
+    const addLine = (name: string, unit: string, defaultPrice = 0) => {
+      const idx = linesMeta.findIndex(m => m.sku === sku);
+      if (idx !== -1) {
+        toast.info(`SKU ${sku} sudah ada di baris ${idx + 1}. Ubah qty langsung di baris.`);
+        setScanInput('');
+        return;
+      }
+      append({ qty: 1, cost: defaultPrice, margin: 20, batch: `B${new Date().getFullYear()}-${String(rowSeq).padStart(3, '0')}`, expiry: '' });
+      setLinesMeta(prev => [...prev, { sku, name, unit: unit || 'pcs', perishable: true }]);
+      setRowSeq(prev => prev + 1);
+      setScanInput('');
+    };
+
+    // 1. Try WatermelonDB (local, fast) first
     if (db) {
       try {
         const Q = await import('@nozbe/watermelondb').then(m => m.Q);
         const products = await db.collections.get('products').query(Q.where('sku', sku)).fetch();
         if (products.length > 0) {
           const p = products[0] as any;
-          const idx = linesMeta.findIndex(m => m.sku === sku);
-          if (idx !== -1) {
-            toast.info(`SKU ${sku} sudah ada di baris ${idx + 1}. Ubah qty langsung di baris.`);
-          } else {
-            append({ qty: 1, cost: 0, margin: 20, batch: `B${new Date().getFullYear()}-${String(rowSeq).padStart(3, '0')}`, expiry: '' });
-            setLinesMeta(prev => [...prev, { sku, name: p.name as string, unit: (p.unit as string) || 'pcs', perishable: true }]);
-            setRowSeq(prev => prev + 1);
-          }
-          setScanInput('');
+          addLine(p.name as string, p.unit as string, Number(p.defaultPrice) || 0);
           return;
         }
-      } catch { /* fall through */ }
+      } catch (error){
+        console.log('Error while fetching products from WatermelonDB: ', error)
+      }
     }
-    toast.error(<span>Produk tidak ditemukan. <a href="/produk" className="underline font-semibold">Tambahkan di menu Produk</a></span>);
+
+    // 2. Fallback: query backend API (covers cases where WatermelonDB not yet synced)
+    try {
+      const res = await fetch(`/api/products?search=${encodeURIComponent(sku)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const json = await res.json() as { data: Array<{ id: string; sku: string; name: string; unit?: string; defaultPrice?: number }> };
+        const match = (json.data ?? []).find(p => p.sku === sku);
+        if (match) {
+          addLine(match.name, match.unit ?? 'pcs', match.defaultPrice ?? 0);
+          return;
+        }
+      }
+    } catch (error){
+      console.log('Error while fetching products from API: ', error)
+    }
+
+    toast.error(
+      <span>
+        Produk tidak ditemukan.{' '}
+        <a href="/pengaturan/produk" className="underline font-semibold">
+          Tambahkan di Pengaturan
+        </a>
+      </span>
+    );
     setScanInput('');
   }, [scanInput, linesMeta, rowSeq, append, db]);
 
@@ -313,55 +340,63 @@ export default function BarangMasukPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_minmax(272px,308px)] gap-6 items-start pb-28 min-[900px]:pb-0">
+      {/*
+       * Layout:
+       *   < xl  (< 1280px): single column, sticky bottom action bar
+       *   ≥ xl  (≥ 1280px): two-column — main content + fixed-width sidebar
+       *
+       * The sidebar was previously shown at ≥ 900px which collided with the
+       * RetailShell sidebar (also 900px breakpoint), causing overflow/wrap.
+       * Moving it to xl (1280px) gives the layout enough room.
+       */}
+      <div className="xl:grid xl:grid-cols-[1fr_288px] xl:gap-6 xl:items-start pb-28 xl:pb-0">
 
-        {/* ── Stats row ───────────────────────────────────────────────────────── */}
-        {/* Mobile: 2-col (operational stats front, document meta hidden); sm+: 4-col */}
-        <section className="col-span-full grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* Priority 1 on mobile: lines + units in progress */}
-          <div className="p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
-            <span className="text-xs text-[#5a6675]">Baris &amp; unit</span>
-            <p className="m-0 mt-1 text-lg font-bold tabular-nums">{fields.length} baris</p>
-            <span className="text-xs text-[#5a6675]">{totalUnits} unit diterima</span>
-          </div>
-          {/* Priority 2 on mobile: running cost */}
-          <div className="p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
-            <span className="text-xs text-[#5a6675]">Total HPP</span>
-            <p className="m-0 mt-1 text-lg font-bold tabular-nums">{rupiah(totalCost)}</p>
-            <span className="text-xs text-[#5a6675]">Dasar COGS FEFO</span>
-          </div>
-          {/* Secondary on mobile — hidden at xs, shown sm+ */}
-          <div className="hidden sm:block p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
-            <span className="text-xs text-[#5a6675]">Nomor penerimaan</span>
-            <p className="m-0 mt-1 text-[15px] font-bold tabular-nums">GR-2026-0418</p>
-            <span className="text-xs text-[#5a6675]">Draft · belum diposting</span>
-          </div>
-          <div className="hidden sm:block p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
-            <span className="text-xs text-[#5a6675]">Supplier</span>
-            <p className="m-0 mt-1 text-[15px] font-bold truncate">{watch('supplier') || '—'}</p>
-            <span className="text-xs text-[#5a6675]">Kontrak s/d 30 Jun</span>
-          </div>
-        </section>
+        {/* ── Main column ─────────────────────────────────────────────────────── */}
+        <div className="grid gap-5 min-w-0">
 
-        {/* ── Main content ────────────────────────────────────────────────────── */}
-        <div className="grid gap-6 min-w-0">
-
-          {/* Document details ─────────────────────────────────────────────────── */}
-          <section className="bg-white border border-[#e2e6ec] rounded-[14px] min-w-0">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-5 border-b border-[#e2e6ec]">
-              <h2 className="m-0 text-[15px] font-semibold">Detail dokumen</h2>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e8eef7] text-[#12507f]">Batch &amp; kedaluwarsa wajib</span>
+          {/* ── Stats strip — live session counters ─────────────────────────── */}
+          <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
+              <span className="text-xs text-[#5a6675]">Baris</span>
+              <p className="m-0 mt-0.5 text-[18px] font-bold tabular-nums leading-tight">{fields.length}</p>
+              <span className="text-xs text-[#5a6675]">{totalUnits} unit</span>
             </div>
-            {/* 1-col on mobile · 2-col on sm · 4-col on lg */}
-            <div className="p-4 lg:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
+              <span className="text-xs text-[#5a6675]">Total HPP</span>
+              <p className="m-0 mt-0.5 text-[18px] font-bold tabular-nums leading-tight">{rupiah(totalCost)}</p>
+              <span className="text-xs text-[#5a6675]">COGS FEFO</span>
+            </div>
+            <div className="hidden sm:block p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
+              <span className="text-xs text-[#5a6675]">Supplier</span>
+              <p className="m-0 mt-0.5 text-[15px] font-bold truncate leading-tight">{watch('supplier') || <span className="text-[#8a94a3] font-normal">—</span>}</p>
+              <span className="text-xs text-[#5a6675]">Dari form</span>
+            </div>
+            <div className="hidden sm:block p-4 border border-[#e2e6ec] rounded-[10px] bg-white">
+              <span className="text-xs text-[#5a6675]">Gudang tujuan</span>
+              <p className="m-0 mt-0.5 text-[15px] font-bold truncate leading-tight">{watch('warehouse') || <span className="text-[#8a94a3] font-normal">—</span>}</p>
+              <span className="text-xs text-[#5a6675]">Dari form</span>
+            </div>
+          </section>
+
+          {/* ── Document details ────────────────────────────────────────────── */}
+          <section className="bg-white border border-[#e2e6ec] rounded-[14px] min-w-0">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#e2e6ec]">
+              <h2 className="m-0 text-[15px] font-semibold">Detail dokumen</h2>
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e8eef7] text-[#12507f]">
+                Batch &amp; kedaluwarsa wajib
+              </span>
+            </div>
+            {/* 1-col mobile → 2-col sm → 4-col lg */}
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="grid gap-1.5">
                 <label htmlFor="supplier" className="text-xs font-medium text-[#5a6675]">Supplier</label>
-                <div className="relative">
-                  <select id="supplier" {...register('supplier')} className={inputCls(!!errors.supplier, 'appearance-none pr-10 cursor-pointer')}>
-                    {supplierOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675]" />
-                </div>
+                <input
+                  id="supplier"
+                  type="text"
+                  placeholder="Nama supplier…"
+                  {...register('supplier')}
+                  className={inputCls(!!errors.supplier)}
+                />
                 <FieldError>{errors.supplier?.message}</FieldError>
               </div>
               <div className="grid gap-1.5">
@@ -378,6 +413,7 @@ export default function BarangMasukPage() {
                 <label htmlFor="warehouse" className="text-xs font-medium text-[#5a6675]">Gudang tujuan</label>
                 <div className="relative">
                   <select id="warehouse" {...register('warehouse')} className={inputCls(!!errors.warehouse, 'appearance-none pr-10 cursor-pointer')}>
+                    <option value="">Pilih gudang…</option>
                     {warehouseOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a6675]" />
@@ -387,174 +423,178 @@ export default function BarangMasukPage() {
             </div>
           </section>
 
-          {/* Receiving lines ──────────────────────────────────────────────────── */}
+          {/* ── Receiving lines ─────────────────────────────────────────────── */}
           <section className="bg-white border border-[#e2e6ec] rounded-[14px] min-w-0">
-            {/* Section header */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-5 border-b border-[#e2e6ec]">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#e2e6ec]">
               <h2 className="m-0 text-[15px] font-semibold">Baris penerimaan</h2>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => document.getElementById('scan-input')?.focus()}
-                  className="flex items-center gap-1.5 min-h-[40px] px-3 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
-                  aria-label="Pindai barcode"
-                >
-                  <ScanBarcode className="w-4 h-4 flex-none" />
-                  <span className="hidden sm:inline">Pindai</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => document.getElementById('scan-input')?.focus()}
-                  className="flex items-center gap-1.5 min-h-[40px] px-3 text-[13px] font-semibold bg-white border border-[#cbd2dc] rounded-[10px] hover:border-[#0f6d5f] cursor-pointer"
-                  aria-label="Tambah baris manual"
-                >
-                  <Plus className="w-4 h-4 flex-none" />
-                  <span className="hidden sm:inline">Baris manual</span>
-                </button>
-              </div>
+              {fields.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e8eef7] text-[#12507f] tabular-nums">
+                  {fields.length} baris
+                </span>
+              )}
             </div>
 
-            <div className="p-4 lg:p-5 grid gap-5 min-w-0 overflow-hidden">
-              {/* Scan input */}
-              <div className="grid gap-1.5 min-w-0">
-                <label htmlFor="scan-input" className="text-xs font-medium text-[#5a6675]">Pindai / ketik SKU</label>
-                <input
-                  id="scan-input"
-                  type="search"
-                  value={scanInput}
-                  onChange={e => setScanInput(e.target.value)}
-                  onKeyDown={handleScan}
-                  placeholder="Ketik atau pindai barcode, lalu Enter…"
-                  className="w-full min-h-[44px] px-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10"
-                />
+            <div className="p-4 grid gap-4 min-w-0">
+              {/* ── Scan input — primary action, leads the section ── */}
+              <div className="grid gap-1.5">
+                <label htmlFor="scan-input" className="text-xs font-medium text-[#5a6675]">
+                  Pindai atau ketik SKU
+                </label>
+                <div className="relative">
+                  <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8a94a3]" />
+                  <input
+                    id="scan-input"
+                    type="search"
+                    value={scanInput}
+                    onChange={e => setScanInput(e.target.value)}
+                    onKeyDown={handleScan}
+                    placeholder="Ketik atau pindai barcode, lalu Enter…"
+                    className="w-full min-h-[44px] pl-9 pr-3 text-[15px] border border-[#cbd2dc] rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10"
+                  />
+                </div>
               </div>
 
-              {/* Line cards */}
-              <ul className="grid gap-4 list-none m-0 p-0 min-w-0">
-                {fields.map((field, index) => {
-                  const status     = getLineStatus(index);
-                  const meta       = linesMeta[index];
-                  const watched    = watchedLines[index];
-                  const sellPrice  = (Number(watched?.cost) || 0) * (1 + (Number(watched?.margin) || 0) / 100);
-                  const lineCost   = (Number(watched?.qty)  || 0) * (Number(watched?.cost) || 0);
-                  const lineErrors = errors.lines?.[index];
-                  const isDanger   = status.level === 'danger';
+              {/* ── Empty state ── */}
+              {fields.length === 0 && (
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <div className="grid place-items-center w-12 h-12 rounded-full bg-[#f2f4f7] text-[#8a94a3]">
+                    <ScanBarcode className="w-5 h-5" />
+                  </div>
+                  <p className="m-0 text-[14px] font-medium text-[#182230]">Belum ada barang</p>
+                  <p className="m-0 text-xs text-[#8a94a3] max-w-[240px]">
+                    Pindai atau ketik SKU di atas lalu tekan Enter untuk menambah baris.
+                  </p>
+                </div>
+              )}
 
-                  return (
-                    <li
-                      key={field.id}
-                      className={cn(
-                        'grid gap-4 p-4 border rounded-[14px] min-w-0',
-                        isDanger ? 'border-[#e8b4ae] bg-[#fff9f8]' : 'border-[#e2e6ec] bg-white',
-                      )}
-                    >
-                      {/* ── Product identity + status ── */}
-                      <div className="flex items-center justify-between gap-3 min-w-0">
-                        <div className="min-w-0 flex-1">
-                          <p className="m-0 text-[15px] font-semibold leading-tight truncate">{meta?.name ?? '—'}</p>
-                          <p className="m-0 mt-0.5 text-xs text-[#5a6675] font-mono">{meta?.sku} · {meta?.unit}</p>
+              {/* ── Line cards ── */}
+              {fields.length > 0 && (
+                <ul className="grid gap-3 list-none m-0 p-0 min-w-0">
+                  {fields.map((field, index) => {
+                    const status     = getLineStatus(index);
+                    const meta       = linesMeta[index];
+                    const watched    = watchedLines[index];
+                    const sellPrice  = (Number(watched?.cost) || 0) * (1 + (Number(watched?.margin) || 0) / 100);
+                    const lineCost   = (Number(watched?.qty)  || 0) * (Number(watched?.cost) || 0);
+                    const lineErrors = errors.lines?.[index];
+                    const isDanger   = status.level === 'danger';
+
+                    return (
+                      <li
+                        key={field.id}
+                        className={cn(
+                          'grid gap-3 p-4 border rounded-[14px] min-w-0',
+                          isDanger ? 'border-[#e8b4ae] bg-[#fff9f8]' : 'border-[#e2e6ec] bg-[#f7f8fa]',
+                        )}
+                      >
+                        {/* ── Identity + status + delete ── */}
+                        <div className="flex items-start justify-between gap-3 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="m-0 text-[15px] font-semibold leading-tight truncate">{meta?.name ?? '—'}</p>
+                            <p className="m-0 mt-0.5 text-xs text-[#5a6675] font-mono">{meta?.sku} · {meta?.unit}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <StatusBadge level={status.level} text={status.text} />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLine(index)}
+                              className="grid place-items-center w-8 h-8 text-[#a52b22] hover:bg-[#fbe8e5] rounded-[8px] cursor-pointer transition-colors"
+                              aria-label={`Hapus ${meta?.name ?? 'baris'}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <StatusBadge level={status.level} text={status.text} />
-                      </div>
 
-                      {/* ── Row 1: Qty + HPP (core numbers) ── */}
-                      <div className="grid grid-cols-2 gap-3">
+                        {/* ── Inputs: 2-col on all widths inside the card ── */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="grid gap-1">
+                            <label className="text-xs font-medium text-[#5a6675]" htmlFor={`qty-${field.id}`}>Qty</label>
+                            <input
+                              id={`qty-${field.id}`}
+                              type="number"
+                              min={1}
+                              {...register(`lines.${index}.qty`)}
+                              className={fieldInputCls(!!lineErrors?.qty)}
+                            />
+                            <FieldError>{lineErrors?.qty?.message}</FieldError>
+                          </div>
+                          <div className="grid gap-1">
+                            <label className="text-xs font-medium text-[#5a6675]" htmlFor={`cost-${field.id}`}>HPP / unit (Rp)</label>
+                            <input
+                              id={`cost-${field.id}`}
+                              type="number"
+                              min={0}
+                              step={100}
+                              {...register(`lines.${index}.cost`)}
+                              className={fieldInputCls(!!lineErrors?.cost)}
+                            />
+                            <FieldError>{lineErrors?.cost?.message}</FieldError>
+                          </div>
+                          <div className="grid gap-1">
+                            <label className="text-xs font-medium text-[#5a6675]" htmlFor={`margin-${field.id}`}>Margin %</label>
+                            <input
+                              id={`margin-${field.id}`}
+                              type="number"
+                              min={0}
+                              {...register(`lines.${index}.margin`)}
+                              className={fieldInputCls(!!lineErrors?.margin)}
+                            />
+                            <FieldError>{lineErrors?.margin?.message}</FieldError>
+                          </div>
+                          <div className="grid gap-1">
+                            <label className="text-xs font-medium text-[#5a6675]" htmlFor={`batch-${field.id}`}>No. batch</label>
+                            <input
+                              id={`batch-${field.id}`}
+                              type="text"
+                              {...register(`lines.${index}.batch`)}
+                              className={cn('w-full min-h-[44px] px-3 text-[14px] border rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10', fieldBorder(!!lineErrors?.batch, 'border-[#cbd2dc]'))}
+                            />
+                            <FieldError>{lineErrors?.batch?.message}</FieldError>
+                          </div>
+                        </div>
+
+                        {/* ── Expiry — full width ── */}
                         <div className="grid gap-1">
-                          <label className="text-xs font-medium text-[#5a6675]" htmlFor={`qty-${field.id}`}>Qty</label>
+                          <label className="text-xs font-medium text-[#5a6675]" htmlFor={`expiry-${field.id}`}>
+                            Tanggal kedaluwarsa
+                            {meta?.perishable
+                              ? <span className="ml-1 text-[#a52b22]">*</span>
+                              : <span className="ml-1 text-[#8a94a3]">(opsional)</span>
+                            }
+                          </label>
                           <input
-                            id={`qty-${field.id}`}
-                            type="number"
-                            min={1}
-                            {...register(`lines.${index}.qty`)}
-                            className={fieldInputCls(!!lineErrors?.qty)}
+                            id={`expiry-${field.id}`}
+                            type="date"
+                            {...register(`lines.${index}.expiry`)}
+                            className={cn('w-full min-h-[44px] px-3 text-[15px] border rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10', fieldBorder(!!lineErrors?.expiry, 'border-[#cbd2dc]'))}
                           />
-                          <FieldError>{lineErrors?.qty?.message}</FieldError>
+                          <FieldError>{lineErrors?.expiry?.message}</FieldError>
                         </div>
-                        <div className="grid gap-1">
-                          <label className="text-xs font-medium text-[#5a6675]" htmlFor={`cost-${field.id}`}>HPP / unit (Rp)</label>
-                          <input
-                            id={`cost-${field.id}`}
-                            type="number"
-                            min={0}
-                            step={100}
-                            {...register(`lines.${index}.cost`)}
-                            className={fieldInputCls(!!lineErrors?.cost)}
-                          />
-                          <FieldError>{lineErrors?.cost?.message}</FieldError>
-                        </div>
-                      </div>
 
-                      {/* ── Row 2: Margin + Batch ── */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-1">
-                          <label className="text-xs font-medium text-[#5a6675]" htmlFor={`margin-${field.id}`}>Margin %</label>
-                          <input
-                            id={`margin-${field.id}`}
-                            type="number"
-                            min={0}
-                            {...register(`lines.${index}.margin`)}
-                            className={fieldInputCls(!!lineErrors?.margin)}
-                          />
-                          <FieldError>{lineErrors?.margin?.message}</FieldError>
-                        </div>
-                        <div className="grid gap-1">
-                          <label className="text-xs font-medium text-[#5a6675]" htmlFor={`batch-${field.id}`}>No. batch</label>
-                          <input
-                            id={`batch-${field.id}`}
-                            type="text"
-                            {...register(`lines.${index}.batch`)}
-                            className={cn('w-full min-h-[44px] px-3 text-[14px] border rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10', fieldBorder(!!lineErrors?.batch, 'border-[#cbd2dc]'))}
-                          />
-                          <FieldError>{lineErrors?.batch?.message}</FieldError>
-                        </div>
-                      </div>
-
-                      {/* ── Row 3: Expiry (full-width) ── */}
-                      <div className="grid gap-1">
-                        <label className="text-xs font-medium text-[#5a6675]" htmlFor={`expiry-${field.id}`}>
-                          Tanggal kedaluwarsa{meta?.perishable ? <span className="ml-1 text-[#a52b22]">*</span> : <span className="ml-1 text-[#8a94a3]">(opsional)</span>}
-                        </label>
-                        <input
-                          id={`expiry-${field.id}`}
-                          type="date"
-                          {...register(`lines.${index}.expiry`)}
-                          className={cn('w-full min-h-[44px] px-3 text-[15px] border rounded-[10px] bg-white focus:outline-none focus:border-[#0f6d5f] focus:ring-2 focus:ring-[#0f6d5f]/10', fieldBorder(!!lineErrors?.expiry, 'border-[#cbd2dc]'))}
-                        />
-                        <FieldError>{lineErrors?.expiry?.message}</FieldError>
-                      </div>
-
-                      {/* ── Derived + delete ── */}
-                      <div className="flex items-stretch gap-2 pt-1 border-t border-[#e2e6ec]">
-                        {/* Stacked derived values — full width, no truncation */}
-                        <div className="flex-1 rounded-[8px] bg-[#f7f8fa] border border-dashed border-[#e2e6ec] divide-y divide-[#e2e6ec] overflow-hidden">
-                          <div className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+                        {/* ── Derived totals strip ── */}
+                        <div className="rounded-[10px] overflow-hidden border border-[#e2e6ec] bg-[#e2e6ec]">
+                          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white text-[13px]">
                             <span className="text-[#5a6675]">Harga jual</span>
                             <strong className="tabular-nums text-[#182230]">{rupiah(sellPrice)}</strong>
                           </div>
-                          <div className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+                          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white text-[13px]">
                             <span className="text-[#5a6675]">Subtotal HPP</span>
                             <strong className="tabular-nums text-[#182230]">{rupiah(lineCost)}</strong>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveLine(index)}
-                          className="flex-none w-9 self-center flex items-center justify-center text-[#a52b22] hover:bg-[#fbe8e5] rounded-[8px] cursor-pointer transition-colors h-9"
-                          aria-label={`Hapus ${meta?.name ?? 'baris'}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </section>
         </div>
 
-        {/* ── Desktop sidebar ─────────────────────────────────────────────────── */}
-        <aside className="hidden xl:grid gap-4 content-start">
+        {/* ── Sidebar — only at xl (≥ 1280px) ────────────────────────────────── */}
+        <aside className="hidden xl:grid gap-4 content-start sticky top-[76px]">
           <SidebarContent />
           <button
             type="button"
@@ -567,8 +607,8 @@ export default function BarangMasukPage() {
         </aside>
       </div>
 
-      {/* ── Mobile sticky bottom bar ─────────────────────────────────────────── */}
-      <div className="min-[900px]:hidden fixed bottom-0 inset-x-0 z-30">
+      {/* ── Bottom action bar — below xl ─────────────────────────────────────── */}
+      <div className="xl:hidden fixed bottom-0 left-0 min-[900px]:left-[248px] right-0 z-30">
         {showMobileSummary && (
           <div className="bg-white border-t border-[#e2e6ec] max-h-[60vh] overflow-y-auto">
             <div className="p-4 grid gap-4">
@@ -590,8 +630,10 @@ export default function BarangMasukPage() {
                 <p className="m-0 text-xs text-[#5a6675]">{fields.length} baris · {totalUnits} unit</p>
                 <p className="m-0 text-[13px] font-semibold tabular-nums text-[#182230]">
                   {rupiah(totalCost)}
-                  {incompleteCount > 0 && <span className="ml-2 text-xs font-normal text-[#a52b22]">{incompleteCount} belum lengkap</span>}
                 </p>
+                {incompleteCount > 0 && (
+                  <span className="text-xs font-normal text-[#a52b22]">{incompleteCount} belum lengkap</span>
+                )}
               </div>
             </div>
             {showMobileSummary
@@ -614,9 +656,9 @@ export default function BarangMasukPage() {
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
         <DialogContent className="w-[min(520px,92vw)] max-w-none gap-0 p-0 bg-white border border-[#e2e6ec] rounded-[14px] shadow-none">
           <div className="p-5 grid gap-3">
-            <DialogTitle className="m-0 text-lg font-bold">Penerimaan tersimpan ke antrean stok</DialogTitle>
+            <DialogTitle className="m-0 text-lg font-bold">Konfirmasi penerimaan barang</DialogTitle>
             <DialogDescription className="m-0 text-[13px] text-[#5a6675]">
-              Dokumen <strong>GR-2026-0418</strong> disimpan lokal dan dikirim ke cloud saat koneksi tersedia.
+              Data akan disimpan dan dikirim ke cloud saat koneksi tersedia.
             </DialogDescription>
             <ul className="grid gap-2 list-none m-0 p-0 text-[13px]">
               {[
