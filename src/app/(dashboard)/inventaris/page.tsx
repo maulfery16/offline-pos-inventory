@@ -123,6 +123,14 @@ export default function InventarisPage() {
   const lowItems = items.filter(isLow);
   const varianceItems = items.filter((item) => getVariance(item) !== 0);
 
+  // ── Derived KPIs ─────────────────────────────────────────────────────────
+  // Total inventory value = sum of (available qty × cost) across all active batches
+  const totalInventoryValue = batches
+    .filter(b => !b.isBlocked)
+    .reduce((sum, b) => sum + Math.max(0, b.currentQty) * (b.unitCost ?? 0), 0);
+
+  const rupiah = (v: number) => 'Rp' + Math.round(v).toLocaleString('id-ID');
+
   const counts = {
     all: items.length,
     low: items.filter(isLow).length,
@@ -147,18 +155,22 @@ export default function InventarisPage() {
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Nilai persediaan (HPP)</span>
-          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">Rp284.750.000</p>
-          <span className="text-xs text-[#5a6675]">{items.length} SKU aktif · 8 batch baru minggu ini</span>
+          <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{rupiah(totalInventoryValue)}</p>
+          <span className="text-xs text-[#5a6675]">{items.length} SKU aktif</span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">SKU di bawah reorder point</span>
           <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{counts.low}</p>
-          <span className="text-xs text-[#8a5300]">Perlu pesan ulang dalam 2 hari</span>
+          <span className={cn('text-xs', counts.low > 0 ? 'text-[#8a5300]' : 'text-[#5a6675]')}>
+            {counts.low > 0 ? 'Perlu pesan ulang segera' : 'Semua SKU aman'}
+          </span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Kedaluwarsa ≤30 hari</span>
           <p className="m-0 mt-1 text-2xl font-bold tabular-nums">{counts.expiry} batch</p>
-          <span className="text-xs text-[#a52b22]">Nilai HPP berisiko Rp4.180.000</span>
+          <span className={cn('text-xs', counts.expiry > 0 ? 'text-[#a52b22]' : 'text-[#5a6675]')}>
+            {counts.expiry > 0 ? 'Cek halaman Kedaluwarsa' : 'Tidak ada batch berisiko'}
+          </span>
         </div>
         <div className="p-4 border border-[#e2e6ec] rounded-[14px] bg-white">
           <span className="text-xs text-[#5a6675]">Selisih opname terakhir</span>
